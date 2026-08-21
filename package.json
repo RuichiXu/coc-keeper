@@ -1,0 +1,32 @@
+{
+  "name": "@dsh-external/dsh-coc-keeper",
+  "description": "克苏鲁的呼唤 (CoC) 跑团主持人插件：规则/剧本/人物导入（含 PDF）、明骰/暗骰、AI KP 与随时接替、关键剧情点与分支跟踪、分支提醒、酒馆式完整前端面板",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "dependencies": {
+    "pdf-parse": "^2.4.5"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-llm": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "license": "MIT"
+}
