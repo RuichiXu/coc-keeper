@@ -87,20 +87,27 @@ try {
   check("/coc-api/status 返回 200", false, `不可访问（${error.message}）。请先启动 dsh web 后重试本脚本`);
 }
 
-// ── 4. 状态文件 core 字段 ─────────────────────────────────
+// ── 4. 状态文件 core 字段（新布局 games/） ─────────────────
 console.log("\n[4] 状态文件与 core 持久化");
 if (!existsSync(COC_DIR)) {
   check(`数据目录存在（${COC_DIR}）`, false, "目录不存在（尚未跑过团？）");
 } else {
-  const files = readdirSync(COC_DIR)
-    .filter((f) => f.endsWith(".json") && f !== "config.json")
-    .map((f) => join(COC_DIR, f))
-    .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
+  const gamesDir = join(COC_DIR, "games");
+  const legacyFiles = readdirSync(COC_DIR).filter((f) => f.endsWith(".json") && f !== "config.json");
+  if (legacyFiles.length > 0) {
+    console.log(`  ! 根目录仍有 ${legacyFiles.length} 个旧布局文件（${legacyFiles.join(", ")}）；重启 dsh web 后会自动迁移到 games/ + assets/`);
+  }
+  const files = existsSync(gamesDir)
+    ? readdirSync(gamesDir)
+        .filter((f) => f.endsWith(".json"))
+        .map((f) => join(gamesDir, f))
+        .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)
+    : [];
 
-  check(`数据目录存在（${COC_DIR}）`, true, `${files.length} 个游戏状态文件（排除 config.json）`);
+  check(`数据目录存在（${COC_DIR}）`, true, `games/ 下 ${files.length} 个场次文件`);
   const recent = files.slice(0, 3);
   if (recent.length === 0) {
-    check("至少有一个游戏状态文件", false, "请先通过面板或工具跑一次团");
+    check("至少有一个场次文件", false, "请先重启 dsh web 触发旧数据迁移，或通过面板/工具跑一次团");
   } else {
     for (const file of recent) {
       try {
@@ -120,8 +127,13 @@ if (!existsSync(COC_DIR)) {
             sameScene && sameChars,
             `scene=${flat.currentScene ?? ""}, chars=${flat.characters?.length ?? 0}/${flat.core.world.characters?.length ?? 0}`
           );
+          check(
+            `  scenarioId 引用`,
+            typeof flat.scenarioId === "string" || flat.scenarioId === null,
+            `${flat.scenarioId ?? "无剧本"}`
+          );
         } else {
-          console.log(`  ! ${name} 无 core 字段（旧存档；重启 dsh web 后首次加载会自动迁移，或跑一次任意工具触发迁移）`);
+          console.log(`  ! ${name} 无 core 字段（旧存档；重启 dsh web 后首次加载会自动补写）`);
         }
       } catch (error) {
         check(`${file.split("/").pop()} 可解析`, false, error.message);

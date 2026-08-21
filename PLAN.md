@@ -140,8 +140,33 @@
 | 5 | Trigger Engine + ContextBuilder + Knowledge 分层 |
 | 6 | Director / Narrator + 规则域 Skills |
 | 7 | Narrative Recovery + Ending Reachability + Game Clock 定时事件 |
+| 8 | 全局资产库 + 场次分离 + 前端拆分（Player / Keeper Console） |
+
+### Step 8 已完成 ✅（全局资产库 + 场次分离 + 前端拆分）
+
+| 事项 | 状态 |
+|---|---|
+| `lib/core/assets/asset-store.js`：scenarios/investigators/entities 全局资产库（模板） | ✅ |
+| `GameSession.scenarioId`：场次引用全局剧本资产 | ✅ |
+| 数据布局迁移：`dataDir/games/<id>.json` + `dataDir/assets/**`，旧根目录文件自动迁移 | ✅ |
+| 删除剧本级联删除引用场次（`POST /coc-api/scenario-delete`） | ✅ |
+| 场次列表/创建/删除（`GET /coc-api/games`、`game-create`、`game-delete`） | ✅ |
+| 资产实例化 copy-on-write（`POST /coc-api/assets` instantiate） | ✅ |
+| 玩家视图（`GET /coc-api/player-view`，按 player 知识层过滤） | ✅ |
+| KP 自然语言指令（`POST /coc-api/kp-command`：预览 → 确认执行） | ✅ |
+| 规则开关 `Config.autoImportBuiltinRules`（默认 true） | ✅ |
+| 前端拆分：Player Panel（用户视图）+ Keeper Console（主持/剧情/调试 3 tab） | ✅ |
+| 新增集成测试：games/scenario-delete/assets instantiate；asset-store 单测 | ✅ |
+| 全套测试 31 文件通过；selftest 通过；dsh web 启动验证通过（迁移成功） | ✅ |
 
 ### 待办 📋
+
+| 事项 | 状态 |
+|---|---|
+| **真实端到端测试（重启 dsh web 后验证双面板/工具/Skills/聊天桥全链路）** | ⏳ 待用户配合执行 |
+| 前端调试 tab 状态 JSON 查看器（可后续加） | ⏳ 观察 |
+| Session Trace 完整记录 | 🔄 持续补充 |
+| 测试体系建设 | 🔄 持续补充 |
 
 | 事项 | 状态 |
 |---|---|

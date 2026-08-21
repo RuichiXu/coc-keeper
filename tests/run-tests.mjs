@@ -40,6 +40,7 @@ const TESTS = {
     "unit/clock-scheduler.test.mjs",
     "unit/reachability.test.mjs",
     "unit/recovery.test.mjs",
+    "unit/asset-store.test.mjs",
   ],
   integration: [
     "integration/rule-event-state.test.mjs",

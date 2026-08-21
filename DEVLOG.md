@@ -589,3 +589,42 @@ data: {"ok":true,"data":{...},"render":"已导入…"}
 
 ### 下一步
 - 真实 E2E 测试（重启 dsh web 全链路验证）
+
+---
+
+## Session（2026-08-21）：Step 8 全局资产库 + 场次分离 + 前端拆分
+
+### 完成的工作
+
+#### 1. 全局资产库（✅）
+- `lib/core/assets/asset-store.js`：scenarios/investigators/entities 模板资产库
+- `GameSession.scenarioId`：场次引用全局剧本资产
+- 资产语义：模板永不修改；实例化 = copy-on-write
+
+#### 2. 数据布局迁移（✅）
+- `~/.dsh/coc/games/<id>.json` + `~/.dsh/coc/assets/**`
+- 启动自动迁移旧根目录 `*.json` → games/ + assets/
+- legacy 的 stateFile 同步改到 games/
+
+#### 3. API 扩展（✅）
+- `GET /coc-api/games` / `POST /coc-api/game-create` / `POST /coc-api/game-delete`
+- `POST /coc-api/scenario-delete`：删除剧本并级联删除引用场次
+- `POST /coc-api/assets`：list / instantiate（copy-on-write）
+- `GET /coc-api/player-view`：按 player 知识层过滤的玩家视图
+- `POST /coc-api/kp-command`：自然语言 → LLM 结构化工具调用（预览 → 确认执行）
+
+#### 4. 规则开关（✅）
+- `Config.autoImportBuiltinRules`（默认 true），false 时不再自动导入内置规则
+
+#### 5. 前端拆分（✅）
+- Player Panel：当前场景/时间、调查员状态、当前场景实体、最近动态、行动输入
+- Keeper Console：主持（聊天 + KP 指令）/ 剧情（状态+剧情图）/ 调试（导入·实体·设置）
+- header 游戏场次下拉 + 新建按钮
+
+#### 6. 验证（✅）
+- 新增 asset-store 单测（5 用例）；coc-api 集成测试新增 games/级联删除/实例化
+- 全套测试 31 文件通过；selftest 通过
+- dsh web 启动验证：旧数据迁移成功、新 API 正常
+
+### 下一步
+- 真实 E2E：重启 dsh web 后验证双面板/工具/Skills/聊天桥全链路

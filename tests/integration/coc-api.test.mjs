@@ -7,7 +7,7 @@
  * - POST /coc-api/roll 走 adapter 新工具并写入 core 持久化
  */
 import { describe, it, expect, mockRandom } from "../runner.js";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { EventEmitter } from "node:events";
@@ -156,9 +156,77 @@ describe("/coc-api 集成", () => {
     expect(json.data.rolled).toBe(51);
     expect(json.data.tier).toBe("regular");
 
-    const flat = JSON.parse(readFileSync(join(dir, "g1.json"), "utf8"));
+    const flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
     expect(flat.rollHistory).toHaveLength(1);
     expect(flat.core.world.rollHistory).toHaveLength(1);
+  });
+
+  it("games 列表 / 创建 / 删除", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "games"), { recursive: true });
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    const created = await handle(handler, createFakeReq("POST", "/coc-api/game-create", { game: "g2" }), createFakeRes());
+    expect(created.ok).toBeTrue();
+
+    const list = await handle(handler, createFakeReq("GET", "/coc-api/games"), createFakeRes());
+    expect(list.ok).toBeTrue();
+    expect(list.data.map((g) => g.id)).toContain("g2");
+
+    const deleted = await handle(handler, createFakeReq("POST", "/coc-api/game-delete", { game: "g2" }), createFakeRes());
+    expect(deleted.ok).toBeTrue();
+    expect(existsSync(join(dir, "games", "g2.json"))).toBeFalse();
+  });
+
+  it("scenario-delete 级联删除引用场次", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "games"), { recursive: true });
+    mkdirSync(join(dir, "assets", "scenarios"), { recursive: true });
+    writeFileSync(join(dir, "assets", "scenarios", "sc-x.json"), JSON.stringify({ id: "sc-x", kind: "scenarios", name: "测试剧本", text: "..." }));
+    writeFileSync(join(dir, "games", "linked.json"), JSON.stringify({ id: "linked", title: "关联场次", updatedAt: new Date().toISOString(), kpMode: "ai", rules: null, scenario: null, scenarioId: "sc-x", characters: [], keyPoints: [], branches: [], currentScene: "", currentBranchId: "", time: "", synopsis: "", tasks: [], entities: [], log: [], toolTrace: [], rollHistory: [], reminders: [], busy: false }));
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    const json = await handle(handler, createFakeReq("POST", "/coc-api/scenario-delete", { scenarioId: "sc-x" }), createFakeRes());
+    expect(json.ok).toBeTrue();
+    expect(json.data.deletedGames).toContain("linked");
+    expect(existsSync(join(dir, "assets", "scenarios", "sc-x.json"))).toBeFalse();
+    expect(existsSync(join(dir, "games", "linked.json"))).toBeFalse();
+  });
+
+  it("assets instantiate 复制通用卡到游戏内（copy-on-write）", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "assets", "investigators"), { recursive: true });
+    writeFileSync(join(dir, "assets", "investigators", "inv-pc.json"), JSON.stringify({ id: "inv-pc", kind: "investigators", name: "李四", occupation: "医生", stats: {}, skills: {}, inventory: ["急救包"] }));
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    const json = await handle(handler, createFakeReq("POST", "/coc-api/assets", { kind: "investigators", action: "instantiate", assetId: "inv-pc", game: "g1" }), createFakeRes());
+    expect(json.ok).toBeTrue();
+    const flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
+    expect(flat.characters.some((c) => c.name === "李四")).toBeTrue();
+    // 原始资产未变
+    const asset = JSON.parse(readFileSync(join(dir, "assets", "investigators", "inv-pc.json"), "utf8"));
+    expect(asset.inventory).toHaveLength(1);
   });
 });
 

@@ -132,7 +132,7 @@ describe("Adapter 工具集成", () => {
     expect(result.tier).toBe("regular");
     expect(result.passed).toBeTrue();
 
-    const flat = JSON.parse(readFileSync(join(dir, "g1.json"), "utf8"));
+    const flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
     expect(flat.rollHistory).toHaveLength(1);
     expect(flat.core.world.rollHistory).toHaveLength(1);
     expect(flat.core.world.rollHistory[0].tier).toBe("regular");
@@ -164,7 +164,7 @@ describe("Adapter 工具集成", () => {
     expect(result.passed).toBeFalse();
     expect(result.sanLost).toBe(2);
 
-    const flat = JSON.parse(readFileSync(join(dir, "g1.json"), "utf8"));
+    const flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
     expect(flat.characters[0].san).toBe(58);
     expect(flat.core.world.characters[0].san).toBe(58);
   });
