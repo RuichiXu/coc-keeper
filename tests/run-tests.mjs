@@ -48,6 +48,7 @@ const TESTS = {
     "integration/scenario-init.test.mjs",
     "integration/adapter-tools.test.mjs",
     "integration/coc-api.test.mjs",
+    "integration/shared-chat.test.mjs",
   ],
   scenarios: [
     "scenarios/normal-investigation.test.mjs",
