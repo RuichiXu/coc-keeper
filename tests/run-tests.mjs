@@ -50,6 +50,7 @@ const TESTS = {
     "integration/coc-api.test.mjs",
     "integration/shared-chat.test.mjs",
     "integration/shared-import.test.mjs",
+    "integration/import-parity.test.mjs",
   ],
   scenarios: [
     "scenarios/normal-investigation.test.mjs",
