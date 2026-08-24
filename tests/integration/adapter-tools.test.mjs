@@ -168,6 +168,33 @@ describe("Adapter 工具集成", () => {
     expect(flat.characters[0].san).toBe(58);
     expect(flat.core.world.characters[0].san).toBe(58);
   });
+
+  it("coc_entity reveal 写入玩家认知字段且不覆盖 KP 底牌", async () => {
+    const mock = createMockCtx();
+    const dir = mkdtempSync(join(tmpdir(), "coc-adapter-"));
+    apply(mock.ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+
+    const entityTool = mock.registered.get("coc_entity");
+    await entityTool.execute(
+      { action: "add", game: "g1", entity: { name: "克罗斯", type: "npc", desc: "被夏拉卡拉布侵蚀的作家", state: "虚弱" } },
+      {}
+    );
+    const result = await entityTool.execute(
+      { action: "reveal", game: "g1", entityId: "ent-1", playerDesc: "一位憔悴的作家", playerState: "友好" },
+      {}
+    );
+
+    const entity = result.entities[0];
+    expect(entity.revealed).toBeTrue();
+    expect(entity.playerDesc).toBe("一位憔悴的作家");
+    expect(entity.playerState).toBe("友好");
+    expect(entity.desc).toBe("被夏拉卡拉布侵蚀的作家");
+    expect(entity.state).toBe("虚弱");
+
+    const flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
+    expect(flat.entities[0].playerDesc).toBe("一位憔悴的作家");
+    expect(flat.entities[0].desc).toBe("被夏拉卡拉布侵蚀的作家");
+  });
 });
 
 // 直接运行

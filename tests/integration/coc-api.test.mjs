@@ -207,7 +207,7 @@ describe("/coc-api 集成", () => {
     expect(existsSync(join(dir, "games", "linked.json"))).toBeFalse();
   });
 
-  it("player-view 仅返回已揭示实体并清理模组元叙事", async () => {
+  it("player-view 仅返回已揭示实体且只输出玩家认知字段", async () => {
     const ctx = new Context();
     const tools = new TestTools(ctx);
     const systemPrompt = new TestSystemPrompt(ctx);
@@ -218,8 +218,8 @@ describe("/coc-api 集成", () => {
       id: "g1", title: "g1", updatedAt: new Date().toISOString(), kpMode: "ai", rules: null, scenario: null, scenarioId: null,
       characters: [], keyPoints: [], branches: [], currentScene: "", currentBranchId: "", time: "", synopsis: "", tasks: [],
       entities: [
-        { id: "e1", type: "location", name: "墨渊", desc: "活化的黑色深渊", scene: "", revealed: false },
-        { id: "e2", type: "location", name: "沃什宅邸", desc: "维多利亚式三层老宅，是模组主要探索场景。", scene: "", revealed: true },
+        { id: "e1", type: "location", name: "墨渊", desc: "活化的黑色深渊", scene: "", revealed: false, playerDesc: "", playerState: "" },
+        { id: "e2", type: "location", name: "沃什宅邸", desc: "维多利亚式三层老宅，是模组主要探索场景。", scene: "", revealed: true, playerDesc: "你们来到一栋被铁栅栏围住的三层老宅前", playerState: "已抵达" },
       ],
       log: [], toolTrace: [], rollHistory: [], reminders: [], busy: false,
     }));
@@ -232,7 +232,9 @@ describe("/coc-api 集成", () => {
     expect(json.ok).toBeTrue();
     expect(json.data.entities).toHaveLength(1);
     expect(json.data.entities[0].id).toBe("e2");
+    expect(json.data.entities[0].desc).toBe("你们来到一栋被铁栅栏围住的三层老宅前");
     expect(json.data.entities[0].desc).notToContain("模组");
+    expect(json.data.entities[0].state).toBe("已抵达");
   });
 
   it("assets instantiate 复制通用卡到游戏内（copy-on-write）", async () => {

@@ -23,8 +23,9 @@ const state = {
   characters: [{ name: "张三", hp: 11, san: 60, mp: 12, luck: 55, inventory: [] }],
   tasks: [],
   entities: [
-    { id: "e1", type: "npc", name: "隐藏NPC", scene: "密室", desc: "秘密", revealed: false },
-    { id: "e2", type: "item", name: "古书", scene: "书房", desc: "一本旧书，是模组主要探索场景的线索", revealed: true },
+    { id: "e1", type: "npc", name: "隐藏NPC", scene: "密室", desc: "秘密", revealed: false, playerDesc: "", playerState: "" },
+    { id: "e2", type: "item", name: "古书", scene: "书房", desc: "一本旧书，是模组主要探索场景的线索", revealed: true, playerDesc: "一本旧书，封面有奇怪符号", playerState: "已发现" },
+    { id: "e3", type: "location", name: "空认知地点", scene: "", desc: "底牌描述", revealed: true, playerDesc: "", playerState: "" },
   ],
   keyPoints: [
     { id: "kp1", title: "已揭示", desc: "发现古书，需要过SAN check", revealed: true },
@@ -47,7 +48,7 @@ describe("Knowledge 分层", () => {
     expect(view.recentRolls).toHaveLength(2);
     expect(view.keyPoints).toHaveLength(2);
     expect(view.branches).toHaveLength(2);
-    expect(view.entities).toHaveLength(2);
+    expect(view.entities).toHaveLength(3);
     expect(view.reminders).toHaveLength(1);
   });
 
@@ -62,11 +63,17 @@ describe("Knowledge 分层", () => {
     expect(view.reminders).toHaveLength(0);
   });
 
-  it("player 层只显示 KP 已揭示的实体，并清理模组元叙事", () => {
+  it("player 层只显示 KP 已揭示实体，且只输出玩家认知字段（不回退到底牌）", () => {
     const view = buildKnowledgeView(state, KNOWLEDGE_LAYERS.PLAYER);
-    expect(view.entities).toHaveLength(1);
-    expect(view.entities[0].id).toBe("e2");
-    expect(view.entities[0].desc).notToContain("模组");
+    expect(view.entities).toHaveLength(2);
+    const e2 = view.entities.find((e) => e.id === "e2");
+    const e3 = view.entities.find((e) => e.id === "e3");
+    expect(e2.desc).toBe("一本旧书，封面有奇怪符号");
+    expect(e2.state).toBe("已发现");
+    expect(e2.desc).notToContain("模组");
+    // 没有 playerDesc 时 desc 为空，绝不回退到 KP 底牌描述
+    expect(e3.desc).toBe("");
+    expect(e3.desc).notToContain("底牌描述");
   });
 
   it("player 层关键点描述清理 GM 用语", () => {
@@ -78,8 +85,8 @@ describe("Knowledge 分层", () => {
 
   it("public 层只保留已揭示实体名称", () => {
     const view = buildKnowledgeView(state, KNOWLEDGE_LAYERS.PUBLIC);
-    expect(view.entities).toHaveLength(1);
-    expect(view.entities[0].id).toBe("e2");
+    expect(view.entities).toHaveLength(2);
+    expect(view.entities.some((e) => e.id === "e1")).toBeFalse();
     expect(view.entities[0].desc).toBeUndefined();
     expect(view.keyPoints).toHaveLength(1);
     expect(view.keyPoints[0].revealed).toBeTrue();
