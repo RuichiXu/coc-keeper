@@ -28,5 +28,11 @@
     "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
     "@deepseek-ai/schemastery": "^3.18.1"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
+  },
+  "scripts": {
+    "ui-check": "node tests/ui-check.mjs"
+  }
 }

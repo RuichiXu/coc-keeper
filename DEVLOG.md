@@ -644,3 +644,19 @@ data: {"ok":true,"data":{...},"render":"已导入…"}
 
 ### 验证
 - 全套测试 31 文件通过；selftest 通过；dsh web 启动验证通过（内置卡入库、game-setup 正常）。
+
+---
+
+## Session（2026-08-24 下午）：Step 10 导入/向导修复 + UI 冒烟检查
+
+### 修复
+1. **“确定性解析未识别”误报**：legacy-index.js 内的旧 parseCharacters/normalizeCharacter 未升级。改为委托 `core/index.js` 的增强版（档案式 docx 可直接确定性解析）。
+2. **剧本资产 upsert**：coc_import wrapper 原来 `session.scenarioId === null` 才保存资产，导致重复导入不更新/不建卡；现在无条件 upsert。
+3. **卡库页（全局资产库）**：调试 tab 新增「卡库」，独立于场次管理剧本/调查员/实体资产（查看/删除/加入当前场次/开新场次）。
+4. **向导交互**：step1 剧本列表可刷新、卡库可预选剧本打开向导；step2 玩家调查员改为显式“加入/移除”按钮 + AI 调查员下拉。
+5. **assets delete 路由**：`action=delete`（剧本级联删除引用场次）。
+
+### 测试
+- 新增 `tests/ui-check.mjs`（Playwright + dsh web 真实启动），`npm run ui-check`。
+- 13/13 通过：面板挂载、调试 5 个子按钮切换、向导三步（含 AI 下拉）、玩家面板挂载。
+- 全套 31 文件通过；selftest 通过。
