@@ -628,3 +628,19 @@ data: {"ok":true,"data":{...},"render":"已导入…"}
 
 ### 下一步
 - 真实 E2E：重启 dsh web 后验证双面板/工具/Skills/聊天桥全链路
+
+---
+
+## Session（2026-08-24）：Step 9 人物卡解析增强 + 场次向导
+
+### 完成
+1. **人物卡解析增强**：`character-parser.js` 支持档案式 docx（中英文字段标签、属性标签行+数值行、技能段、技能三列/技能名+数值行）；`legacy-index.js` 人物导入增加 LLM 兜底（确定性解析无属性数值时触发）。
+2. **人物展示**：调试页新增「人物」子页（HP/SAN/MP/LUCK 快速更新、属性、物品）；玩家视图显示调查员卡详情。
+3. **玩家视图扩展**：`player-view` 新增 knownClues、log 分页（after/limit），前端「最近 20 条 + 加载更多」。
+4. **场次创建向导**：前端三步向导（场次名+剧本 → 调查员多选（含 AI 调查员）→ 确认）；后端 `POST /coc-api/game-setup`（编译剧本结构 + copy-on-write 实例化角色 + LLM 开场白，失败回退模板）。
+5. **内置 AI 调查员卡**：艾伦·卡特/格蕾丝·周/汤姆·米勒（完整参数，aiControlled 标记），启动时幂等入库。
+6. **导入反馈修复**：导入成功结果框保留，不再被调试页重建清掉。
+7. assets list 为剧本附加 recommendedPlayers（正则提取，缺省 2-4 人）。
+
+### 验证
+- 全套测试 31 文件通过；selftest 通过；dsh web 启动验证通过（内置卡入库、game-setup 正常）。
