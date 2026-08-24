@@ -136,6 +136,9 @@ describe("Adapter 工具集成", () => {
     expect(flat.rollHistory).toHaveLength(1);
     expect(flat.core.world.rollHistory).toHaveLength(1);
     expect(flat.core.world.rollHistory[0].tier).toBe("regular");
+    expect(flat.log).toHaveLength(1);
+    expect(flat.log[0].kind).toBe("roll");
+    expect(flat.log[0].text).toContain("🎲【明骰】");
   });
 
   it("coc_sanity_check 走 Core：SAN 写入 WorldState 与 flat 投影", async () => {
