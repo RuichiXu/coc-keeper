@@ -8,6 +8,7 @@ import {
   filterKeyPoints,
   filterBranches,
   filterEntities,
+  sanitizeMetaText,
   buildKnowledgeView,
 } from "../../lib/core/index.js";
 
@@ -22,12 +23,12 @@ const state = {
   characters: [{ name: "张三", hp: 11, san: 60, mp: 12, luck: 55, inventory: [] }],
   tasks: [],
   entities: [
-    { id: "e1", type: "npc", name: "隐藏NPC", scene: "密室", desc: "秘密" },
-    { id: "e2", type: "item", name: "古书", scene: "书房", desc: "书" },
+    { id: "e1", type: "npc", name: "隐藏NPC", scene: "密室", desc: "秘密", revealed: false },
+    { id: "e2", type: "item", name: "古书", scene: "书房", desc: "一本旧书，是模组主要探索场景的线索", revealed: true },
   ],
   keyPoints: [
-    { id: "kp1", title: "已揭示", revealed: true },
-    { id: "kp2", title: "未揭示", revealed: false },
+    { id: "kp1", title: "已揭示", desc: "发现古书，需要过SAN check", revealed: true },
+    { id: "kp2", title: "未揭示", desc: "密室真相", revealed: false },
   ],
   branches: [
     { id: "b1", title: "已抵达", reached: true },
@@ -61,19 +62,34 @@ describe("Knowledge 分层", () => {
     expect(view.reminders).toHaveLength(0);
   });
 
-  it("player 层只显示当前场景实体", () => {
+  it("player 层只显示 KP 已揭示的实体，并清理模组元叙事", () => {
     const view = buildKnowledgeView(state, KNOWLEDGE_LAYERS.PLAYER);
     expect(view.entities).toHaveLength(1);
     expect(view.entities[0].id).toBe("e2");
+    expect(view.entities[0].desc).notToContain("模组");
   });
 
-  it("public 层实体只保留名称", () => {
+  it("player 层关键点描述清理 GM 用语", () => {
+    const view = buildKnowledgeView(state, KNOWLEDGE_LAYERS.PLAYER);
+    expect(view.keyPoints).toHaveLength(1);
+    expect(view.keyPoints[0].id).toBe("kp1");
+    expect(view.keyPoints[0].desc).notToContain("SAN");
+  });
+
+  it("public 层只保留已揭示实体名称", () => {
     const view = buildKnowledgeView(state, KNOWLEDGE_LAYERS.PUBLIC);
-    expect(view.entities).toHaveLength(2);
+    expect(view.entities).toHaveLength(1);
+    expect(view.entities[0].id).toBe("e2");
     expect(view.entities[0].desc).toBeUndefined();
     expect(view.keyPoints).toHaveLength(1);
     expect(view.keyPoints[0].revealed).toBeTrue();
     expect(view.branches).toHaveLength(0);
+  });
+
+  it("sanitizeMetaText 清理模组元叙事与 GM 指令", () => {
+    expect(sanitizeMetaText("维多利亚式三层老宅，被铁栅栏围住，是模组主要探索场景。")).toBe("维多利亚式三层老宅，被铁栅栏围住");
+    expect(sanitizeMetaText("地面铺满厚地毯，墨渊藏于地毯之下。")).toBe("地面铺满厚地毯，墨渊藏于地毯之下");
+    expect(sanitizeMetaText("掀开地毯后，需要过SAN check。")).toBe("掀开地毯后");
   });
 
   it("filterRolls 限制条数", () => {

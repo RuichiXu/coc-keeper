@@ -152,6 +152,24 @@ try {
     check(`子按钮「${label}」有反应`, style.display === "block" && style.text > 0, `display=${style.display}, 文本长度=${style.text}`);
   }
 
+  // 3b. 实体行揭示/隐藏按钮（本次更新对应按钮）
+  {
+    const entsTab = page.locator("#coc-keeper-panel button", { hasText: "实体" }).first();
+    if (await entsTab.count() > 0) {
+      await entsTab.click();
+      await sleep(450);
+      const entityItem = page.locator('#coc-keeper-panel [data-subpanel="ents"] .coc-kp-item').first();
+      if (await entityItem.count() > 0) {
+        const revealBtn = entityItem.locator("button", { hasText: /揭示|隐藏/ }).first();
+        check("实体行揭示/隐藏按钮存在", await revealBtn.count() > 0);
+      } else {
+        check("实体行揭示/隐藏按钮存在（无实体跳过）", true, "当前场次无实体");
+      }
+    } else {
+      check("实体行揭示/隐藏按钮存在（无实体跳过）", true, "未找到实体 tab");
+    }
+  }
+
   // 4. 新建场次向导
   const newBtn = page.locator("#coc-keeper-panel button", { hasText: "＋" }).first();
   if (await newBtn.count() === 0) {

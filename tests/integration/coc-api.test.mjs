@@ -207,6 +207,34 @@ describe("/coc-api 集成", () => {
     expect(existsSync(join(dir, "games", "linked.json"))).toBeFalse();
   });
 
+  it("player-view 仅返回已揭示实体并清理模组元叙事", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "games"), { recursive: true });
+    writeFileSync(join(dir, "games", "g1.json"), JSON.stringify({
+      id: "g1", title: "g1", updatedAt: new Date().toISOString(), kpMode: "ai", rules: null, scenario: null, scenarioId: null,
+      characters: [], keyPoints: [], branches: [], currentScene: "", currentBranchId: "", time: "", synopsis: "", tasks: [],
+      entities: [
+        { id: "e1", type: "location", name: "墨渊", desc: "活化的黑色深渊", scene: "", revealed: false },
+        { id: "e2", type: "location", name: "沃什宅邸", desc: "维多利亚式三层老宅，是模组主要探索场景。", scene: "", revealed: true },
+      ],
+      log: [], toolTrace: [], rollHistory: [], reminders: [], busy: false,
+    }));
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    const json = await handle(handler, createFakeReq("GET", "/coc-api/player-view?game=g1"), createFakeRes());
+    expect(json.ok).toBeTrue();
+    expect(json.data.entities).toHaveLength(1);
+    expect(json.data.entities[0].id).toBe("e2");
+    expect(json.data.entities[0].desc).notToContain("模组");
+  });
+
   it("assets instantiate 复制通用卡到游戏内（copy-on-write）", async () => {
     const ctx = new Context();
     const tools = new TestTools(ctx);
