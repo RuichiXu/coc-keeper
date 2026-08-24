@@ -103,3 +103,25 @@ AI：→ coc_kp(action=human)
 - 双面插件：`lib/index.js` 为宿主端（13 个工具 + 提示词/上下文 + `/coc-api` 路由 + KP 聊天桥）；`lib/client.js` 为浏览器端自包含 bundle（`window.__ModuleLoader__.load` 注册，纯 DOM + fetch，无裸导入，无需前端构建管线）。
 - 依赖：`pdf-parse`（PDF 文本提取）；peer 依赖 `@deepseek-ai/dsh-tools`、`@deepseek-ai/dsh-llm`、`@deepseek-ai/schemastery`、`@deepseek-ai/cordis` 由运行环境提供。
 - `tests/selftest.mjs` 用模拟 ctx 自测全部工具逻辑；`/coc-api`（含聊天桥与真实 LLM 调用、暗骰纪律、骰点持久化）已在真实启动的 web profile 上端到端验证。
+
+## 独立网页版 + Cloudflare Tunnel
+
+不安装 DSH 也可以直接运行同一套工具、主持循环和前端面板：
+
+```sh
+cd standalone
+npm install
+COC_ACCESS_PASSWORD='换成强口令' npm run server
+```
+
+浏览器打开 <http://127.0.0.1:3000>。要复用 DSH 的场次、资产和 LLM
+配置，使用：
+
+```sh
+COC_DATA_DIR=$HOME/.dsh/coc COC_ACCESS_PASSWORD='换成强口令' npm run server
+```
+
+服务器运行后，可在另一个终端执行 `npm run tunnel`，将 Cloudflare 输出的
+`https://xxxx.trycloudflare.com` 分享给好友。免费 Quick Tunnel 地址会变化，
+电脑关机或进程退出即停止；对外开放前必须更改默认口令。更多说明见
+`standalone/README.md`。

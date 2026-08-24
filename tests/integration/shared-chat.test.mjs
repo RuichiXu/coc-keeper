@@ -1,7 +1,7 @@
 /**
  * Shared 聊天桥集成测试：不依赖 DSH 服务。
  */
-import { mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, mockRandom } from "../runner.js";
@@ -45,7 +45,7 @@ describe("Shared 聊天桥", () => {
               difficulty: "regular",
               player: "张三",
               label: "侦查",
-              game: "g1",
+              game: "other-game",
             }),
           }],
           finish: { kind: "complete" },
@@ -72,6 +72,9 @@ describe("Shared 聊天桥", () => {
     expect(flat.log[1].text).toContain("🎲【明骰】");
     expect(flat.toolTrace).toHaveLength(1);
     expect(flat.busy).toBeFalse();
+    expect(
+      existsSync(join(dataDir, "games", "other-game.json"))
+    ).toBeFalse();
   });
 });
 

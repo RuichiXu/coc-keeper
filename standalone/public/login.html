@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 · CoC Keeper</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #151318; color: #eee; font: 16px system-ui, sans-serif; }
+    form { width: min(360px, calc(100vw - 48px)); padding: 28px; border: 1px solid #4b4252; border-radius: 14px; background: #211d25; box-shadow: 0 16px 50px #0008; }
+    h1 { margin: 0 0 20px; font-size: 22px; }
+    input, button { box-sizing: border-box; width: 100%; padding: 12px; border-radius: 8px; font: inherit; }
+    input { border: 1px solid #665b70; color: #fff; background: #151318; }
+    button { margin-top: 12px; border: 0; color: #fff; background: #7b486e; cursor: pointer; }
+    #error { min-height: 1.4em; margin-top: 12px; color: #ff9f9f; }
+  </style>
+</head>
+<body>
+  <form id="login-form">
+    <h1>🎲 CoC Keeper</h1>
+    <input id="password" type="password" autocomplete="current-password" placeholder="访问口令" required autofocus>
+    <button type="submit">进入</button>
+    <div id="error" role="alert"></div>
+  </form>
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async function (event) {
+      event.preventDefault();
+      var error = document.getElementById("error");
+      error.textContent = "";
+      var response = await fetch("/coc-api/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: document.getElementById("password").value })
+      });
+      if (response.ok) location.href = "/";
+      else error.textContent = "访问口令错误";
+    });
+  </script>
+</body>
+</html>
