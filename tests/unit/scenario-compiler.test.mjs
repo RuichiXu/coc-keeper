@@ -4,6 +4,7 @@
 import { describe, it, expect } from "../runner.js";
 import {
   compileByPattern,
+  extractStoryIntro,
   buildAiParsePrompt,
   parseAiResult,
   toLegacyFormat,
@@ -86,6 +87,39 @@ describe("Scenario Compiler", () => {
       expect(legacy.keyPoints).toHaveLength(1);
       expect(legacy.branches).toHaveLength(1);
       expect(legacy.entities).toHaveLength(2); // NPC + 物品
+    });
+  });
+
+  describe("extractStoryIntro", () => {
+    it("提取开始冒险后的导入片段，并在下一章节标题前停止", () => {
+      const text = [
+        "版权页",
+        "开始冒险",
+        "来自侄女的委托：",
+        "调查员从自己的住处醒来，窗外是阿卡姆镇阴沉的星期二早晨。",
+        "如果调查员与艾茜·沃什相识，门铃会由她亲自按响。",
+        "调查员若是收到艾茜的委托信，信件内容如下：",
+        "尊敬的（调查员的名字）：",
+        "我是艾茜·沃什。",
+        "调查员若是艾茜的旧识，她会亲自登门并补充：",
+        "实际上，这三个月间……",
+        "惴惴不安的宅邸主人：",
+        "沃什宅邸位于阿卡姆镇边缘……",
+      ].join("\n");
+      const intro = extractStoryIntro(text);
+      expect(intro).toContain("调查员从自己的住处醒来");
+      expect(intro).toContain("尊敬的（调查员的名字）");
+      expect(intro).notToContain("惴惴不安的宅邸主人");
+      expect(intro).notToContain("沃什宅邸位于");
+    });
+
+    it("没有锚点时退回故事起始句", () => {
+      const text = "调查员从自己的住处醒来，窗外是阿卡姆镇阴沉的星期二早晨。";
+      expect(extractStoryIntro(text)).toContain("调查员从自己的住处醒来");
+    });
+
+    it("无导入文本时返回空字符串", () => {
+      expect(extractStoryIntro("")).toBe("");
     });
   });
 });
