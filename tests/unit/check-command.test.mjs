@@ -56,23 +56,23 @@ describe("团检指令", () => {
   });
 
   describe("parseCheckRequests", () => {
-    it("提取单个团检", () => {
-      expect(parseCheckRequests("你侧耳倾听。【团检：聆听】")).toEqual([{ skill: "聆听", difficulty: "regular" }]);
+    it("提取单个团检（含动作选项）", () => {
+      expect(parseCheckRequests("你侧耳倾听。【团检：聆听】")).toEqual([{ skill: "聆听", difficulty: "regular", hint: "你侧耳倾听。" }]);
     });
     it("提取带难度的团检", () => {
-      expect(parseCheckRequests("屋顶边缘似乎有异样。[团检：侦查·困难]")).toEqual([{ skill: "侦查", difficulty: "hard" }]);
+      expect(parseCheckRequests("屋顶边缘似乎有异样。[团检：侦查·困难]")).toEqual([{ skill: "侦查", difficulty: "hard", hint: "屋顶边缘似乎有异样。" }]);
     });
-    it("支持半角方括号与去重", () => {
-      expect(parseCheckRequests("[团检：侦查] 再看一眼【团检：侦查】")).toEqual([{ skill: "侦查", difficulty: "regular" }]);
+    it("支持半角方括号与去重（保留动作选项）", () => {
+      expect(parseCheckRequests("[团检：侦查] 再看一眼【团检：侦查】")).toEqual([{ skill: "侦查", difficulty: "regular", hint: "再看一眼" }]);
     });
     it("无标记返回空数组", () => {
       expect(parseCheckRequests("周围很安静。")).toEqual([]);
     });
     it("解析非正式提示（需攀爬/敏捷）取已知技能", () => {
-      expect(parseCheckRequests("你翻出窗外，沿窄檐攀向屋顶小门（需攀爬/敏捷）")).toEqual([{ skill: "攀爬", difficulty: "regular" }]);
+      expect(parseCheckRequests("你翻出窗外，沿窄檐攀向屋顶小门（需攀爬/敏捷）")).toEqual([{ skill: "攀爬", difficulty: "regular", hint: "你翻出窗外，沿窄檐攀向屋顶小门" }]);
     });
     it("解析非正式提示（需锁匠）", () => {
-      expect(parseCheckRequests("取出工具撬锁（需锁匠）")).toEqual([{ skill: "锁匠", difficulty: "regular" }]);
+      expect(parseCheckRequests("取出工具撬锁（需锁匠）")).toEqual([{ skill: "锁匠", difficulty: "regular", hint: "取出工具撬锁" }]);
     });
   });
 
