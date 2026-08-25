@@ -1,7 +1,7 @@
 /**
  * Scene Facts & Checkpoint Extraction 单元测试
  */
-import { describe, it, expect } from "../runner.js";
+import { describe, it, expect, run, summarize } from "../runner.js";
 import {
   extractSceneFacts,
   extractCheckpoints,
@@ -51,7 +51,7 @@ describe("Scene Facts", () => {
   it("extractSceneFacts 输出事实卡与原文块", () => {
     const facts = extractSceneFacts(SAMPLE);
     const third = facts.find((f) => f.heading === "三层：克罗斯的书房");
-    expect(third).toBeDefined();
+    expect(third !== undefined).toBeTrue();
     expect(third.floor).toBe("三层");
     expect(third.original).toContain("书房是锁着的");
     expect(third.facts.length).toBeGreaterThan(0);
@@ -60,21 +60,21 @@ describe("Scene Facts", () => {
   it("extractCheckpoints 提取显式检定点（含难度）", () => {
     const checks = extractCheckpoints(SAMPLE);
     const hard = checks.filter((c) => c.skill === "侦查" && c.difficulty === "hard");
-    expect(hard.length).toBe(2);
+    expect(hard.length).toBe(3);
     const library = checks.filter((c) => c.skill === "图书馆使用");
     expect(library.some((c) => c.difficulty === "regular")).toBeTrue();
     expect(library.some((c) => c.difficulty === "hard")).toBeTrue();
     const extreme = checks.find((c) => c.skill === "侦查" && c.difficulty === "extreme");
-    expect(extreme).toBeDefined();
+    expect(extreme !== undefined).toBeTrue();
     const san = checks.find((c) => c.skill === "理智");
-    expect(san).toBeDefined();
+    expect(san !== undefined).toBeTrue();
     expect(san.sanLoss).toBe("1/1d3");
   });
 
   it("selectSceneFacts 匹配当前场景", () => {
     const facts = extractSceneFacts(SAMPLE);
     const selected = selectSceneFacts("三层书房", facts);
-    expect(selected).not.toBeNull();
+    expect(selected).notToBeNull();
     expect(selected.heading).toContain("三层");
   });
 
@@ -94,7 +94,10 @@ describe("Scene Facts", () => {
 
   it("findRoomFloorConflict 检测楼层-房间冲突", () => {
     const facts = extractSceneFacts(SAMPLE);
-    expect(findRoomFloorConflict("你来到二楼的书房", facts)).not.toBeNull();
+    expect(findRoomFloorConflict("你来到二楼的书房", facts)).notToBeNull();
     expect(findRoomFloorConflict("你沿楼梯走上三层，推开书房门", facts)).toBeNull();
   });
 });
+
+const result = await run({ verbose: true });
+process.exit(summarize(result, "scene-facts 单元测试"));

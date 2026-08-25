@@ -57,22 +57,32 @@ describe("团检指令", () => {
 
   describe("parseCheckRequests", () => {
     it("提取单个团检（含动作选项）", () => {
-      expect(parseCheckRequests("你侧耳倾听。【团检：聆听】")).toEqual([{ skill: "聆听", difficulty: "regular", hint: "你侧耳倾听。" }]);
+      expect(parseCheckRequests("你侧耳倾听。【团检：聆听】")).toEqual([{ skill: "聆听", difficulty: "regular", hint: "你侧耳倾听。", hints: ["你侧耳倾听。"] }]);
     });
     it("提取带难度的团检", () => {
-      expect(parseCheckRequests("屋顶边缘似乎有异样。[团检：侦查·困难]")).toEqual([{ skill: "侦查", difficulty: "hard", hint: "屋顶边缘似乎有异样。" }]);
+      expect(parseCheckRequests("屋顶边缘似乎有异样。[团检：侦查·困难]")).toEqual([{ skill: "侦查", difficulty: "hard", hint: "屋顶边缘似乎有异样。", hints: ["屋顶边缘似乎有异样。"] }]);
     });
     it("支持半角方括号与去重（保留动作选项）", () => {
-      expect(parseCheckRequests("[团检：侦查] 再看一眼【团检：侦查】")).toEqual([{ skill: "侦查", difficulty: "regular", hint: "再看一眼" }]);
+      expect(parseCheckRequests("[团检：侦查] 再看一眼【团检：侦查】")).toEqual([{ skill: "侦查", difficulty: "regular", hint: "再看一眼", hints: ["再看一眼"] }]);
+    });
+    it("同一技能对应多个动作选项时全部保留", () => {
+      expect(parseCheckRequests("- 翻出窗外，沿窄檐攀向屋顶小门（需攀爬）\n- 顺排水管爬上屋顶（需攀爬）")).toEqual([
+        {
+          skill: "攀爬",
+          difficulty: "regular",
+          hint: "翻出窗外，沿窄檐攀向屋顶小门",
+          hints: ["翻出窗外，沿窄檐攀向屋顶小门", "顺排水管爬上屋顶"],
+        },
+      ]);
     });
     it("无标记返回空数组", () => {
       expect(parseCheckRequests("周围很安静。")).toEqual([]);
     });
     it("解析非正式提示（需攀爬/敏捷）取已知技能", () => {
-      expect(parseCheckRequests("你翻出窗外，沿窄檐攀向屋顶小门（需攀爬/敏捷）")).toEqual([{ skill: "攀爬", difficulty: "regular", hint: "你翻出窗外，沿窄檐攀向屋顶小门" }]);
+      expect(parseCheckRequests("你翻出窗外，沿窄檐攀向屋顶小门（需攀爬/敏捷）")).toEqual([{ skill: "攀爬", difficulty: "regular", hint: "你翻出窗外，沿窄檐攀向屋顶小门", hints: ["你翻出窗外，沿窄檐攀向屋顶小门"] }]);
     });
     it("解析非正式提示（需锁匠）", () => {
-      expect(parseCheckRequests("取出工具撬锁（需锁匠）")).toEqual([{ skill: "锁匠", difficulty: "regular", hint: "取出工具撬锁" }]);
+      expect(parseCheckRequests("取出工具撬锁（需锁匠）")).toEqual([{ skill: "锁匠", difficulty: "regular", hint: "取出工具撬锁", hints: ["取出工具撬锁"] }]);
     });
   });
 

@@ -116,12 +116,12 @@ describe("Shared 聊天桥", () => {
     const bridge = createSharedChatBridge(deps);
     const result = await bridge.runKpTurn("g1", "我侧耳倾听。", "玩家");
 
-    expect(result.pendingChecks).toEqual([{ skill: "聆听", difficulty: "regular", hint: "你似乎听见门后有极轻的响动。" }]);
+    expect(result.pendingChecks).toEqual([{ skill: "聆听", difficulty: "regular", hint: "你似乎听见门后有极轻的响动。", hints: ["你似乎听见门后有极轻的响动。"] }]);
     const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
     expect(flat.log.map((entry) => entry.kind)).toEqual(["user", "kp", "check"]);
     expect(flat.log[1].text).notToContain("团检");
     expect(flat.log[2].text).toBe("[团检：聆听] [.ra聆听]");
-    expect(flat.pendingChecks).toEqual([{ skill: "聆听", difficulty: "regular", hint: "你似乎听见门后有极轻的响动。", at: flat.pendingChecks[0].at, scene: "" }]);
+    expect(flat.pendingChecks).toEqual([{ skill: "聆听", difficulty: "regular", hint: "你似乎听见门后有极轻的响动。", hints: ["你似乎听见门后有极轻的响动。"], at: flat.pendingChecks[0].at, scene: "" }]);
     expect(flat.busy).toBeFalse();
   });
 
@@ -199,7 +199,49 @@ describe("Shared 聊天桥", () => {
 
     expect(calls).toBe(2);
     const lastSystem = [...capturedMessages].reverse().find((m) => m.role === "user" && m.source && m.source.kind === "system");
-    expect(lastSystem.content[0].text).toContain("玩家执行的动作是：「翻出窗外，沿窄檐攀向屋顶小门」");
+    expect(lastSystem.content[0].text).toContain("玩家想对「翻出窗外，沿窄檐攀向屋顶小门」进行检定");
+  });
+
+  it(".ra 对应多个动作选项时，不擅自绑定而是列出候选", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-shared-chat-ra-multi-hint-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir);
+
+    let calls = 0;
+    let capturedMessages = null;
+    deps.streamBlocks = async (options) => {
+      calls += 1;
+      if (calls === 1) {
+        return {
+          blocks: [{ type: "text", text: "屋顶边缘很滑。\n- 翻出窗外，沿窄檐攀向屋顶小门（需攀爬）\n- 顺排水管爬上屋顶（需攀爬）\n- 退回屋内" }],
+          finish: { kind: "complete" },
+          usage: {},
+        };
+      }
+      capturedMessages = options.messages;
+      return {
+        blocks: [{ type: "text", text: "你想用攀爬做哪个动作？翻窗沿窄檐，还是顺排水管？" }],
+        finish: { kind: "complete" },
+        usage: {},
+      };
+    };
+
+    const bridge = createSharedChatBridge(deps);
+    await bridge.runKpTurn("g1", "我走到屋顶边缘。", "玩家");
+    const mid = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
+    expect(mid.pendingChecks).toHaveLength(1);
+    expect(mid.pendingChecks[0].hints).toEqual(["翻出窗外，沿窄檐攀向屋顶小门", "顺排水管爬上屋顶"]);
+
+    const restore = mockRandom(randomForDice([{ sides: 100, value: 30 }]));
+    await bridge.runKpTurn("g1", ".ra攀爬", "玩家");
+    restore();
+
+    expect(calls).toBe(2);
+    const lastSystem = [...capturedMessages].reverse().find((m) => m.role === "user" && m.source && m.source.kind === "system");
+    expect(lastSystem.content[0].text).toContain("可能对应的动作有");
+    expect(lastSystem.content[0].text).toContain("「翻出窗外，沿窄檐攀向屋顶小门」");
+    expect(lastSystem.content[0].text).toContain("「顺排水管爬上屋顶」");
+    expect(lastSystem.content[0].text).notToContain("玩家想对");
   });
 
   it("玩家未发送 .ra 而进行其他行动时，团检标记为已跳过", async () => {
