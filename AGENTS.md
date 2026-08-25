@@ -74,6 +74,7 @@
 5. **不要改变现有 `/coc-api` 接口和 JSON 结构。** 若需求确实涉及新接口，只实现插件范围内的改动并明确报告，不要自行修改网页版服务、standalone/**、Cloudflare Tunnel 或登录鉴权。
 6. **保持 `lib/index.js` 的 `apply`、`Config`、`inject`、`name` 导出兼容。**
 7. **修改后至少运行 `node tests/run-tests.mjs` 和 `npm run ui-check`**；不要提交 `node_modules`、数据目录、`.env` 或日志文件。
+8. **场景事实与检定点由 `lib/core/scenario/scene-facts.js` 确定性规则提取**（规则为主、LLM 兜底）；运行时通过 `context-builder` 注入当前场景原文块、事实卡与检定点。KP 叙述的楼层/房间/门锁/人物位置一律以剧本原文为最高权威，事实卡只做摘要，冲突时以原文为准。
 
 ## 六、相关文档
 
