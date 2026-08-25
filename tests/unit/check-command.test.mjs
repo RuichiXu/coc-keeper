@@ -68,6 +68,12 @@ describe("团检指令", () => {
     it("无标记返回空数组", () => {
       expect(parseCheckRequests("周围很安静。")).toEqual([]);
     });
+    it("解析非正式提示（需攀爬/敏捷）取已知技能", () => {
+      expect(parseCheckRequests("你翻出窗外，沿窄檐攀向屋顶小门（需攀爬/敏捷）")).toEqual([{ skill: "攀爬", difficulty: "regular" }]);
+    });
+    it("解析非正式提示（需锁匠）", () => {
+      expect(parseCheckRequests("取出工具撬锁（需锁匠）")).toEqual([{ skill: "锁匠", difficulty: "regular" }]);
+    });
   });
 
   describe("stripCheckRequests", () => {
@@ -76,6 +82,18 @@ describe("团检指令", () => {
       expect(text).toContain("你似乎听见响动。");
       expect(text).notToContain("团检");
       expect(text).notToContain(".ra");
+    });
+    it("移除括号内团检时不留空括号", () => {
+      const text = stripCheckRequests("再试一次，把插销拨开（[团检：锁匠]）");
+      expect(text).toBe("再试一次，把插销拨开");
+    });
+    it("移除整段团检括号说明", () => {
+      const text = stripCheckRequests("（若想翻查书桌与抽屉，也可 [团检：侦查] / [团检：图书馆使用]）");
+      expect(text.trim()).toBe("");
+    });
+    it("移除非正式检定提示", () => {
+      const text = stripCheckRequests("沿窄檐攀向屋顶小门（需攀爬/敏捷）");
+      expect(text).toBe("沿窄檐攀向屋顶小门");
     });
   });
 
