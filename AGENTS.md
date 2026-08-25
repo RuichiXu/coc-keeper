@@ -57,7 +57,25 @@
 
 ---
 
-## 五、相关文档
+## 五、架构分层与边界（重构后）
+
+项目由「共享业务层 + DSH 插件薄壳 + 独立网页版」组成：
+
+- `lib/shared/` — 共享业务层：工具逻辑、主持聊天循环、导入器、通用 API。
+- `lib/adapter/` — DSH 插件薄壳：DSH/Cordis 专属的服务注册、依赖注入、流式 LLM 适配。
+- `lib/client.js` — **唯一**前端源码；独立网页版直接加载同一文件，不复制、不 fork。
+
+长期必须遵守的边界：
+
+1. **通用事件、工具和主持逻辑改在 `lib/shared/tools/`、`lib/shared/chat/` 或 `lib/shared/api/`**；不要继续把主实现写回旧的 `lib/adapter/tools/*.js`。`coc_import`、`coc_read`、`coc_query_rule` 等导入工具已切换到 shared 实现。
+2. **DSH/Cordis 专属的服务注册、依赖注入和流式 LLM 适配才放在 `lib/adapter/`。**
+3. **前端 UI 统一修改 `lib/client.js`**，不要创建第二份前端；保持原生 DOM，不使用 `require()` 或 DSH 专属浏览器依赖。
+4. **`lib/shared/` 和 `lib/core/` 必须保持 DSH-free**：禁止引入 `@deepseek-ai/dsh-tools`、`dsh-llm`、`schemastery`、`cordis` 等依赖。
+5. **不要改变现有 `/coc-api` 接口和 JSON 结构。** 若需求确实涉及新接口，只实现插件范围内的改动并明确报告，不要自行修改网页版服务、standalone/**、Cloudflare Tunnel 或登录鉴权。
+6. **保持 `lib/index.js` 的 `apply`、`Config`、`inject`、`name` 导出兼容。**
+7. **修改后至少运行 `node tests/run-tests.mjs` 和 `npm run ui-check`**；不要提交 `node_modules`、数据目录、`.env` 或日志文件。
+
+## 六、相关文档
 
 - `TESTING.md` — 测试规范与要求
 - `PLAN.md` — 开发计划

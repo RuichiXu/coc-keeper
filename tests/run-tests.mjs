@@ -24,6 +24,7 @@ const TESTS = {
     "unit/events.test.mjs",
     "unit/clock.test.mjs",
     "unit/character-parser.test.mjs",
+    "unit/check-command.test.mjs",
     "unit/game-session.test.mjs",
     "unit/persistence.test.mjs",
     "unit/world-state.test.mjs",

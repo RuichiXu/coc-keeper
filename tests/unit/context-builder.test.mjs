@@ -43,7 +43,7 @@ const state = {
 describe("Context Builder", () => {
   it("buildKpSystemPrompt 包含硬性规则与状态快照", () => {
     const system = buildKpSystemPrompt(state);
-    expect(system).toContain("检定纪律");
+    expect(system).toContain("明骰纪律");
     expect(system).toContain("测试团");
     expect(system).toContain("当前场景：书房");
     expect(system).toContain("张三");
