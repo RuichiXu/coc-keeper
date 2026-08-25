@@ -88,7 +88,7 @@ describe("Adapter 工具集成", () => {
 
     apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
 
-    expect(tools.registered.size).toBe(17);
+    expect(tools.registered.size).toBe(18);
     expect(systemPrompt.sections).toHaveLength(1);
     expect(systemPrompt.contexts).toHaveLength(1);
     expect(typeof ctx.get).toBe("function");
@@ -99,7 +99,7 @@ describe("Adapter 工具集成", () => {
     expect(skills.registered.map((s) => s.name)).toContain("coc-rule-growth");
   });
 
-  it("注册全部 17 个工具", () => {
+  it("注册全部 18 个工具", () => {
     const mock = createMockCtx();
     const dir = mkdtempSync(join(tmpdir(), "coc-adapter-"));
     apply(mock.ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
@@ -113,7 +113,7 @@ describe("Adapter 工具集成", () => {
     for (const name of expected) {
       expect(mock.registered.has(name)).toBeTrue();
     }
-    expect(mock.registered.size).toBe(17);
+    expect(mock.registered.size).toBe(18);
   });
 
   it("coc_roll 走 Core：写入 core 持久化与 flat 投影", async () => {
