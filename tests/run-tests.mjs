@@ -44,6 +44,7 @@ const TESTS = {
     "unit/reachability.test.mjs",
     "unit/recovery.test.mjs",
     "unit/asset-store.test.mjs",
+    "unit/state-autolanding.test.mjs",
   ],
   integration: [
     "integration/rule-event-state.test.mjs",
@@ -55,6 +56,7 @@ const TESTS = {
     "integration/check-gates.test.mjs",
     "integration/shared-import.test.mjs",
     "integration/import-parity.test.mjs",
+    "integration/audit-fixes.test.mjs",
   ],
   scenarios: [
     "scenarios/normal-investigation.test.mjs",

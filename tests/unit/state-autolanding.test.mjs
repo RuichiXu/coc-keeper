@@ -1,0 +1,71 @@
+/**
+ * 关键点/物品自动落地（确定性启发式）单元测试
+ */
+import { describe, it, expect, run, summarize } from "../runner.js";
+import {
+  autoTrackInventory,
+  revealKeyPointsFromNarration,
+} from "../../lib/shared/chat/index.js";
+
+describe("关键点自动揭示", () => {
+  it("叙述完整出现未揭示关键点标题时揭示", () => {
+    const keyPoints = [
+      { id: "kp-1", title: "墨渊", desc: "屋顶的墨色深渊", revealed: false },
+      { id: "kp-2", title: "十二字咒文", desc: "四组三字", revealed: false },
+    ];
+    const changed = revealKeyPointsFromNarration(keyPoints, "你看到屋顶上有一片墨渊在缓慢旋转。");
+    expect(changed).toBe(1);
+    expect(keyPoints[0].revealed).toBeTrue();
+    expect(keyPoints[1].revealed).toBeFalse();
+  });
+
+  it("不误揭示未出现的标题", () => {
+    const keyPoints = [{ id: "kp-1", title: "鬼影", desc: "", revealed: false }];
+    const changed = revealKeyPointsFromNarration(keyPoints, "你走进空无一人的书房。");
+    expect(changed).toBe(0);
+    expect(keyPoints[0].revealed).toBeFalse();
+  });
+
+  it("忽略长度不足 2 的标题", () => {
+    const keyPoints = [{ id: "kp-1", title: "墨", desc: "", revealed: false }];
+    const changed = revealKeyPointsFromNarration(keyPoints, "墨迹在纸上晕开。");
+    expect(changed).toBe(0);
+  });
+});
+
+describe("物品自动入栏", () => {
+  it("从叙述中提取获得的实体物品", () => {
+    const flat = {
+      characters: [
+        { name: "伊芙琳", aiControlled: false, inventory: [] },
+      ],
+    };
+    const added = autoTrackInventory(flat, "艾茜从衣袋里取出一把备用钥匙递给你。");
+    expect(added).toHaveLength(1);
+    expect(added[0]).toBe("备用钥匙");
+    expect(flat.characters[0].inventory).toContain("备用钥匙");
+  });
+
+  it("不把抽象概念误入物品栏", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "你得到了一条重要线索。");
+    expect(added).toHaveLength(0);
+    expect(flat.characters[0].inventory).toHaveLength(0);
+  });
+
+  it("已存在的物品不重复入栏", () => {
+    const flat = {
+      characters: [
+        { name: "伊芙琳", aiControlled: false, inventory: ["手稿"] },
+      ],
+    };
+    const added = autoTrackInventory(flat, "你拿起手稿。");
+    expect(added).toHaveLength(0);
+    expect(flat.characters[0].inventory).toHaveLength(1);
+  });
+});
+
+const result = await run({ verbose: true });
+process.exit(summarize(result, "state-autolanding 单元测试"));
