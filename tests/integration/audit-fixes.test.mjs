@@ -169,6 +169,61 @@ describe("审计修复回归", () => {
     const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
     expect(flat.currentScene).toBe("三层：克罗斯的书房");
   });
+
+  it("叙述在检定前泄露受保护线索时，系统要求重写且泄露文本不落盘", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-guard-leak-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir, {
+      currentScene: "三层：克罗斯的书房",
+      scenarioFacts: [
+        {
+          heading: "三层：克罗斯的书房",
+          floor: "三层",
+          keywords: ["三层", "书房", "墨渊", "日记"],
+          original: "三层：克罗斯的书房\n书桌抽屉里有日记与手稿。",
+          facts: ["书房在三层。"],
+        },
+      ],
+      scenarioCheckpoints: [
+        {
+          id: "chk-1",
+          skill: "侦查",
+          difficulty: "regular",
+          scene: "三层：克罗斯的书房",
+          floor: "三层",
+          trigger: "侦察或者图书馆普通成功：发现书桌抽屉里有一本日记。",
+          keys: ["书房", "日记"],
+        },
+      ],
+    });
+
+    let calls = 0;
+    deps.streamBlocks = async () => {
+      calls += 1;
+      if (calls === 1) {
+        return {
+          blocks: [{ type: "text", text: "你打开书桌抽屉，里面有一本日记。" }],
+          finish: { kind: "complete" },
+          usage: {},
+        };
+      }
+      return {
+        blocks: [{ type: "text", text: "你走到书桌前，抽屉紧闭，空气里有旧纸的气味。" }],
+        finish: { kind: "complete" },
+        usage: {},
+      };
+    };
+
+    const bridge = createSharedChatBridge(deps);
+    const result = await bridge.runKpTurn("g1", "我翻找书桌抽屉。", "玩家");
+
+    expect(calls).toBe(2);
+    expect(result.narration).toBe("你走到书桌前，抽屉紧闭，空气里有旧纸的气味。");
+    expect(result.narration).notToContain("日记");
+    const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
+    expect(flat.log[flat.log.length - 1].text).toBe("你走到书桌前，抽屉紧闭，空气里有旧纸的气味。");
+    expect(flat.log[flat.log.length - 1].text).notToContain("日记");
+  });
 });
 
 const result = await run({ verbose: true });
