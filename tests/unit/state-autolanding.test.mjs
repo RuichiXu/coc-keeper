@@ -128,6 +128,38 @@ describe("物品自动入栏", () => {
     expect(added).toHaveLength(1);
     expect(added[0]).toBe("手稿");
   });
+
+  it("状态式持有（结实麻绳盘好斜挎过肩）", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "结实麻绳盘好斜挎过肩，绳结压在肩胛侧。");
+    expect(added).toHaveLength(1);
+    expect(added[0]).toBe("结实麻绳");
+  });
+
+  it("容器内容（装有四张原稿的文件夹）", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "装有四张原稿的文件夹贴着身侧。");
+    expect(added).toHaveLength(1);
+    expect(added[0]).toBe("手稿");
+  });
+
+  it("清理旧版垃圾条目并保留正常物品", () => {
+    const flat = {
+      characters: [
+        { name: "伊芙琳", aiControlled: false, inventory: ["原稿一张张", "纸从它熟悉的位置", "手稿"] },
+      ],
+    };
+    const added = autoTrackInventory(flat, "你把黄铜汽灯提在左手。");
+    expect(added).toHaveLength(1);
+    expect(flat.characters[0].inventory).toContain("手稿");
+    expect(flat.characters[0].inventory).toContain("黄铜汽灯");
+    expect(flat.characters[0].inventory).notToContain("原稿一张张");
+    expect(flat.characters[0].inventory).notToContain("纸从它熟悉的位置");
+  });
 });
 
 const result = await run({ verbose: true });

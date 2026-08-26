@@ -327,7 +327,7 @@ describe("审计修复回归", () => {
     expect(flat.log[flat.log.length - 1].text).toContain("理智检定是暗骰");
   });
 
-  it("SAN 角色名含半角引号时也能宽松匹配到调查员", async () => {
+  it("SAN 角色名含半角引号时也能宽松匹配并持久化 SAN 变化", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "coc-san-loose-name-"));
     const deps = makeDeps(dataDir);
     writeFlat(dataDir, {
@@ -347,18 +347,22 @@ describe("审计修复回归", () => {
       ],
     });
 
-    const restore = mockRandom([0.5]); // d100=51 → SAN 成功
+    const restore = mockRandom([0.5]); // d100=51 → SAN 成功；固定损失 1/1
     try {
       const sanity = deps.toolDefs.get("coc_sanity_check");
       const result = await sanity.execute({
         game: "g1",
         player: '伊芙琳·"伊芙"·默瑟',
-        sanLoss: "0/1d3",
+        sanLoss: "1/1",
         description: "直视巨眼",
         eventId: "直视巨眼",
       });
       expect(result.player).toBe('伊芙琳·"伊芙"·默瑟');
-      expect(result.passed).toBe(true);
+      expect(result.sanLost).toBe(1);
+      const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
+      expect(flat.characters[0].san).toBe(59);
+      expect(flat.sanitySettled).toHaveLength(1);
+      expect(flat.sanitySettled[0].player).toBe("伊芙琳·“伊芙”·默瑟");
     } finally {
       restore();
     }
