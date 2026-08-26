@@ -89,6 +89,26 @@ describe("物品自动入栏", () => {
     expect(added[0]).toBe("手稿");
     expect(flat.characters[0].inventory).toContain("手稿");
   });
+
+  it("把字句清理叠词数量（原稿一张张→手稿），不误收证物袋", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "你将四张原稿一张张放进新的证物袋。");
+    expect(added).toHaveLength(1);
+    expect(added[0]).toBe("手稿");
+    expect(flat.characters[0].inventory).toContain("手稿");
+    expect(flat.characters[0].inventory).notToContain("证物袋");
+  });
+
+  it("拒绝介词短语（纸从它熟悉的位置）", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "纸从它熟悉的位置滑落出来。");
+    expect(added).toHaveLength(0);
+    expect(flat.characters[0].inventory).toHaveLength(0);
+  });
 });
 
 const result = await run({ verbose: true });

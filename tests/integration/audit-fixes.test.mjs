@@ -259,6 +259,74 @@ describe("审计修复回归", () => {
     }
   });
 
+  it("旧场次已有非规范 eventId 时，规范键能识别为同一事件不再扣 SAN", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-san-legacy-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir, {
+      scenarioCheckpoints: [
+        { id: "chk-1", skill: "理智", difficulty: "regular", scene: "书房", floor: "三层", keys: ["书房", "墨渊"], trigger: "san check" },
+        { id: "chk-2", skill: "理智", difficulty: "regular", scene: "书房", floor: "三层", keys: ["墨渊", "漩涡", "巨眼"], trigger: "san check 巨眼" },
+      ],
+      sanitySettled: [
+        {
+          player: "伊芙琳",
+          eventId: "墨渊巨眼首次目击",
+          at: new Date().toISOString(),
+          result: "失败（出目 99/51，失败），损失 3 SAN（51 → 48）",
+          passed: false,
+          rolled: 99,
+          tier: "fail",
+          sanAfter: 48,
+        },
+      ],
+    });
+
+    const restore = mockRandom([0.5]);
+    try {
+      const sanity = deps.toolDefs.get("coc_sanity_check");
+      const result = await sanity.execute({
+        game: "g1", player: "伊芙琳", sanLoss: "0/1d3",
+        description: "仪式直视夏拉卡拉布巨眼", eventId: "仪式直视夏拉卡拉布巨眼",
+      });
+      expect(result.result).toContain("已结算");
+      const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
+      expect(flat.sanitySettled).toHaveLength(1);
+      expect(flat.rollHistory).toHaveLength(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it("coc_check 拒绝把理智登记为玩家明骰门禁", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-check-san-reject-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir);
+
+    const cocCheck = deps.toolDefs.get("coc_check");
+    let errorMessage = "";
+    try {
+      await cocCheck.execute({ game: "g1", skill: "理智", difficulty: "regular", action: "直视巨眼" });
+    } catch (error) {
+      errorMessage = error.message;
+    }
+    expect(errorMessage).toContain("coc_sanity_check");
+  });
+
+  it(".ra理智 被拒绝，不产生公开 SAN 骰点", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-ra-san-reject-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir);
+
+    const bridge = createSharedChatBridge(deps);
+    const result = await bridge.runKpTurn("g1", ".ra理智", "玩家");
+
+    expect(result.narration).toBe("");
+    const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
+    expect(flat.rollHistory).toHaveLength(0);
+    expect(flat.log[flat.log.length - 1].kind).toBe("check");
+    expect(flat.log[flat.log.length - 1].text).toContain("理智检定是暗骰");
+  });
+
   it("门禁前泄露线索被守卫重写时，回滚本轮 SAN 副作用", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "coc-sideeffect-rollback-"));
     const deps = makeDeps(dataDir);
