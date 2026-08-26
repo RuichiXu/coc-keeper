@@ -146,6 +146,52 @@ describe("Scenario Contract 集成", () => {
     expect(flat.firedNightEventIds).toContain("ne-1");
     expect(flat.log.some((entry) => entry.kind === "check" && entry.text.includes("子夜梦游"))).toBe(true);
   });
+
+  it("draft 契约不拦截叙述；confirmed 契约拦截", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-contract-confirm-"));
+    const deps = makeDeps(dataDir);
+    const gate = { id: "cg-1", clueWords: ["墨渊"] };
+    writeFlat(dataDir, {
+      scenarioContract: { status: "draft", clueGates: [gate] },
+      scenarioCheckpoints: [],
+    });
+
+    deps.streamBlocks = async () => ({
+      blocks: [{ type: "text", text: "你看见墨渊的巨眼。" }],
+      finish: { kind: "complete" },
+      usage: {},
+    });
+
+    const bridge = createSharedChatBridge(deps);
+    const draftResult = await bridge.runKpTurn("g1", "我检查地毯。", "玩家");
+    expect(draftResult.narration).toContain("墨渊");
+
+    const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
+    flat.scenarioContract.status = "confirmed";
+    flat.scenarioContract.reviewed = true;
+    writeFileSync(join(dataDir, "games", "g1.json"), JSON.stringify(flat));
+
+    let confirmedCalls = 0;
+    deps.streamBlocks = async () => {
+      confirmedCalls += 1;
+      return {
+        blocks: [
+          {
+            type: "text",
+            text: confirmedCalls === 1
+              ? "你看见墨渊的巨眼。"
+              : "你只看见地毯的接缝。",
+          },
+        ],
+        finish: { kind: "complete" },
+        usage: {},
+      };
+    };
+    const confirmedBridge = createSharedChatBridge(deps);
+    const confirmedResult = await confirmedBridge.runKpTurn("g1", "我检查地毯。", "玩家");
+    expect(confirmedCalls > 1).toBe(true);
+    expect(confirmedResult.narration).notToContain("墨渊");
+  });
 });
 
 const result = await run({ verbose: true });

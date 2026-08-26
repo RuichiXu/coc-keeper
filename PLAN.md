@@ -193,6 +193,19 @@
 | 聊天桥接线：自动草拟契约落盘、候选叙述先过契约校验（违规则重写并回滚副作用）、入睡触发夜晚事件并持久化 firedNightEventIds | ✅ |
 | 新增单测 10 例 + 集成测试 2 例，全套 43 文件通过；ui-check 14/14 | ✅ |
 
+### Step 12 已完成 ✅（ScenarioContract 第二阶段：LLM 生成契约 + KP 校对面板）
+
+| 事项 | 状态 |
+|---|---|
+| `lib/shared/llm.js`：callLlmApi 从 chat-bridge 抽出为共享模块（聊天桥/导入共用，避免循环依赖） | ✅ |
+| `lib/core/scenario/contract-ai.js`：buildContractAiPrompt + parseContractAiResult（含夜晚事件 onSleep 约定说明） | ✅ |
+| `coc_import`：导入剧本时先确定性草拟，再尝试 LLM 生成契约（status=draft，source=llm/deterministic），失败不阻断导入 | ✅ |
+| 场景资产 `upsertScenarioAsset` 保存 scenarioContract/contractStatus；game-setup 复用资产中的契约草拟 | ✅ |
+| `/coc-api/contract` GET/POST：读取契约、保存草稿、确认生效（confirm → status=confirmed） | ✅ |
+| 主持页新增「剧本执行契约」卡片：JSON 编辑、刷新、保存草稿、确认生效 | ✅ |
+| 契约强制开关：仅 status=confirmed/reviewed=true 的契约拦截叙述；draft 阶段只观察不拦截（旧数据无 status 视为生效兼容） | ✅ |
+| 新增 AI 生成单测 3 例、draft/confirmed 集成 1 例；全套 43 文件通过；ui-check 14/14 | ✅ |
+
 ### 待办 📋
 
 | 事项 | 状态 |

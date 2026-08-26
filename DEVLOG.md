@@ -10,7 +10,7 @@
 - 包名：`@dsh-external/dsh-coc-keeper`
 - 类型：DSH 双面插件（宿主端 + 浏览器端）
 - 状态：已装配到 web profile，正在运行
-- 最近里程碑：ScenarioContract 第一阶段已落地（契约 schema/草拟/候选叙述校验/夜晚入睡事件）
+- 最近里程碑：ScenarioContract 第二阶段已落地（LLM 生成契约 + 主持页校对/确认生效）
 
 ---
 
