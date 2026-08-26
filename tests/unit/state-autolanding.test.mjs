@@ -109,6 +109,25 @@ describe("物品自动入栏", () => {
     expect(added).toHaveLength(0);
     expect(flat.characters[0].inventory).toHaveLength(0);
   });
+
+  it("把字句+提/挎动词（黄铜汽灯/结实麻绳）", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "你把黄铜汽灯提在手里，又将结实麻绳挎在肩头。");
+    expect(added).toHaveLength(2);
+    expect(flat.characters[0].inventory).toContain("黄铜汽灯");
+    expect(flat.characters[0].inventory).toContain("结实麻绳");
+  });
+
+  it("将字句+随身携带", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "你将四张原稿随身携带。");
+    expect(added).toHaveLength(1);
+    expect(added[0]).toBe("手稿");
+  });
 });
 
 const result = await run({ verbose: true });

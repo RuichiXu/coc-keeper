@@ -327,6 +327,43 @@ describe("审计修复回归", () => {
     expect(flat.log[flat.log.length - 1].text).toContain("理智检定是暗骰");
   });
 
+  it("SAN 角色名含半角引号时也能宽松匹配到调查员", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-san-loose-name-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir, {
+      characters: [
+        {
+          name: "伊芙琳·“伊芙”·默瑟",
+          occupation: "记者",
+          aiControlled: false,
+          stats: { STR: 55, DEX: 60, INT: 60 },
+          skills: { 侦查: 60 },
+          hp: 11,
+          san: 60,
+          mp: 12,
+          luck: 55,
+          inventory: [],
+        },
+      ],
+    });
+
+    const restore = mockRandom([0.5]); // d100=51 → SAN 成功
+    try {
+      const sanity = deps.toolDefs.get("coc_sanity_check");
+      const result = await sanity.execute({
+        game: "g1",
+        player: '伊芙琳·"伊芙"·默瑟',
+        sanLoss: "0/1d3",
+        description: "直视巨眼",
+        eventId: "直视巨眼",
+      });
+      expect(result.player).toBe('伊芙琳·"伊芙"·默瑟');
+      expect(result.passed).toBe(true);
+    } finally {
+      restore();
+    }
+  });
+
   it("门禁前泄露线索被守卫重写时，回滚本轮 SAN 副作用", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "coc-sideeffect-rollback-"));
     const deps = makeDeps(dataDir);
