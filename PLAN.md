@@ -182,6 +182,17 @@
 | `POST /coc-api/assets` 增加 `action=delete`（剧本级联删除场次） | ✅ |
 | Playwright UI 冒烟检查：`npm run ui-check`，13 项按钮/面板交互检查 | ✅ |
 
+### Step 11 已完成 ✅（ScenarioContract 第一阶段：契约 schema + 草拟 + 候选叙述校验 + 夜晚事件）
+
+| 事项 | 状态 |
+|---|---|
+| `lib/core/scenario/contract.js`：契约 schema（clueGates/npcKnowledge/ritualConditions/nightEvents/finalBranchWhitelist）+ normalize/validate | ✅ |
+| `lib/core/scenario/contract-draft.js`：从检定点/实体/分支/原文确定性草拟契约（无 LLM 兜底） | ✅ |
+| `lib/shared/chat/scenario-contract-validator.js`：候选叙述校验（线索门禁/NPC 知识/仪式条件/最终分支白名单）+ 夜晚事件评估 | ✅ |
+| 夜晚事件设计约定：onSleep 默认“调查员入睡后触发”；不入睡按 sleepPolicy（force=强制入睡/penalty=惩罚/allow）提示 | ✅ |
+| 聊天桥接线：自动草拟契约落盘、候选叙述先过契约校验（违规则重写并回滚副作用）、入睡触发夜晚事件并持久化 firedNightEventIds | ✅ |
+| 新增单测 10 例 + 集成测试 2 例，全套 43 文件通过；ui-check 14/14 | ✅ |
+
 ### 待办 📋
 
 | 事项 | 状态 |
