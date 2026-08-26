@@ -224,6 +224,117 @@ describe("审计修复回归", () => {
     expect(flat.log[flat.log.length - 1].text).toBe("你走到书桌前，抽屉紧闭，空气里有旧纸的气味。");
     expect(flat.log[flat.log.length - 1].text).notToContain("日记");
   });
+
+  it("SAN 事件映射到剧本检定点规范 ID：不同 eventId/描述 也只结算一次", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-san-canonical-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir, {
+      scenarioCheckpoints: [
+        { id: "chk-1", skill: "理智", difficulty: "regular", scene: "书房", floor: "三层", keys: ["书房", "墨渊"], trigger: "san check" },
+        { id: "chk-2", skill: "理智", difficulty: "regular", scene: "书房", floor: "三层", keys: ["墨渊", "漩涡", "巨眼"], trigger: "san check 巨眼" },
+        { id: "chk-3", skill: "侦查", difficulty: "extreme", scene: "书房", floor: "三层", keys: ["地毯", "墨渊"], trigger: "侦查极难" },
+      ],
+    });
+
+    const restore = mockRandom([0.5]); // d100 = 51 ≤ 60 → SAN 成功，损失 0
+    try {
+      const sanity = deps.toolDefs.get("coc_sanity_check");
+      const first = await sanity.execute({
+        game: "g1", player: "伊芙琳", sanLoss: "0/1d3",
+        description: "墨渊巨眼首次目击", eventId: "墨渊巨眼首次目击",
+      });
+      const second = await sanity.execute({
+        game: "g1", player: "伊芙琳", sanLoss: "0/1d3",
+        description: "仪式直视夏拉卡拉布巨眼", eventId: "仪式直视夏拉卡拉布巨眼",
+      });
+
+      expect(second.result).toContain("已结算");
+      const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
+      expect(flat.sanitySettled).toHaveLength(1);
+      expect(flat.sanitySettled[0].eventId).toBe("scenario:chk-2");
+      expect(flat.rollHistory).toHaveLength(1);
+      expect(flat.characters[0].san).toBe(60);
+    } finally {
+      restore();
+    }
+  });
+
+  it("门禁前泄露线索被守卫重写时，回滚本轮 SAN 副作用", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-sideeffect-rollback-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir, {
+      currentScene: "三层：克罗斯的书房",
+      scenarioFacts: [
+        {
+          heading: "三层：克罗斯的书房",
+          floor: "三层",
+          keywords: ["三层", "书房", "地毯", "墨渊"],
+          original: "三层：克罗斯的书房\n地毯下有墨渊。",
+          facts: ["书房在三层。"],
+        },
+      ],
+      scenarioCheckpoints: [
+        {
+          id: "chk-1",
+          skill: "侦查",
+          difficulty: "extreme",
+          scene: "三层：克罗斯的书房",
+          floor: "三层",
+          trigger: "侦查极难成功或仔细摸索地毯：看到墨渊。",
+          keys: ["地毯", "墨渊"],
+        },
+      ],
+    });
+
+    let calls = 0;
+    const restore = mockRandom([0.5]); // coc_sanity_check d100=51 → 成功，损失 0
+    try {
+      deps.streamBlocks = async () => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            blocks: [
+              {
+                type: "tool-call",
+                id: "call-1",
+                name: "coc_sanity_check",
+                arguments: JSON.stringify({
+                  game: "g1", player: "伊芙琳", sanLoss: "1/1d3",
+                  description: "直视墨渊", eventId: "直视墨渊",
+                }),
+              },
+            ],
+            finish: { kind: "complete" },
+            usage: {},
+          };
+        }
+        if (calls === 2) {
+          return {
+            blocks: [{ type: "text", text: "你掀开地毯，直视下方旋转的墨渊。" }],
+            finish: { kind: "complete" },
+            usage: {},
+          };
+        }
+        return {
+          blocks: [{ type: "text", text: "你掀开地毯，下面只有陈旧的木纹与灰尘。" }],
+          finish: { kind: "complete" },
+          usage: {},
+        };
+      };
+
+      const bridge = createSharedChatBridge(deps);
+      const result = await bridge.runKpTurn("g1", "我掀开地毯直视墨渊。", "玩家");
+
+      expect(calls).toBe(3);
+      expect(result.narration).toBe("你掀开地毯，下面只有陈旧的木纹与灰尘。");
+      const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
+      expect(flat.characters[0].san).toBe(60);
+      expect(flat.sanitySettled).toHaveLength(0);
+      expect(flat.rollHistory).toHaveLength(0);
+    } finally {
+      restore();
+    }
+  });
 });
 
 const result = await run({ verbose: true });

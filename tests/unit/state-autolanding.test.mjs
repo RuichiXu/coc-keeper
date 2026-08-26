@@ -31,6 +31,20 @@ describe("关键点自动揭示", () => {
     const changed = revealKeyPointsFromNarration(keyPoints, "墨迹在纸上晕开。");
     expect(changed).toBe(0);
   });
+
+  it("标题带动作前缀（发现墨渊）也能通过正文命中", () => {
+    const keyPoints = [{ id: "kp-1", title: "发现墨渊", desc: "", revealed: false }];
+    const changed = revealKeyPointsFromNarration(keyPoints, "墨渊正在屋顶上缓缓旋转。");
+    expect(changed).toBe(1);
+    expect(keyPoints[0].revealed).toBeTrue();
+  });
+
+  it("标题为「A与B」时，正文同时出现 A、B 即命中", () => {
+    const keyPoints = [{ id: "kp-1", title: "发现日记与手稿", desc: "", revealed: false }];
+    const changed = revealKeyPointsFromNarration(keyPoints, "抽屉里有一本日记和四张手稿。");
+    expect(changed).toBe(1);
+    expect(keyPoints[0].revealed).toBeTrue();
+  });
 });
 
 describe("物品自动入栏", () => {
@@ -64,6 +78,16 @@ describe("物品自动入栏", () => {
     const added = autoTrackInventory(flat, "你拿起手稿。");
     expect(added).toHaveLength(0);
     expect(flat.characters[0].inventory).toHaveLength(1);
+  });
+
+  it("把字句提取持有物品，并套用别名（四张原稿→手稿）", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "你把四张原稿按顺序装入随身文件夹。");
+    expect(added).toHaveLength(1);
+    expect(added[0]).toBe("手稿");
+    expect(flat.characters[0].inventory).toContain("手稿");
   });
 });
 
