@@ -1,0 +1,6 @@
+# dsh-coc-keeper bundle patch: mounts the CoC keeper plugin as a host row.
+# The plugin registers the coc_* tools, the KP persona prompt section, and the
+# live game-state context on any profile that loads this bundle.
+- insert:
+    - id: coc-keeper
+      name: '@dsh-external/dsh-coc-keeper'

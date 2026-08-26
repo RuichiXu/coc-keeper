@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CoC Keeper</title>
+</head>
+<body>
+<script>
+window.__ModuleLoader__ = {
+  load: function (mod) {
+    var exports = mod.factory(function () { throw new Error("require not supported"); });
+    exports.apply({
+      effect: function (onDispose) {
+        window.addEventListener("pagehide", onDispose, { once: true });
+      }
+    });
+  }
+};
+</script>
+<script src="/client.js"></script>
+</body>
+</html>

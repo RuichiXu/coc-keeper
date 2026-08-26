@@ -1,0 +1,14 @@
+{
+  "name": "coc-keeper-standalone",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "server": "node server.js",
+    "tunnel": "cloudflared tunnel --url http://localhost:3000",
+    "smoke": "node smoke.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
