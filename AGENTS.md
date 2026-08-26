@@ -54,6 +54,7 @@
 5. 新模块放在 `lib/core/<domain>/` 下，通过 `lib/core/index.js` 统一导出。
 6. **禁止对 Cordis ctx 或服务对象使用对象展开/浅复制（`...ctx`、`{ ...ctx }`、`Object.assign({}, ctx)` 等）。** ctx 是 Proxy + 原型链依赖容器，展开会降级为普通对象并丢失动态服务解析。包装上下文必须使用 `ctx.extend()`；包装服务必须用 `Object.create(service)` 保留原型链（或在 Service 子类中重写）。
 7. **修改 Adapter 层后必须执行真实 Cordis Context 回归测试**（`tests/integration/adapter-tools.test.mjs` 使用 `@deepseek-ai/cordis` 的 `Context`/`Service`），并执行 `npx @deepseek-ai/dsh web --port 0` 启动验证；不能只依赖普通 mock 对象。
+8. **引入启发式补丁（关键词/正则/部分词语组合/补偿性回滚等）时，必须同步更新 `PATCHES.md`**：登记位置、为什么是补丁、后续替换方向。能由结构化状态或事件确定性判定的，不加正则补丁。
 
 ---
 
