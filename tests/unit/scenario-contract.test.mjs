@@ -63,7 +63,7 @@ describe("契约草拟", () => {
       branches: [
         { id: "br-1", title: "调查员念出咒文", options: [{ label: "念", leadsTo: "结局1（BE）" }] },
       ],
-      keyPoints: [],
+      keyPoints: [{ id: "kp-1", title: "拼凑十二字咒文", desc: "", revealed: false }],
     };
 
     const contract = draftScenarioContract(flat);
