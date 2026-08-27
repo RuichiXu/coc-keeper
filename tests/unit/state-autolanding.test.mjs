@@ -55,6 +55,13 @@ describe("关键点自动揭示", () => {
     expect(changed).toBe(1);
     expect(keyPoints[0].revealed).toBeTrue();
   });
+
+  it("否定语境不揭示关键点：没能进入书房", () => {
+    const keyPoints = [{ id: "kp-1", title: "进入书房", desc: "", revealed: false }];
+    const changed = revealKeyPointsFromNarration(keyPoints, "你并没能进入书房，门依然锁着。");
+    expect(changed).toBe(0);
+    expect(keyPoints[0].revealed).toBeFalse();
+  });
 });
 
 describe("分支自动落地", () => {
@@ -70,6 +77,18 @@ describe("分支自动落地", () => {
     expect(flat.branches[0].reached).toBeTrue();
     expect(flat.branches[0].chosen).toBe("撞门");
     expect(flat.currentBranchId).toBe("ai-br-1");
+  });
+
+  it("否定语境不落地分支：放弃撬锁、选择撞门 → chosen=撞门", () => {
+    const flat = {
+      currentBranchId: "",
+      branches: [
+        { id: "ai-br-1", title: "如何进入书房", scene: "三层书房", reached: false, chosen: null, options: [{ label: "撬锁", leadsTo: "三层书房" }, { label: "撞门", leadsTo: "三层书房" }] },
+      ],
+    };
+    const changed = autoLandBranches(flat, "我放弃撬锁，决定直接撞门。");
+    expect(changed).toBe(1);
+    expect(flat.branches[0].chosen).toBe("撞门");
   });
 
   it("最终分支选择后揭示同结局关键点", () => {
@@ -96,14 +115,14 @@ describe("物品实体归一", () => {
     expect(canonicalItemFromEntities("纸页", entities)).toBe("四张手稿");
   });
 
-  it("叙述残片不进入物品栏", () => {
+  it("叙述残片中的纸页归一到「四张手稿」，且不带句子残片入栏", () => {
     const flat = {
       characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
       entities: [{ type: "item", name: "四张手稿" }],
     };
     const added = autoTrackInventory(flat, "你把那些齐整纸页贴身收好，纸页隔着衣物传来凉意。");
-    expect(added).toHaveLength(0);
-    expect(flat.characters[0].inventory).toHaveLength(0);
+    expect(added).toEqual(["四张手稿"]);
+    expect(flat.characters[0].inventory).toEqual(["四张手稿"]);
   });
 });
 
