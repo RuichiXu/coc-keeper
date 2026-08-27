@@ -4,6 +4,9 @@
 import { describe, it, expect, run, summarize } from "../runner.js";
 import {
   autoTrackInventory,
+  autoLandBranches,
+  canonicalItemFromEntities,
+  revealKeyPointsForBranchChoices,
   revealKeyPointsFromNarration,
 } from "../../lib/shared/chat/index.js";
 
@@ -51,6 +54,56 @@ describe("关键点自动揭示", () => {
     const changed = revealKeyPointsFromNarration(keyPoints, "艾茜向你们说明了这份委托，请你们调查宅邸怪事。");
     expect(changed).toBe(1);
     expect(keyPoints[0].revealed).toBeTrue();
+  });
+});
+
+describe("分支自动落地", () => {
+  it("玩家输入命中选项原文时标记 reached + chosen", () => {
+    const flat = {
+      currentBranchId: "",
+      branches: [
+        { id: "ai-br-1", title: "如何进入书房", scene: "三层书房", reached: false, chosen: null, options: [{ label: "撞门", leadsTo: "三层书房" }] },
+      ],
+    };
+    const changed = autoLandBranches(flat, "我上到三层，直接撞门进入书房。");
+    expect(changed).toBe(1);
+    expect(flat.branches[0].reached).toBeTrue();
+    expect(flat.branches[0].chosen).toBe("撞门");
+    expect(flat.currentBranchId).toBe("ai-br-1");
+  });
+
+  it("最终分支选择后揭示同结局关键点", () => {
+    const flat = {
+      branches: [
+        { id: "ai-br-3", title: "最终咒文念诵方式", scene: "结局", reached: true, chosen: "逆序念诵（送神）", options: [{ label: "逆序念诵（送神）", leadsTo: "墨渊消散的结局" }] },
+      ],
+      keyPoints: [
+        { id: "ai-kp-8", title: "最终抉择", scene: "书房/结局", revealed: false },
+        { id: "ai-kp-7", title: "拼凑十二字咒文", scene: "书房", revealed: false },
+      ],
+    };
+    const changed = revealKeyPointsForBranchChoices(flat);
+    expect(changed).toBe(1);
+    expect(flat.keyPoints[0].revealed).toBeTrue();
+    expect(flat.keyPoints[1].revealed).toBeFalse();
+  });
+});
+
+describe("物品实体归一", () => {
+  it("纸页归一到剧本实体「四张手稿」", () => {
+    const entities = [{ type: "item", name: "四张手稿" }];
+    expect(canonicalItemFromEntities("手稿", entities)).toBe("四张手稿");
+    expect(canonicalItemFromEntities("纸页", entities)).toBe("四张手稿");
+  });
+
+  it("叙述残片不进入物品栏", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+      entities: [{ type: "item", name: "四张手稿" }],
+    };
+    const added = autoTrackInventory(flat, "你把那些齐整纸页贴身收好，纸页隔着衣物传来凉意。");
+    expect(added).toHaveLength(0);
+    expect(flat.characters[0].inventory).toHaveLength(0);
   });
 });
 
