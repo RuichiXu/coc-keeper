@@ -1,6 +1,6 @@
 /**
  * 端到端审计修复回归测试：
- * - SAN 幂等（eventId + 暗骰可见性）
+ * - SAN 幂等（eventId + SC 明骰可见性）
  * - .ra 无目标值拒绝掷骰
  * - 场景从叙述重推断（不再仅 currentScene==="" 时兜底）
  */
@@ -80,7 +80,7 @@ function writeFlat(dataDir, overrides = {}) {
 }
 
 describe("审计修复回归", () => {
-  it("coc_sanity_check 同一 eventId 只结算一次，且玩家视图看不到 SAN 暗骰", async () => {
+  it("coc_sanity_check 同一 eventId 只结算一次，且 SC 是玩家可见明骰", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "coc-san-idem-"));
     const deps = makeDeps(dataDir);
     writeFlat(dataDir);
@@ -111,7 +111,7 @@ describe("审计修复回归", () => {
       const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
       expect(flat.sanitySettled).toHaveLength(1);
       expect(flat.rollHistory).toHaveLength(1);
-      expect(flat.rollHistory[0].kind).toBe("secret");
+      expect(flat.rollHistory[0].kind).toBe("open");
       expect(flat.characters[0].san).toBe(60);
     } finally {
       restore();
@@ -312,19 +312,25 @@ describe("审计修复回归", () => {
     expect(errorMessage).toContain("coc_sanity_check");
   });
 
-  it(".ra理智 被拒绝，不产生公开 SAN 骰点", async () => {
-    const dataDir = mkdtempSync(join(tmpdir(), "coc-ra-san-reject-"));
+  it(".ra理智 是玩家可见的公开 SAN 检定", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-ra-san-open-"));
     const deps = makeDeps(dataDir);
     writeFlat(dataDir);
+
+    deps.streamBlocks = async () => ({
+      blocks: [{ type: "text", text: "你确认自己的神智仍然清醒。" }],
+      finish: { kind: "complete" },
+      usage: {},
+    });
 
     const bridge = createSharedChatBridge(deps);
     const result = await bridge.runKpTurn("g1", ".ra理智", "玩家");
 
-    expect(result.narration).toBe("");
+    expect(result.narration.length).toBeGreaterThan(0);
     const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
-    expect(flat.rollHistory).toHaveLength(0);
-    expect(flat.log[flat.log.length - 1].kind).toBe("check");
-    expect(flat.log[flat.log.length - 1].text).toContain("理智检定是暗骰");
+    expect(flat.rollHistory).toHaveLength(1);
+    expect(flat.rollHistory[0].kind).toBe("open");
+    expect(flat.rollHistory[0].skill).toBe("理智");
   });
 
   it("SAN 角色名含半角引号时也能宽松匹配并持久化 SAN 变化", async () => {
