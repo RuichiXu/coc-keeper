@@ -203,6 +203,79 @@ describe("夜晚事件", () => {
   });
 });
 
+describe("夜晚事件草拟（确定性）", () => {
+  it("排除咒文/结局/巨眼等剧透行，只保留明确夜晚事件行", () => {
+    const flat = {
+      scenario: {
+        text: [
+          "晚上，门外传来拍门声。",
+          "三个月前的夜晚，家中突然传来呓语。",
+          "调查员念出第三个词组：「引——魂——夜——」，巨眼睁开，需 SAN check。",
+        ].join("\n"),
+      },
+      scenarioCheckpoints: [],
+      entities: [],
+      branches: [],
+      keyPoints: [],
+    };
+    const contract = draftScenarioContract(flat);
+    expect(contract.nightEvents).toHaveLength(1);
+    expect(contract.nightEvents[0].title).toContain("拍门");
+    expect(contract.nightEvents[0].trigger).toBe("onSleep");
+  });
+
+  it("夜晚事件默认全局场景（scene 为空），onSleep 按场景匹配触发", () => {
+    const contract = normalizeScenarioContract({
+      nightEvents: [
+        { id: "ne-1", title: "书房梦游", scene: "书房", trigger: "onSleep" },
+        { id: "ne-2", title: "门厅哭声", scene: "门厅", trigger: "onSleep" },
+      ],
+    });
+    const result = evaluateNightEvents(contract, {
+      currentScene: "书房",
+      time: "1925年10月1日 晚上11点",
+      sleeping: true,
+      narrationMentionsSleep: true,
+      firedNightEventIds: [],
+    });
+    expect(result.fired.map((event) => event.id)).toContain("ne-1");
+    expect(result.fired.map((event) => event.id)).notToContain("ne-2");
+  });
+});
+
+describe("最终分支白名单前置条件", () => {
+  const contract = normalizeScenarioContract({
+    finalBranchWhitelist: [
+      {
+        id: "fb-1",
+        branchId: "ai-br-3",
+        endingKeywords: ["夏拉卡拉布降临"],
+        requires: [
+          { kind: "keyPoint", value: "拼凑十二字咒文" },
+          { kind: "branchReached", value: "ai-br-3" },
+        ],
+      },
+    ],
+  });
+
+  it("关键点未揭示时叙述结局关键词即违规", () => {
+    const result = validateCandidateNarration(contract, "你们念出正序咒文，夏拉卡拉布降临了。", {
+      revealedKeyPoints: [],
+      branches: [{ id: "ai-br-3", title: "最终咒文念诵方式", reached: false }],
+    });
+    expect(result.passed).toBe(false);
+    expect(result.violations[0]).toContain("拼凑十二字咒文");
+  });
+
+  it("关键点已揭示且分支已抵达时放行", () => {
+    const result = validateCandidateNarration(contract, "你们念出正序咒文，夏拉卡拉布降临了。", {
+      revealedKeyPoints: ["拼凑十二字咒文"],
+      branches: [{ id: "ai-br-3", title: "最终咒文念诵方式", reached: true }],
+    });
+    expect(result.passed).toBe(true);
+  });
+});
+
 describe("契约 AI 生成", () => {
   it("prompt 包含五类字段与夜晚事件入睡约定", () => {
     const prompt = buildContractAiPrompt({

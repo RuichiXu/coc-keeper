@@ -661,3 +661,21 @@ data: {"ok":true,"data":{...},"render":"已导入…"}
 - 新增 `tests/ui-check.mjs`（Playwright + dsh web 真实启动），`npm run ui-check`。
 - 13/13 通过：面板挂载、调试 5 个子按钮切换、向导三步（含 AI 下拉）、玩家面板挂载。
 - 全套 31 文件通过；selftest 通过。
+
+---
+
+## Session（2026-08-27）：E2E 缺陷修复（ScenarioContract 第二阶段回归）
+
+### 修复（针对 Codex E2E 报告 F-01~F-09）
+1. **聊天循环 tool-only 悬挂**（F-01/F-02）：`runNarrationLoop` 连续只调工具不写正文时，下一轮禁用工具并注入“直接输出叙述”；连续两轮空正文提前结束循环，避免 busy 长时间悬挂。
+2. **检定前泄露 chk-1 线索**（F-05）：`narration-guard` 的通用场景词移除 屋顶/铁栅栏/常春藤/屋顶边缘；KP 系统提示明确“本场景检定点线索词未过检定不得写入叙述”。
+3. **确定性契约夜晚事件误分类**（F-03）：`contract-draft` 夜晚事件只保留“明确夜晚 + 夜间事件词 + 非剧透/非背景”行，宁缺毋滥。
+4. **仪式/最终分支缺少前置条件**（F-04）：`contract-draft` 为最终分支派生 requires（关键点+分支已抵达）与 endingKeywords；`contract` 归一化保留 endingKeywords；`scenario-contract-validator` 强制执行最终分支前置条件、onSleep 事件按场景匹配。
+5. **导入提示缺少契约元数据**（F-08）：`coc_import` 输出 schema/render 增加 contractSource/contractStatus。
+6. **KP 指令解析失败**（F-07）：`/coc-api/kp-command` 剥离代码围栏并容错截取 JSON 数组。
+7. **关键点未揭示**（F-06）：关键点标题变体增加事件后缀剥离（委托到来→委托）。
+8. **KP 臆造分支 id**（F-09）：KP 系统提示明确 branchId/keyPointId 必须存在，严禁臆造。
+
+### 验证
+- 全套 43 文件测试通过；ui-check 14/14 通过。
+- 新增单元测试：夜晚事件草拟过滤、onSleep 场景匹配、最终分支前置条件拦截/放行、关键点后缀匹配。

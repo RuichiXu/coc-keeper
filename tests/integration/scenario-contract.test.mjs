@@ -192,6 +192,48 @@ describe("Scenario Contract 集成", () => {
     expect(confirmedCalls > 1).toBe(true);
     expect(confirmedResult.narration).notToContain("墨渊");
   });
+
+  it("模型连续只调工具不写正文时，下一轮禁用工具并强制叙述", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-contract-toolonly-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir, {});
+
+    let calls = 0;
+    deps.streamBlocks = async (options) => {
+      calls += 1;
+      if (calls === 1) {
+        expect(Array.isArray(options.tools)).toBe(true);
+        expect(options.tools.length > 0).toBe(true);
+        return {
+          blocks: [
+            {
+              type: "tool-call",
+              id: "call-1",
+              name: "coc_scene",
+              arguments: JSON.stringify({ scene: "三层：克罗斯的书房" }),
+            },
+          ],
+          finish: { kind: "complete" },
+          usage: {},
+        };
+      }
+      // 第二轮已被禁用工具，只能输出叙述。
+      expect(Array.isArray(options.tools)).toBe(true);
+      expect(options.tools).toHaveLength(0);
+      return {
+        blocks: [{ type: "text", text: "你们沿着楼梯来到三层书房门口。" }],
+        finish: { kind: "complete" },
+        usage: {},
+      };
+    };
+
+    const bridge = createSharedChatBridge(deps);
+    const result = await bridge.runKpTurn("g1", "我去书房。", "玩家");
+
+    expect(calls).toBe(2);
+    expect(result.narration).toContain("三层书房");
+    expect(result.busy).toBe(false);
+  });
 });
 
 const result = await run({ verbose: true });

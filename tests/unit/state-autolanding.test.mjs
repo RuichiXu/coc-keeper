@@ -45,6 +45,13 @@ describe("关键点自动揭示", () => {
     expect(changed).toBe(1);
     expect(keyPoints[0].revealed).toBeTrue();
   });
+
+  it("标题带事件后缀（委托到来）也能通过核心词命中", () => {
+    const keyPoints = [{ id: "kp-1", title: "委托到来", desc: "", revealed: false }];
+    const changed = revealKeyPointsFromNarration(keyPoints, "艾茜向你们说明了这份委托，请你们调查宅邸怪事。");
+    expect(changed).toBe(1);
+    expect(keyPoints[0].revealed).toBeTrue();
+  });
 });
 
 describe("物品自动入栏", () => {
