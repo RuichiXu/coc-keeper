@@ -6,6 +6,7 @@ import {
   autoTrackInventory,
   autoLandBranches,
   canonicalItemFromEntities,
+  cleanupJunkInventory,
   revealKeyPointsForBranchChoices,
   revealKeyPointsFromNarration,
 } from "../../lib/shared/chat/index.js";
@@ -93,6 +94,7 @@ describe("分支自动落地", () => {
 
   it("最终分支选择后揭示同结局关键点", () => {
     const flat = {
+      currentScene: "结局",
       branches: [
         { id: "ai-br-3", title: "最终咒文念诵方式", scene: "结局", reached: true, chosen: "逆序念诵（送神）", options: [{ label: "逆序念诵（送神）", leadsTo: "墨渊消散的结局" }] },
       ],
@@ -106,6 +108,34 @@ describe("分支自动落地", () => {
     expect(flat.keyPoints[0].revealed).toBeTrue();
     expect(flat.keyPoints[1].revealed).toBeFalse();
   });
+
+  it("玩家还在书房门外时，撞门分支不揭示「进入书房」", () => {
+    const flat = {
+      currentScene: "三层书房门外",
+      branches: [
+        { id: "ai-br-1", title: "如何进入书房", scene: "三层书房", reached: true, chosen: "撞门", options: [{ label: "撞门", leadsTo: "三层书房" }] },
+      ],
+      keyPoints: [
+        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false },
+      ],
+    };
+    const changed = revealKeyPointsForBranchChoices(flat);
+    expect(changed).toBe(0);
+    expect(flat.keyPoints[0].revealed).toBeFalse();
+  });
+
+  it("叙述只出现「掀开地毯」也能落地 ai-br-2", () => {
+    const flat = {
+      currentBranchId: "",
+      branches: [
+        { id: "ai-br-2", title: "是否掀开地毯", scene: "书房", reached: false, chosen: null, options: [{ label: "掀开地毯查看", leadsTo: "发现墨渊" }] },
+      ],
+    };
+    const changed = autoLandBranches(flat, "你掀开地毯，看到下面不是地板。");
+    expect(changed).toBe(1);
+    expect(flat.branches[0].reached).toBeTrue();
+    expect(flat.branches[0].chosen).toBe("掀开地毯查看");
+  });
 });
 
 describe("物品实体归一", () => {
@@ -113,6 +143,18 @@ describe("物品实体归一", () => {
     const entities = [{ type: "item", name: "四张手稿" }];
     expect(canonicalItemFromEntities("手稿", entities)).toBe("四张手稿");
     expect(canonicalItemFromEntities("纸页", entities)).toBe("四张手稿");
+  });
+
+  it("清理物品栏时保留实体名「四张手稿」并归一「原稿一张张」", () => {
+    const flat = {
+      entities: [{ type: "item", name: "四张手稿" }],
+      characters: [
+        { name: "伊芙琳", aiControlled: false, inventory: ["四张手稿", "原稿一张张", "纸从它熟悉的位置"] },
+      ],
+    };
+    const removed = cleanupJunkInventory(flat);
+    expect(removed).toBe(2);
+    expect(flat.characters[0].inventory).toEqual(["四张手稿"]);
   });
 
   it("叙述残片中的纸页归一到「四张手稿」，且不带句子残片入栏", () => {
