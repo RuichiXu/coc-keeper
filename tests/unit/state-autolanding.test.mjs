@@ -12,6 +12,7 @@ import {
   resolvedCheckKey,
   revealKeyPointsForBranchChoices,
   revealKeyPointsFromNarration,
+  sanitizeSanityLine,
 } from "../../lib/shared/chat/index.js";
 import { resolveRaCandidateChoice } from "../../lib/shared/chat/check-gates.js";
 
@@ -70,11 +71,11 @@ describe("关键点自动揭示", () => {
 });
 
 describe("事件驱动落地", () => {
-  it("SAN 结算墨渊首次目击 → 揭示发现墨渊并落地掀开地毯分支", () => {
+  it("SAN 结算墨渊首次目击（chk-9）→ 揭示发现墨渊并落地掀开地毯分支", () => {
     const flat = {
       currentScene: "三层书房",
       passedCheckpointIds: [],
-      sanitySettled: [{ eventId: "scenario:chk-8", player: "伊芙琳" }],
+      sanitySettled: [{ eventId: "scenario:chk-9", player: "伊芙琳" }],
       keyPoints: [
         { id: "ai-kp-5", title: "发现墨渊", scene: "书房", revealed: false },
       ],
@@ -88,6 +89,25 @@ describe("事件驱动落地", () => {
     expect(flat.keyPoints[0].revealed).toBeTrue();
     expect(flat.branches[0].reached).toBeTrue();
     expect(flat.branches[0].chosen).toBe("掀开地毯查看");
+  });
+
+  it("仅通过 chk-7 确认接缝 → 不揭示发现墨渊，不落地掀开地毯分支", () => {
+    const flat = {
+      currentScene: "三层书房",
+      passedCheckpointIds: ["chk-7"],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-5", title: "发现墨渊", scene: "书房", revealed: false },
+      ],
+      branches: [
+        { id: "ai-br-2", title: "是否掀开地毯", scene: "书房", reached: false, chosen: null, options: [{ label: "掀开地毯查看", leadsTo: "发现墨渊" }] },
+      ],
+    };
+    const result = applyEventDrivenLanding(flat);
+    expect(result.revealed).toBe(0);
+    expect(result.branches).toBe(0);
+    expect(flat.keyPoints[0].revealed).toBeFalse();
+    expect(flat.branches[0].reached).toBeFalse();
   });
 
   it("日记与手稿检定点通过 → 揭示发现日记与手稿", () => {
@@ -120,6 +140,21 @@ describe("事件驱动落地", () => {
     expect(flat.keyPoints[0].revealed).toBeTrue();
   });
 
+  it("身处一层门厅不揭示发现型关键点（发现一层墨渍）", () => {
+    const flat = {
+      currentScene: "一层门厅",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-2", title: "发现一层墨渍", scene: "一层门厅", revealed: false },
+      ],
+      branches: [],
+    };
+    const result = applyEventDrivenLanding(flat);
+    expect(result.revealed).toBe(0);
+    expect(flat.keyPoints[0].revealed).toBeFalse();
+  });
+
   it("最终分支已选但咒文未揭示 → 不揭示最终抉择", () => {
     const flat = {
       currentScene: "三层书房·仪式终结",
@@ -136,6 +171,23 @@ describe("事件驱动落地", () => {
     const result = applyEventDrivenLanding(flat);
     expect(result.revealed).toBe(0);
     expect(flat.keyPoints[1].revealed).toBeFalse();
+  });
+
+  it("最终分支已选 → 揭示克罗斯临终提示", () => {
+    const flat = {
+      currentScene: "三层书房",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-6", title: "克罗斯临终提示", scene: "三层/书房", revealed: false },
+      ],
+      branches: [
+        { id: "ai-br-3", title: "最终仪式", scene: "书房", reached: true, chosen: "逆序念诵（送神）", options: [{ label: "逆序念诵（送神）", leadsTo: "结局" }] },
+      ],
+    };
+    const result = applyEventDrivenLanding(flat);
+    expect(result.revealed).toBe(1);
+    expect(flat.keyPoints[0].revealed).toBeTrue();
   });
 
   it("最终分支已选且咒文已揭示 → 揭示最终抉择", () => {
@@ -172,6 +224,13 @@ describe("门禁短路与候选解析", () => {
     expect(flat.resolvedChecks).toHaveLength(1);
     expect(flat.resolvedChecks[0]).toBe(resolvedCheckKey("侦查", "数清稿纸"));
   });
+
+  it("sanitizeSanityLine 只保留损失结果，隐藏出目与成功等级", () => {
+    expect(sanitizeSanityLine("【理智检定】伊芙琳：成功（出目 13/65，极限成功），损失 1 SAN（65 → 64）"))
+      .toBe("【理智检定】损失 1 SAN（65 → 64）");
+    expect(sanitizeSanityLine("【理智检定】伊芙琳：（已结算，未重复扣减）成功（出目 2/65，大成功），损失 1 SAN（65 → 64）"))
+      .toBe("【理智检定】（已结算，未重复扣减）");
+  });
 });
 
 describe("分支自动落地", () => {
@@ -197,6 +256,22 @@ describe("分支自动落地", () => {
       ],
     };
     const changed = autoLandBranches(flat, "我放弃撬锁，决定直接撞门。");
+    expect(changed).toBe(1);
+    expect(flat.branches[0].chosen).toBe("撞门");
+  });
+
+  it("玩家输入优先于叙述：叙述菜单里的撬锁工具不覆盖玩家选择的撞门", () => {
+    const flat = {
+      currentBranchId: "",
+      branches: [
+        { id: "ai-br-1", title: "如何进入书房", scene: "三层书房", reached: false, chosen: null, options: [{ label: "撬锁", leadsTo: "三层书房" }, { label: "撞门", leadsTo: "三层书房" }] },
+      ],
+    };
+    const changed = autoLandBranches(
+      flat,
+      "我拒绝撬锁，明确选择撞门。",
+      "- 撞门（力量检定）\n- 先在二、三层找找钥匙或撬锁工具"
+    );
     expect(changed).toBe(1);
     expect(flat.branches[0].chosen).toBe("撞门");
   });
@@ -308,6 +383,16 @@ describe("物品自动入栏", () => {
     const added = autoTrackInventory(flat, "你拿起手稿。");
     expect(added).toHaveLength(0);
     expect(flat.characters[0].inventory).toHaveLength(1);
+  });
+
+  it("把字句并列两件实体物品（日记和手稿分别装进文件袋）", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+      entities: [{ type: "item", name: "克罗斯的日记" }, { type: "item", name: "四张手稿" }],
+    };
+    const added = autoTrackInventory(flat, "你把克罗斯的日记和四张手稿分别装进防潮文件袋。");
+    expect(added).toEqual(["克罗斯的日记", "四张手稿"]);
+    expect(flat.characters[0].inventory).toEqual(["克罗斯的日记", "四张手稿"]);
   });
 
   it("把字句提取持有物品，并套用别名（四张原稿→手稿）", () => {
