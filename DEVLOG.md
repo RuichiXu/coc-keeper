@@ -760,3 +760,26 @@ v6 复测证明：靠“叙述里出现某个词”来落地关键点/分支，�
 
 ### 备注
 - “底片/油灯”等由 NPC 主体或场景道具句误提的问题仍在，根因是提取器不判断主语；下一步改为只采信 PC 主语的获得/持有事件，或仅认 `coc_pc inventoryAdd` 结构化事件。
+
+---
+
+## Session（2026-08-28 续 3）：聚焦更新（门禁消费短路/终局短路/.ra候选解析）+ KP 调试面板
+
+### 聚焦更新
+1. **门禁消费短路**：成功 `.ra` 后写入 `flat.resolvedChecks`（skill+action 稳定键）；后续 coc_check/文本 [团检] 同键门禁在合并时丢弃，并注入“该检定已通过，自动忽略”日志，打 74 轮循环。
+2. **终局短路**：最终咒文轮（意志/SAN）成功时，若叙述未出现结局关键词，程序追加固定结局句（逆序→墨渊消散 / 正序→夏拉卡拉布降临），提交 `endingReached/endedAt/场景=三层书房·仪式终结`，补揭示 ai-kp-7/8，清空全部门禁并冻结场景推断回退。
+3. **`.ra侦查 2` 候选解析**：`resolveRaCandidateChoice` 在 pendingChoice 存在时把 `.ra技能 N` 解析为第 N 个候选动作，不再当技能名“侦查 2”。
+4. trace 增加 `gate-resolved` / `checkpoint-pass` / `ending-short-circuit` / `gate-resolved-dropped`。
+
+### KP 调试面板
+1. `/coc-api/state` 的 digest 增加 `debug` 只读快照：pendingChecks / pendingChoice / resolvedChecks / passedCheckpointIds / sanitySettled / skippedChecks / firedNightEventIds / endingReached / events（core.trace 倒序）。
+2. 新增 `POST /coc-api/debug`：removeGate / clearGates / clearChoice / clearResolved（仅 KP 面板调用，不注册为模型工具）。
+3. 前端主持页新增“运行调试（只读）”卡：状态徽章、门禁列表（掷骰/移除/清空）、候选确认按钮、已通过检定点与 resolvedChecks、SAN 结算、程序事件流；KP 指令输入草稿在刷新后保留。
+4. 调试操作走正常 API 路径：掷骰/选候选发 `/coc-api/chat`，移除/清空走 `/coc-api/debug`，不旁路状态机。
+
+### 验证
+- 新增单测：`.ra侦查 2` 候选解析、resolvedCheckKey 去重；coc-api 集成测试新增 debug 快照与 removeGate（8/8 通过）。
+- 全套 43/43；ui-check 14/14。
+
+### 备注
+- 终局短路与门禁去重仍登记在 PATCHES 行 12/13，后续由 Checkpoint 幂等消费与 EndingResolved 事件替代。

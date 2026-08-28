@@ -17,6 +17,8 @@
 | 9 | `lib/shared/chat/chat-bridge.js` `runNarrationLoop` | 模型连续“只调工具不写正文”时，下一轮禁用工具并注入“请直接输出叙述”；连续两轮空正文则提前结束循环 | 是对 LLM 输出不稳定（tool-only 循环/空响应）的补偿式控制，不能根治上游问题 | Director 引入“工具轮次预算 + 强制叙述轮”的确定性状态机，并对空响应做结构化兜底叙述 |
 | 10 | `lib/shared/chat/chat-bridge.js` `autoLandBranches` / `revealKeyPointsForBranchChoices` / 完整咒文正则 / 最终仪式轮指引 / 结局门禁冻结 | 玩家输入或叙述命中分支选项原文即标记 reached+chosen（取最晚出现且无否定语境的选项，并剥掉选项尾部“查看/进入”等动词以匹配“掀开地毯”）；分支选择后按 option.leadsTo 揭示关键点，场景型 leadsTo 需 currentScene 真正切入；完整十二字咒文用正则识别；最终仪式轮意志/SAN 掷骰后注入“按已选结局推进、不得回退”指引；结局关键词出现后废弃全部旧门禁并停止新增团检 | 分支落地本该由 `coc_branch` 工具/PlotGraph 事件完成，正则只能覆盖选项原文直引的窄场景 | 由 Trigger Engine 在“选项被选择”事件上确定性落地分支与关键点，并结构化识别咒文序列与仪式阶段 |
 | 11 | `lib/shared/chat/chat-bridge.js` `applyEventDrivenLanding` / `findCheckpointMatch` / `recordPassedCheckpoint` | 事件驱动落地：场景精确切入 → 揭示场景关键点；检定点通过（passedCheckpointIds）→ 揭示“日记与手稿/十二字咒文”；SAN 结算（sanitySettled 映射 chk-8）→ 揭示“发现墨渊”并落地掀开地毯分支；最终分支已选且咒文已揭示 → 揭示“最终抉择” | 当前按《墨渊》剧本的关键点/检定点 ID 硬编码映射（ai-kp-4/5/7/8、chk-3/5/7/8/13、ai-br-2），尚未泛化到任意剧本 | 剧本导入时为每个关键点/分支生成结构化前置条件（requiresCheckpoints / requiresKeyPoints / requiresScene / requiresSanityEvent），由 Trigger Engine 统一激活 |
+| 12 | `lib/shared/chat/chat-bridge.js` `recordResolvedCheck` / `resolvedCheckKey` + 门禁合并过滤 | 成功 `.ra` 后把 skill+action 写入 `flat.resolvedChecks`；后续同键门禁（coc_check 或文本 [团检]）在合并时直接丢弃并注入“该检定已通过，自动忽略”日志 | 是对 LLM 反复要求同一检定这一上游问题的补偿式去重，键值只按字面 skill+action 匹配，改写措辞后仍会漏 | 门禁 schema 增加 `checkpointId/kind`，由 Checkpoint 引擎按检定点 ID 幂等消费；文本门禁只做兜底 |
+| 13 | `lib/shared/chat/chat-bridge.js` 终局短路 | 最终咒文轮（意志/SAN）成功且叙述未出现结局关键词时，程序追加固定结局句、提交 `endingReached/endedAt/当前场景`、补揭示 ai-kp-7/8 并清空全部门禁 | 是对“LLM 在最终仪式轮回退到更早场景”的补偿式兜底；结局句为固定模板 | 结局事件由 Rule Engine/PlotGraph 的 `EndingResolved` 事件驱动，Narrator 只渲染不决定结局是否发生 |
 
 ## 使用约定
 

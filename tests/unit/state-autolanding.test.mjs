@@ -8,9 +8,12 @@ import {
   autoLandBranches,
   canonicalItemFromEntities,
   cleanupJunkInventory,
+  recordResolvedCheck,
+  resolvedCheckKey,
   revealKeyPointsForBranchChoices,
   revealKeyPointsFromNarration,
 } from "../../lib/shared/chat/index.js";
+import { resolveRaCandidateChoice } from "../../lib/shared/chat/check-gates.js";
 
 describe("关键点自动揭示", () => {
   it("叙述完整出现未揭示关键点标题时揭示", () => {
@@ -151,6 +154,23 @@ describe("事件驱动落地", () => {
     const result = applyEventDrivenLanding(flat);
     expect(result.revealed).toBe(1);
     expect(flat.keyPoints[1].revealed).toBeTrue();
+  });
+});
+
+describe("门禁短路与候选解析", () => {
+  it(".ra侦查 2 解析为第二个候选动作", () => {
+    const pending = { skill: "侦查", difficulty: "regular", candidates: ["拉开书桌抽屉", "数清稿纸"] };
+    expect(resolveRaCandidateChoice("侦查 2", pending)).toBe("数清稿纸");
+    expect(resolveRaCandidateChoice("侦查2", pending)).toBe("数清稿纸");
+    expect(resolveRaCandidateChoice("侦查 3", pending)).toBeNull();
+  });
+
+  it("recordResolvedCheck 记录稳定键并去重", () => {
+    const flat = {};
+    recordResolvedCheck(flat, "侦查", "数清稿纸");
+    recordResolvedCheck(flat, "侦查", "数清稿纸");
+    expect(flat.resolvedChecks).toHaveLength(1);
+    expect(flat.resolvedChecks[0]).toBe(resolvedCheckKey("侦查", "数清稿纸"));
   });
 });
 

@@ -133,6 +133,43 @@ describe("/coc-api 集成", () => {
     expect(json.data.game).toBe("g1");
   });
 
+  it("GET /coc-api/state 返回 debug 快照，POST /coc-api/debug 可清空门禁", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "games"), { recursive: true });
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    writeFileSync(
+      join(dir, "games", "g1.json"),
+      JSON.stringify({
+        id: "g1", title: "g1", updatedAt: new Date().toISOString(), kpMode: "ai",
+        rules: null, scenario: null, characters: [], keyPoints: [], branches: [],
+        tasks: [], entities: [], reminders: [], rollHistory: [], toolTrace: [], log: [],
+        pendingChecks: [{ id: "chk1", skill: "侦查", difficulty: "regular", action: "查看抽屉", hidden: false }],
+        pendingChoice: null, resolvedChecks: [], passedCheckpointIds: [], sanitySettled: [],
+        skippedChecks: [], firedNightEventIds: [],
+        core: { trace: [{ kind: "auto-reveal", count: 1, at: new Date().toISOString() }] },
+      })
+    );
+
+    const state = await handle(handler, createFakeReq("GET", "/coc-api/state?game=g1"), createFakeRes());
+    expect(state.ok).toBeTrue();
+    expect(state.data.debug.pendingChecks).toHaveLength(1);
+    expect(state.data.debug.events).toHaveLength(1);
+    expect(state.data.debug.events[0].kind).toBe("auto-reveal");
+
+    const removed = await handle(handler, createFakeReq("POST", "/coc-api/debug", { action: "removeGate", gateId: "chk1", game: "g1" }), createFakeRes());
+    expect(removed.ok).toBeTrue();
+    const flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
+    expect(flat.pendingChecks).toHaveLength(0);
+  });
+
   it("POST /coc-api/roll 走新工具并写入 core", async () => {
     const ctx = new Context();
     const tools = new TestTools(ctx);
