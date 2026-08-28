@@ -151,7 +151,7 @@ describe("检定门禁集成", () => {
     expect(flat.pendingChecks).toHaveLength(1);
   });
 
-  it("玩家改做其他动作时，旧门禁作废", async () => {
+  it("玩家改做其他动作时，旧门禁保留到被消费或明确跳过", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "coc-gate-abandon-"));
     const deps = makeDeps(dataDir);
     writeFlat(dataDir, {
@@ -171,10 +171,9 @@ describe("检定门禁集成", () => {
 
     expect(result.narration).toBe("你退回屋内，回到二楼的走廊。");
     const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
-    expect(flat.pendingChecks).toHaveLength(0);
-    expect(flat.skippedChecks).toHaveLength(1);
-    expect(flat.skippedChecks[0].skill).toBe("攀爬");
-    expect(flat.skippedChecks[0].reason).toBe("abandoned");
+    expect(flat.pendingChecks).toHaveLength(1);
+    expect(flat.pendingChecks[0].skill).toBe("攀爬");
+    expect(flat.skippedChecks).toHaveLength(0);
   });
 
   it("自由动作需要检定时，KP 通过 coc_check 登记，系统渲染 .ra 提示", async () => {

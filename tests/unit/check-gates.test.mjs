@@ -4,11 +4,13 @@
 import { describe, it, expect, run, summarize } from "../runner.js";
 import {
   checkKey,
+  gateTargetKey,
   matchActionToGates,
   mergeCheckGates,
   normalizeAction,
   resolvePendingChoice,
   scoreActionMatch,
+  scoreTargetMatch,
 } from "../../lib/shared/chat/index.js";
 
 describe("检定门禁", () => {
@@ -53,6 +55,35 @@ describe("检定门禁", () => {
       { skill: "攀爬", difficulty: "regular", action: "翻出窗外" },
     ]);
     expect(merged.length).toBe(2);
+  });
+
+  it("gateTargetKey 把同目标换措辞归一（v9 门厅案例）", () => {
+    expect(gateTargetKey("查看一层门厅地板与墙脚")).toBe(gateTargetKey("我检查一层门厅地面和墙角"));
+    expect(gateTargetKey("查看一层门厅地板与墙脚")).toBe("一层门厅地面墙角");
+  });
+
+  it("scoreTargetMatch 目标键匹配高于原文匹配", () => {
+    const targetA = gateTargetKey("查看一层门厅地板与墙脚");
+    const targetB = gateTargetKey("我检查一层门厅地面和墙角");
+    expect(scoreTargetMatch(targetA, targetB)).toBeGreaterThan(0);
+    expect(scoreTargetMatch(targetA, "屋顶小门")).toBe(0);
+  });
+
+  it("matchActionToGates 同目标换措辞也能命中旧门禁", () => {
+    const gates = [{ skill: "侦查", difficulty: "regular", action: "查看一层门厅地板与墙脚" }];
+    const matched = matchActionToGates("我检查一层门厅地面和墙角", gates);
+    expect(matched.length).toBe(1);
+    expect(matched[0].skill).toBe("侦查");
+  });
+
+  it("mergeCheckGates 同目标换措辞保留一条并更新动作文本", () => {
+    const merged = mergeCheckGates(
+      [{ skill: "侦查", difficulty: "regular", action: "查看一层门厅地板与墙脚" }],
+      [{ skill: "侦查", difficulty: "hard", action: "我检查一层门厅地面和墙角" }]
+    );
+    expect(merged.length).toBe(1);
+    expect(merged[0].action).toBe("我检查一层门厅地面和墙角");
+    expect(merged[0].difficulty).toBe("hard");
   });
 
   it("resolvePendingChoice 支持编号与动作文本", () => {

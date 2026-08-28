@@ -118,12 +118,12 @@ describe("Shared 聊天桥", () => {
 
     expect(result.pendingChecks).toHaveLength(1);
     expect(result.pendingChecks[0].skill).toBe("聆听");
-    expect(result.pendingChecks[0].action).toBe("你似乎听见门后有极轻的响动。");
+    expect(result.pendingChecks[0].action).toBe("你似乎听见门后有极轻的响动");
     const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
     expect(flat.log.map((entry) => entry.kind)).toEqual(["user", "kp", "check"]);
     expect(flat.log[1].text).notToContain("团检");
     expect(flat.log[2].text).toBe("[团检：聆听] [.ra聆听]");
-    expect(flat.pendingChecks[0].action).toBe("你似乎听见门后有极轻的响动。");
+    expect(flat.pendingChecks[0].action).toBe("你似乎听见门后有极轻的响动");
     expect(flat.pendingChecks[0].source).toBe("text-marker");
     expect(flat.busy).toBeFalse();
   });
@@ -282,10 +282,9 @@ describe("Shared 聊天桥", () => {
 
     await bridge.runKpTurn("g1", "先不开，我回客厅。", "玩家");
     const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
-    expect(flat.pendingChecks).toHaveLength(0);
-    expect(flat.skippedChecks).toHaveLength(1);
-    expect(flat.skippedChecks[0].skill).toBe("开锁");
-    expect(typeof flat.skippedChecks[0].skippedAt).toBe("string");
+    expect(flat.pendingChecks).toHaveLength(1);
+    expect(flat.pendingChecks[0].skill).toBe("开锁");
+    expect(flat.skippedChecks ?? []).toHaveLength(0);
     expect(flat.busy).toBeFalse();
   });
 
