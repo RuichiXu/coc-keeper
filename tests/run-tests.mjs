@@ -47,6 +47,7 @@ const TESTS = {
     "unit/state-autolanding.test.mjs",
     "unit/narration-guard.test.mjs",
     "unit/scenario-contract.test.mjs",
+    "unit/story-presets.test.mjs",
   ],
   integration: [
     "integration/rule-event-state.test.mjs",
@@ -69,6 +70,9 @@ const TESTS = {
   ],
   e2e: [
     "e2e/vertical-slice.test.mjs",
+  ],
+  replay: [
+    "replay/final-rite-replay.test.mjs",
   ],
 };
 

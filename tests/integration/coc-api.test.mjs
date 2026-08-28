@@ -170,6 +170,44 @@ describe("/coc-api 集成", () => {
     expect(flat.pendingChecks).toHaveLength(0);
   });
 
+  it("POST /coc-api/debug gotoPreset / exportFixture 支持剧情点跳转与夹具导出", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "games"), { recursive: true });
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    writeFileSync(
+      join(dir, "games", "g1.json"),
+      JSON.stringify({
+        id: "g1", title: "g1", updatedAt: new Date().toISOString(), kpMode: "ai",
+        rules: null, scenario: null, characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+        keyPoints: [], branches: [], tasks: [], entities: [], reminders: [], rollHistory: [],
+        toolTrace: [], log: [], pendingChecks: [], pendingChoice: null, resolvedChecks: [],
+        passedCheckpointIds: [], sanitySettled: [], skippedChecks: [], firedNightEventIds: [],
+        core: { trace: [] },
+      })
+    );
+
+    const jumped = await handle(handler, createFakeReq("POST", "/coc-api/debug", { action: "gotoPreset", preset: "diary-found", game: "g1" }), createFakeRes());
+    expect(jumped.ok).toBeTrue();
+    expect(jumped.data.currentScene).toBe("三层书房");
+    const flatAfterJump = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
+    expect(flatAfterJump.passedCheckpointIds).toContain("chk-5");
+    expect(flatAfterJump.characters[0].inventory).toContain("克罗斯的日记");
+
+    const fixture = await handle(handler, createFakeReq("POST", "/coc-api/debug", { action: "exportFixture", game: "g1" }), createFakeRes());
+    expect(fixture.ok).toBeTrue();
+    expect(fixture.data.currentScene).toBe("三层书房");
+    expect(fixture.data.passedCheckpointIds).toContain("chk-5");
+    expect(fixture.data.keyPoints.find((kp) => kp.id === "ai-kp-4").revealed).toBeTrue();
+  });
+
   it("POST /coc-api/roll 走新工具并写入 core", async () => {
     const ctx = new Context();
     const tools = new TestTools(ctx);

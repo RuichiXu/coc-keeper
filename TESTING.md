@@ -252,3 +252,22 @@ npm run ui-check
 - 真实启动 `dsh web --port 0`，检查面板挂载、调试子按钮切换、新建场次向导三步、玩家面板挂载。
 - 交付前必须 14/14 通过；新增前端按钮时同步扩充检查项。
 - 注意：这是冒烟检查，不替代真实 E2E（真实 E2E 需用户配合）。
+
+---
+
+## 九、标准剧情点预设 / Replay 夹具（减少完整 E2E 频率）
+
+完整剧本 E2E 只放在关键节点（一批 P1 合入后、发布前、前端调试工具大改后）。
+中间暴露的问题按以下方式消化：
+
+1. **标准剧情点跳转**：`lib/shared/testing/story-presets.js` 定义《墨渊》关键节点
+   （arrival / door / study-entered / diary-found / rug-revealed / spell-decoded / final-rite）。
+   - KP 调试面板“剧情点跳转（测试）”按钮 → `POST /coc-api/debug {action:"gotoPreset", preset}`。
+   - 单元测试直接 `applyStoryPreset(flat, "diary-found")` 构造同一状态。
+2. **夹具导出**：`POST /coc-api/debug {action:"exportFixture"}` 把当前场次导出为
+   可复用 JSON；E2E 失败后先导出夹具，再固化成 replay/unit 测试。
+3. **Replay 测试**：`tests/replay/` 用 stub LLM + 预设/夹具状态回放关键输入，
+   断言 debug 快照（pendingChecks/resolvedChecks/passedCheckpointIds/keypoints/branches），
+   不启动浏览器、不依赖真实 LLM。
+4. **新增预设时**：同时更新 `STORY_PRESET_NAMES`、`lib/client.js` 的 `DEBUG_PRESETS`，
+   并补 `tests/unit/story-presets.test.mjs`。

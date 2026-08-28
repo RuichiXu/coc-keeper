@@ -823,3 +823,30 @@ v6 复测证明：靠“叙述里出现某个词”来落地关键点/分支，�
 ### 备注
 - P1-1/P1-3 修复为《墨渊》特化兜底，PATCHES 行 15 已登记。
 - 残缺团检文案与门禁语义去重仍主要受 LLM 输出影响，下轮继续观察。
+
+---
+
+## Session（2026-08-28 续 6）：A——测试工具（剧情点预设/调试跳转/夹具导出/Replay）
+
+### 交付
+1. **`lib/shared/testing/story-presets.js`（纯数据，DSH-free）**：
+   - 7 个《墨渊》标准剧情点预设：arrival / door / study-entered / diary-found / rug-revealed / spell-decoded / final-rite。
+   - `applyStoryPreset(flat, name)` 原地重置剧情/门禁/关键点/分支/物品/场景字段，保留角色属性与剧本。
+   - `exportStoryFixture(flat)` 把当前场次导出为可复用夹具 JSON。
+2. **`/coc-api/debug` 新增两个动作**：
+   - `gotoPreset {preset}`：跳到标准剧情点并保存。
+   - `exportFixture`：导出当前状态夹具。
+3. **前端调试卡新增“剧情点跳转（测试）”**：7 个预设按钮 + “导出状态”按钮（JSON 显示在只读 textarea，方便复制）。
+4. **测试**：
+   - `tests/unit/story-presets.test.mjs`（8 例）验证预设字段与夹具导出。
+   - `tests/integration/coc-api.test.mjs` 新增 gotoPreset/exportFixture 路由测试（9/9）。
+   - `tests/replay/final-rite-replay.test.mjs`：从 final-rite 预设回放 `.ra意志` 成功，断言程序收敛到墨渊消散结局。
+   - `tests/run-tests.mjs` 新增 replay 套件；全量 45/45。
+5. **TESTING.md 新增第九节**：标准剧情点跳转、夹具导出、Replay 测试的使用约定。
+
+### 验证
+- 全量 45/45；ui-check 14/14。
+
+### 备注
+- 预设是《墨渊》特化数据，后续 B（结构化前置条件）完成后应改为由 ScenarioContract 自动生成预设。
+- 前端 `DEBUG_PRESETS` 与 `STORY_PRESET_NAMES` 需同步维护，已在两处注释标明。
