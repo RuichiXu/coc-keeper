@@ -6,7 +6,7 @@
 
 | # | 位置 | 补丁内容 | 为什么是补丁 | 后续替换方向 |
 |---|---|---|---|---|
-| 1 | `lib/shared/chat/chat-bridge.js` `autoTrackInventory` / `cleanupJunkInventory` | 用 `ITEM_ACQUIRE_RE / ITEM_BA_RE / ITEM_STATE_CARRY_RE / ITEM_CONTAINED_RE` 等正则从叙述中提取物品入栏；`canonicalItemsFromEntities` 把候选归一到剧本实体物品名（含“稿纸/纸页→四张手稿”“日记→克罗斯的日记”）；清理物品栏时先做实体归一，避免实体名里的合法数量词（“四张手稿”）被旧垃圾规则误删 | 自然语言持有表达无穷尽，正则只能覆盖部分句式，仍有漏/误 | 物品获取/交付/放回应由验证后的结构化事件提交（coc_pc inventoryAdd/Remove 或 item-location event），提取器只做兜底 |
+| 1 | `lib/shared/chat/chat-bridge.js` `autoTrackInventory` / `cleanupJunkInventory` | 用 `ITEM_ACQUIRE_RE / ITEM_BA_RE / ITEM_STATE_CARRY_RE / ITEM_CONTAINED_RE` 等正则从叙述中提取物品入栏；`canonicalItemsFromEntities` 把候选归一到剧本实体物品名（含“稿纸/纸页→四张手稿”“日记→克罗斯的日记”）；清理物品栏时先做实体归一，避免实体名里的合法数量词（“四张手稿”）被旧垃圾规则误删；`ITEM_ABSTRACT_DENY` 增补“蛮力”、`ITEM_CONTAINER_DENY` 增补“文件袋”，`normalizeAcquiredItem` 剥前导“本”与尾部“沉甸甸地/沉甸甸” | 自然语言持有表达无穷尽，正则只能覆盖部分句式，仍有漏/误（如 NPC 主体“艾茜接过油灯”会误入油灯） | 物品获取/交付/放回应由验证后的结构化事件提交（coc_pc inventoryAdd/Remove 或 item-location event），提取器只做兜底 |
 | 2 | `lib/shared/chat/chat-bridge.js` `revealKeyPointsFromNarration` | 标题去动作前缀/事件后缀 + “A与B”拆分 + 否定语境检测（“没能进入书房”不揭示）；过短剥离词（<4 字）不再命中，空间型标题（进入/来到/打开）交给事件驱动 | 标题包含关系不是真正的剧情触发判定，仍可能提前揭示 | 由 Trigger Engine 依据已获得线索/事件激活关键点（已由 `applyEventDrivenLanding` 部分替代） |
 | 3 | `lib/shared/tools/rules.js` `canonicalSanityEventId` | 用 SAN 检定点 keys 与 description 的重叠打分映射规范幂等键 | 依赖描述文本碰巧包含“巨眼/漩涡/墨渊”等词 | 剧本导入时生成稳定 phenomenonId 并写入检定点；工具直接引用，不再靠描述匹配 |
 | 4 | `lib/shared/chat/narration-guard.js` `findCheckpointClueLeak` | 当前场景检定点 clueWords 出现在叙述中就判泄露 | 词面匹配无法理解语义，存在误报/漏报 | 已部分落地为 `scenario-contract-validator.js` 的 clueGates（契约驱动）；旧 guard 待契约覆盖全量后删除 |

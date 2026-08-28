@@ -116,6 +116,42 @@ describe("事件驱动落地", () => {
     expect(result.revealed).toBe(1);
     expect(flat.keyPoints[0].revealed).toBeTrue();
   });
+
+  it("最终分支已选但咒文未揭示 → 不揭示最终抉择", () => {
+    const flat = {
+      currentScene: "三层书房·仪式终结",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-7", title: "拼凑十二字咒文", scene: "书房", revealed: false },
+        { id: "ai-kp-8", title: "最终抉择", scene: "书房/结局", revealed: false },
+      ],
+      branches: [
+        { id: "ai-br-3", title: "最终仪式", scene: "书房", reached: true, chosen: "逆序念诵（送神）", options: [{ label: "逆序念诵（送神）", leadsTo: "结局" }] },
+      ],
+    };
+    const result = applyEventDrivenLanding(flat);
+    expect(result.revealed).toBe(0);
+    expect(flat.keyPoints[1].revealed).toBeFalse();
+  });
+
+  it("最终分支已选且咒文已揭示 → 揭示最终抉择", () => {
+    const flat = {
+      currentScene: "三层书房·仪式终结",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-7", title: "拼凑十二字咒文", scene: "书房", revealed: true },
+        { id: "ai-kp-8", title: "最终抉择", scene: "书房/结局", revealed: false },
+      ],
+      branches: [
+        { id: "ai-br-3", title: "最终仪式", scene: "书房", reached: true, chosen: "逆序念诵（送神）", options: [{ label: "逆序念诵（送神）", leadsTo: "结局" }] },
+      ],
+    };
+    const result = applyEventDrivenLanding(flat);
+    expect(result.revealed).toBe(1);
+    expect(flat.keyPoints[1].revealed).toBeTrue();
+  });
 });
 
 describe("分支自动落地", () => {
@@ -145,7 +181,7 @@ describe("分支自动落地", () => {
     expect(flat.branches[0].chosen).toBe("撞门");
   });
 
-  it("最终分支选择后揭示同结局关键点", () => {
+  it("最终分支选择后不直接揭示「最终抉择」，交由事件驱动判定", () => {
     const flat = {
       currentScene: "结局",
       branches: [
@@ -157,8 +193,8 @@ describe("分支自动落地", () => {
       ],
     };
     const changed = revealKeyPointsForBranchChoices(flat);
-    expect(changed).toBe(1);
-    expect(flat.keyPoints[0].revealed).toBeTrue();
+    expect(changed).toBe(0);
+    expect(flat.keyPoints[0].revealed).toBeFalse();
     expect(flat.keyPoints[1].revealed).toBeFalse();
   });
 
@@ -273,6 +309,26 @@ describe("物品自动入栏", () => {
     expect(added[0]).toBe("手稿");
     expect(flat.characters[0].inventory).toContain("手稿");
     expect(flat.characters[0].inventory).notToContain("证物袋");
+  });
+
+  it("拒绝抽象词（蛮力）与容器（文件袋）", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "你收起蛮力，把稿纸装进文件袋。");
+    expect(added).toHaveLength(1);
+    expect(added[0]).toBe("手稿");
+    expect(flat.characters[0].inventory.includes("蛮力")).toBeFalse();
+    expect(flat.characters[0].inventory.includes("文件袋")).toBeFalse();
+  });
+
+  it("清洗句子残片（手枪沉甸甸地别在腰间 → 手枪）", () => {
+    const flat = {
+      characters: [{ name: "伊芙琳", aiControlled: false, inventory: [] }],
+    };
+    const added = autoTrackInventory(flat, "你挎上相机，手枪沉甸甸地别在腰间。");
+    expect(added.includes("手枪")).toBeTrue();
+    expect(added.includes("手枪沉甸甸地")).toBeFalse();
   });
 
   it("拒绝介词短语（纸从它熟悉的位置）", () => {
