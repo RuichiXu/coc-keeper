@@ -725,3 +725,23 @@ data: {"ok":true,"data":{...},"render":"已导入…"}
 ### 验证
 - 全套 43 文件测试通过；ui-check 14/14 通过。
 - 新增单元测试：门外不揭示进入书房、掀开地毯落地 ai-br-2、清理物品栏保留四张手稿并归一原稿一张张。
+
+---
+
+## Session（2026-08-28 续 1）：v6 复测失败后——事件驱动落地收口（替代词面补丁）
+
+### 结论
+v6 复测证明：靠“叙述里出现某个词”来落地关键点/分支，在 LLM 改写文本后必然失效（“把地毯整片掀开”匹配不到“掀开地毯”；“漆黑深渊”匹配不到“发现墨渊”），并且宽变体（“进入书房”→“书房”）会造成提前揭示。开始把关键点/分支落地从“叙述词面启发式”切换到“结构化事件驱动”。
+
+### 实现
+1. 新增 `applyEventDrivenLanding(flat)`：场景精确切入揭示场景关键点；`passedCheckpointIds` 驱动“日记与手稿/十二字咒文”；`sanitySettled` 映射 chk-8 驱动“发现墨渊”并落地掀开地毯分支；最终分支已选且咒文已揭示才揭示“最终抉择”。
+2. 新增 `findCheckpointMatch` / `recordPassedCheckpoint`：`.ra` 成功后把命中的剧本检定点 ID 写入 `flat.passedCheckpointIds`（动作文本缺失时只在场景池唯一匹配时记录，避免误配）。
+3. 收紧 `keypointTitleVariants`：剥离词至少 4 字，“书房/墨渊/委托”等 2 字变体不再参与词面命中；`revealKeyPointsFromNarration` 跳过“进入/来到/抵达/打开”类空间动作标题，交给事件驱动。
+4. `revealKeyPointsFromNarration` / `autoLandBranches` 降级为兜底：事件驱动先执行，叙述词面命中仅作为兜底。
+
+### 验证
+- `state-autolanding` 单测新增 3 个事件驱动用例（SAN 结算落地、检定点落地、场景精确切入），并更新 2 个过短剥离词回归用例。
+- 全套测试 43/43 通过；ui-check 14/14 通过。
+
+### 备注
+- 事件驱动映射目前按《墨渊》关键点/检定点 ID 硬编码（PATCHES 行 11），下一步在剧本导入时为关键点/分支生成结构化前置条件，由 Trigger Engine 统一激活。

@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, run, summarize } from "../runner.js";
 import {
+  applyEventDrivenLanding,
   autoTrackInventory,
   autoLandBranches,
   canonicalItemFromEntities,
@@ -36,11 +37,11 @@ describe("关键点自动揭示", () => {
     expect(changed).toBe(0);
   });
 
-  it("标题带动作前缀（发现墨渊）也能通过正文命中", () => {
+  it("过短的剥离词（墨渊）不再通过正文命中，交由事件驱动", () => {
     const keyPoints = [{ id: "kp-1", title: "发现墨渊", desc: "", revealed: false }];
     const changed = revealKeyPointsFromNarration(keyPoints, "墨渊正在屋顶上缓缓旋转。");
-    expect(changed).toBe(1);
-    expect(keyPoints[0].revealed).toBeTrue();
+    expect(changed).toBe(0);
+    expect(keyPoints[0].revealed).toBeFalse();
   });
 
   it("标题为「A与B」时，正文同时出现 A、B 即命中", () => {
@@ -50,11 +51,11 @@ describe("关键点自动揭示", () => {
     expect(keyPoints[0].revealed).toBeTrue();
   });
 
-  it("标题带事件后缀（委托到来）也能通过核心词命中", () => {
+  it("过短的事件后缀剥离词（委托）不再通过正文命中，交由开场揭示", () => {
     const keyPoints = [{ id: "kp-1", title: "委托到来", desc: "", revealed: false }];
     const changed = revealKeyPointsFromNarration(keyPoints, "艾茜向你们说明了这份委托，请你们调查宅邸怪事。");
-    expect(changed).toBe(1);
-    expect(keyPoints[0].revealed).toBeTrue();
+    expect(changed).toBe(0);
+    expect(keyPoints[0].revealed).toBeFalse();
   });
 
   it("否定语境不揭示关键点：没能进入书房", () => {
@@ -62,6 +63,58 @@ describe("关键点自动揭示", () => {
     const changed = revealKeyPointsFromNarration(keyPoints, "你并没能进入书房，门依然锁着。");
     expect(changed).toBe(0);
     expect(keyPoints[0].revealed).toBeFalse();
+  });
+});
+
+describe("事件驱动落地", () => {
+  it("SAN 结算墨渊首次目击 → 揭示发现墨渊并落地掀开地毯分支", () => {
+    const flat = {
+      currentScene: "三层书房",
+      passedCheckpointIds: [],
+      sanitySettled: [{ eventId: "scenario:chk-8", player: "伊芙琳" }],
+      keyPoints: [
+        { id: "ai-kp-5", title: "发现墨渊", scene: "书房", revealed: false },
+      ],
+      branches: [
+        { id: "ai-br-2", title: "是否掀开地毯", scene: "书房", reached: false, chosen: null, options: [{ label: "掀开地毯查看", leadsTo: "发现墨渊" }] },
+      ],
+    };
+    const result = applyEventDrivenLanding(flat);
+    expect(result.revealed).toBe(1);
+    expect(result.branches).toBe(1);
+    expect(flat.keyPoints[0].revealed).toBeTrue();
+    expect(flat.branches[0].reached).toBeTrue();
+    expect(flat.branches[0].chosen).toBe("掀开地毯查看");
+  });
+
+  it("日记与手稿检定点通过 → 揭示发现日记与手稿", () => {
+    const flat = {
+      currentScene: "三层书房",
+      passedCheckpointIds: ["chk-3", "chk-5"],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-4", title: "发现日记与手稿", scene: "书房", revealed: false },
+      ],
+      branches: [],
+    };
+    const result = applyEventDrivenLanding(flat);
+    expect(result.revealed).toBe(1);
+    expect(flat.keyPoints[0].revealed).toBeTrue();
+  });
+
+  it("当前场景精确切入三层书房才揭示进入书房", () => {
+    const flat = {
+      currentScene: "三层书房",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false },
+      ],
+      branches: [],
+    };
+    const result = applyEventDrivenLanding(flat);
+    expect(result.revealed).toBe(1);
+    expect(flat.keyPoints[0].revealed).toBeTrue();
   });
 });
 
