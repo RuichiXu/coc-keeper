@@ -86,6 +86,15 @@ describe("检定门禁", () => {
     expect(merged[0].difficulty).toBe("hard");
   });
 
+  it("mergeCheckGates 同目标合并时保留 checkpointId", () => {
+    const merged = mergeCheckGates(
+      [{ skill: "侦查", difficulty: "regular", action: "查看一层门厅地板" }],
+      [{ skill: "侦查", difficulty: "regular", action: "检查一层门厅地面", checkpointId: "chk-1" }]
+    );
+    expect(merged.length).toBe(1);
+    expect(merged[0].checkpointId).toBe("chk-1");
+  });
+
   it("resolvePendingChoice 支持编号与动作文本", () => {
     const choice = { skill: "攀爬", candidates: ["翻出窗外，沿窄檐攀向屋顶小门", "顺排水管爬上屋顶"] };
     expect(resolvePendingChoice("1", choice)).toBe("翻出窗外，沿窄檐攀向屋顶小门");

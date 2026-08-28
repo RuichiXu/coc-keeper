@@ -874,3 +874,20 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - 这是 B 的第一批（门禁消费/去重结构化），仍保留词表+同义词启发式，已登记 PATCHES 行 16。
 - 下一步 B：门禁 schema 增加 `checkpointId/target`、失败消费与场景失效自动清理，并开始结构化前置条件（PATCHES 11/15 的替换）。
+
+---
+
+## Session（2026-08-28 续 8）：B 第二批——检定点消费 / 失败消费 / 场景失效清理
+
+### 交付
+1. **门禁 checkpointId 消费**：
+   - `.ra` 掷骰前先 `findCheckpointMatch`，命中则把 `checkpointId` 绑到 selectedGate；
+   - 成功记录 `passedCheckpointIds` 时优先使用门禁绑定的 checkpointId；
+   - `mergeCheckGates` 同目标合并时保留已有/传入的 checkpointId；
+   - 门禁短路过滤新增：`gate.checkpointId ∈ passedCheckpointIds` 直接丢弃（不再只靠 skill+目标键）。
+2. **失败消费**：`.ra` 失败且命中门禁时，门禁同样结束（原逻辑），并新增 `gate-failed` trace，失败指引继续要求 LLM 给出替代路径。
+3. **场景失效清理**：新增 `expireSceneGates(flat, currentScene)`；门禁 `scene` 与当前场景互不包含时移入 skipped(reason=scene-invalid)，trace `gate-expired-scene`。每轮聊天开始时执行。
+4. 测试：check-gates 12/12（checkpointId 保留）；state-autolanding 47/47（expireSceneGates）；全量 45/45；ui-check 14/14。
+
+### 备注
+- PATCHES 行 17 登记；门禁 schema 的 checkpointId/target 已可承载，后续在 `coc_check` 创建时直接写入 checkpointId（需把检定点匹配下沉到 shared 层，避免状态工具反向依赖 chat-bridge）。

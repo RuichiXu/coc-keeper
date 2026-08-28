@@ -8,6 +8,7 @@ import {
   autoLandBranches,
   canonicalItemFromEntities,
   cleanupJunkInventory,
+  expireSceneGates,
   findEarlyDiaryLeak,
   recordResolvedCheck,
   resolvedCheckKey,
@@ -272,6 +273,22 @@ describe("门禁短路与候选解析", () => {
     const flat = { keyPoints: [{ id: "ai-kp-4", title: "发现日记与手稿", revealed: true }] };
     const issues = findEarlyDiaryLeak("你翻开日记，上面写着：它在梦里给我讲故事。", flat);
     expect(issues.length).toBe(0);
+  });
+
+  it("expireSceneGates 场景切走后清掉绑定旧场景的门禁", () => {
+    const flat = {
+      currentScene: "三层书房",
+      pendingChecks: [
+        { id: "chk-a", skill: "侦查", difficulty: "regular", action: "查看一层门厅地板", scene: "一层门厅" },
+        { id: "chk-b", skill: "侦查", difficulty: "regular", action: "查看书房书桌", scene: "三层书房" },
+      ],
+      skippedChecks: [],
+    };
+    const removed = expireSceneGates(flat, "三层书房");
+    expect(removed).toBe(1);
+    expect(flat.pendingChecks).toHaveLength(1);
+    expect(flat.pendingChecks[0].id).toBe("chk-b");
+    expect(flat.skippedChecks[0].reason).toBe("scene-invalid");
   });
 
   it("sanitizeSanityLine 只保留损失结果，隐藏出目与成功等级", () => {
