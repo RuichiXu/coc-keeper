@@ -20,6 +20,7 @@
 | 12 | `lib/shared/chat/chat-bridge.js` `recordResolvedCheck` / `resolvedCheckKey` + 门禁合并过滤 | 成功 `.ra` 后把 skill+action 写入 `flat.resolvedChecks` 并立即落盘（避免叙事循环重载覆盖）；后续同键门禁（coc_check 或文本 [团检]）在合并时直接丢弃并注入“该检定已通过，自动忽略”日志 | 是对 LLM 反复要求同一检定这一上游问题的补偿式去重，键值只按字面 skill+action 匹配，改写措辞后仍会漏 | 门禁 schema 增加 `checkpointId/kind`，由 Checkpoint 引擎按检定点 ID 幂等消费；文本门禁只做兜底 |
 | 13 | `lib/shared/chat/chat-bridge.js` 终局短路 | 最终咒文轮（意志/SAN）成功且叙述未出现结局关键词时，程序追加固定结局句、提交 `endingReached/endedAt/当前场景`、补揭示 ai-kp-6/7/8 并清空全部门禁 | 是对“LLM 在最终仪式轮回退到更早场景”的补偿式兜底；结局句为固定模板 | 结局事件由 Rule Engine/PlotGraph 的 `EndingResolved` 事件驱动，Narrator 只渲染不决定结局是否发生 |
 | 14 | `lib/shared/chat/chat-bridge.js` `autoLandBranches` 玩家输入优先 / `spellShown` 咒文展示 / `sanitizeSanityLine` SAN 玩家可见清洗 | 分支落地先搜玩家输入、命中即停，不再被叙述末尾菜单词（撬锁工具）覆盖；咒文关键点揭示或最终分支已选后，程序固定展示十二字咒文原文；`coc_sanity_check` 结算行只写损失结果，`knowledge-layers` 对 player 层隐藏理智骰 | 仍是对 LLM 文本行为的补偿：玩家意图解析与线索展示本应由结构化事件/ClueGraph 完成；SAN 行清洗是展示层规则 | 玩家动作/选择由 `coc_branch` 事件驱动；线索展示由 ClueGraph `ClueRevealed` 事件渲染；SAN 展示由 Knowledge 层统一按 roll.kind/skill 过滤 |
+| 15 | `lib/shared/chat/chat-bridge.js` 咒文解读兜底 / `applyEventDrivenLanding` 进门证据 / `findEarlyDiaryLeak` / `sanitizeGateAction` / `ITEM_JUNK_EXTRA` | 智力在解谜语境下成功且“日记与手稿”已揭示时，程序直接记录 chk-13 通过（LLM 门禁动作与检定点匹配词不一致的兜底）；“进入书房”在场景精确切入基础上额外要求文本出现实际进门短语；日记核心句在 ai-kp-4 揭示前由守卫拦截；门禁动作清洗残缺提示尾；物品清理增补“隔层/两样/一并”等垃圾项 | 均为《墨渊》特化或 LLM 文本行为的补偿式兜底 | 咒文由 ClueGraph 的 `SpellDecoded` 事件驱动；关键点前置条件结构化；门禁动作由 `coc_check` schema 限制为短选项原文；物品由实体注册表白名单管理 |
 
 ## 使用约定
 

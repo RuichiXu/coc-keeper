@@ -8,13 +8,14 @@ import {
   autoLandBranches,
   canonicalItemFromEntities,
   cleanupJunkInventory,
+  findEarlyDiaryLeak,
   recordResolvedCheck,
   resolvedCheckKey,
   revealKeyPointsForBranchChoices,
   revealKeyPointsFromNarration,
   sanitizeSanityLine,
 } from "../../lib/shared/chat/index.js";
-import { resolveRaCandidateChoice } from "../../lib/shared/chat/check-gates.js";
+import { resolveRaCandidateChoice, sanitizeGateAction } from "../../lib/shared/chat/check-gates.js";
 
 describe("关键点自动揭示", () => {
   it("叙述完整出现未揭示关键点标题时揭示", () => {
@@ -140,6 +141,36 @@ describe("事件驱动落地", () => {
     expect(flat.keyPoints[0].revealed).toBeTrue();
   });
 
+  it("场景已到三层书房但文本仍在门外 → 不揭示进入书房", () => {
+    const flat = {
+      currentScene: "三层书房",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false },
+      ],
+      branches: [],
+    };
+    const result = applyEventDrivenLanding(flat, "我选择撞门，在检定成功前我仍在门外。", "你站在书房门外，门依然反锁。");
+    expect(result.revealed).toBe(0);
+    expect(flat.keyPoints[0].revealed).toBeFalse();
+  });
+
+  it("场景已到三层书房且文本出现实际进入 → 揭示进入书房", () => {
+    const flat = {
+      currentScene: "三层书房",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false },
+      ],
+      branches: [],
+    };
+    const result = applyEventDrivenLanding(flat, ".ra力量", "门被撞开，你进入书房，霉味扑面而来。");
+    expect(result.revealed).toBe(1);
+    expect(flat.keyPoints[0].revealed).toBeTrue();
+  });
+
   it("身处一层门厅不揭示发现型关键点（发现一层墨渍）", () => {
     const flat = {
       currentScene: "一层门厅",
@@ -223,6 +254,24 @@ describe("门禁短路与候选解析", () => {
     recordResolvedCheck(flat, "侦查", "数清稿纸");
     expect(flat.resolvedChecks).toHaveLength(1);
     expect(flat.resolvedChecks[0]).toBe(resolvedCheckKey("侦查", "数清稿纸"));
+  });
+
+  it("sanitizeGateAction 清洗残缺提示尾", () => {
+    expect(sanitizeGateAction("演算完毕，你审视图上那十二个字——")).toBe("演算完毕，你审视图上那十二个字");
+    expect(sanitizeGateAction("请发送 ` 来完成验算")).toBe("");
+  });
+
+  it("findEarlyDiaryLeak 在日记关键点揭示前拦截核心句", () => {
+    const flat = { keyPoints: [{ id: "ai-kp-4", title: "发现日记与手稿", revealed: false }] };
+    const issues = findEarlyDiaryLeak("你翻开日记，上面写着：它在梦里给我讲故事。", flat);
+    expect(issues.length).toBe(1);
+    expect(issues[0]).toContain("它在梦里给我讲故事");
+  });
+
+  it("findEarlyDiaryLeak 在日记关键点揭示后放行", () => {
+    const flat = { keyPoints: [{ id: "ai-kp-4", title: "发现日记与手稿", revealed: true }] };
+    const issues = findEarlyDiaryLeak("你翻开日记，上面写着：它在梦里给我讲故事。", flat);
+    expect(issues.length).toBe(0);
   });
 
   it("sanitizeSanityLine 只保留损失结果，隐藏出目与成功等级", () => {
