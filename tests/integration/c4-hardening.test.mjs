@@ -18,6 +18,7 @@ import {
 } from "../../lib/core/index.js";
 import { createSharedToolDefs } from "../../lib/shared/tools/index.js";
 import { createSharedChatBridge } from "../../lib/shared/chat/index.js";
+import { applyStoryPreset } from "../../lib/shared/testing/story-presets.js";
 
 function makeDeps(dataDir) {
   const deps = {
@@ -126,6 +127,27 @@ describe("C-4 后端加固", () => {
 
     // 返回 digest 的 debug.frontier 有可达路线（ai-kp-4 因缺检定点 blocked）。
     expect(result.digest.debug.frontier).toContain("发现日记与手稿");
+  });
+
+  it("study 预设下叙述仅提到他处场景不漂移 currentScene", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-c4-scene-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir);
+    const file = join(dataDir, "games", "g1.json");
+    const flat = JSON.parse(readFileSync(file, "utf8"));
+    applyStoryPreset(flat, "study-entered");
+    writeFileSync(file, JSON.stringify(flat));
+
+    deps.streamBlocks = async () => ({
+      blocks: [{ type: "text", text: "你检查书桌，想起一层客厅的吊灯与餐厅的壁炉。" }],
+      finish: { kind: "complete" },
+      usage: {},
+    });
+
+    const bridge = createSharedChatBridge(deps);
+    await bridge.runKpTurn("g1", "我检查书桌", "玩家");
+    const saved = JSON.parse(readFileSync(file, "utf8"));
+    expect(saved.currentScene).toBe("三层书房");
   });
 
   it("旧存档迁移：无 core.eventLog / 无 flags 也能加载并补建 core", async () => {

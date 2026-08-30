@@ -163,6 +163,14 @@ describe("/coc-api 集成", () => {
     expect(state.data.debug.pendingChecks).toHaveLength(1);
     expect(state.data.debug.events).toHaveLength(1);
     expect(state.data.debug.events[0].kind).toBe("auto-reveal");
+    // C-4：debug 快照应始终带 frontier 字段（无路线时为空字符串）。
+    expect(typeof state.data.debug.frontier).toBe("string");
+
+    const core = await handle(handler, createFakeReq("POST", "/coc-api/debug", { action: "dumpCore", game: "g1" }), createFakeRes());
+    expect(core.ok).toBeTrue();
+    expect(Array.isArray(core.data.eventLog)).toBeTrue();
+    expect(core.data.plot.nodes).toEqual([]);
+    expect(core.data.flags).toEqual({});
 
     const removed = await handle(handler, createFakeReq("POST", "/coc-api/debug", { action: "removeGate", gateId: "chk1", game: "g1" }), createFakeRes());
     expect(removed.ok).toBeTrue();

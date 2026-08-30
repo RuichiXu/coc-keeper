@@ -1053,3 +1053,21 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - E2E 前纯后端测试已通过：run-tests 53 套（含新加固集成 + replay 扩展）。
 - E2E 操作指令见交付说明（重启 dsh web、验证 PID、按测试清单执行）。
+
+---
+
+## Session（2026-08-28 续 18）：E2E 反馈修复（场景漂移 + state/debug 暴露）
+
+### E2E 发现与修复
+1. **场景漂移**（study 预设聊天后 currentScene 从三层书房漂到一层）：`inferSceneFromText` 只要叙述提到他处场景词就会切换。新增 `inferSceneTransition` / `hasSceneMovementPhrase`：当前场景非空时，必须「新场景词 + 位置转移动作」同时命中才切换；`chat-bridge` 场景落地改用 transition 版。补单元（scene-facts +2）与集成回归（c4-hardening +1）。
+2. **`/coc-api/state.debug.frontier` 缺失**：`coc-api.js` 有本地 `stateDigestOf` 副本，未同步 chat-bridge 的 `stateDigest`。补齐 `debug.frontier` / `debug.facts`（与聊天桥一致）。补 coc-api 集成断言。
+3. **core 验证通道**：`/coc-api/debug` 新增 `dumpCore` action，返回 `eventLog / plot.nodes+edges / world.flags / world 关键字段`（只读、增量，不改旧 action）。
+4. PATCHES 增补行 21（场景转移动作词启发式）。
+
+### 测试
+- 全量 53 套通过；ui-check 14/14。
+- c4-hardening 扩到 4 用例；scene-facts 扩到 10 用例；coc-api 扩到 9 用例。
+
+### 备注
+- E2E 中“scenario-compile plotNodes:0 / game-setup keyPoints=0”为确定性编译器对《墨渊》提取不足 + LLM 契约未生成剧情点，属 D 阶段 LLM 深度解析范围；E2E 用 presets 注入结构后主线通过。
+- 待 Codex 复测：state 路径为 `data.debug.frontier`；core 验证走 `POST /coc-api/debug {action:"dumpCore"}`。

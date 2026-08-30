@@ -7,6 +7,8 @@ import {
   extractCheckpoints,
   selectSceneFacts,
   inferSceneFromText,
+  hasSceneMovementPhrase,
+  inferSceneTransition,
   splitScenarioSections,
   classifyFloor,
   buildRoomFloorRules,
@@ -82,6 +84,22 @@ describe("Scene Facts", () => {
     const facts = extractSceneFacts(SAMPLE);
     expect(inferSceneFromText("你推门走进书房，门在身后锁上了", facts)).toContain("三层");
     expect(inferSceneFromText("你来到宅邸外，铁栅栏围住整片土地", facts)).toContain("惴惴不安");
+  });
+
+  it("inferSceneTransition：仅提到他处场景词不切换，需位置转移动作", () => {
+    const facts = extractSceneFacts(SAMPLE);
+    // 当前在三层书房检查书桌，叙述里顺带提到“一层客厅”，不应漂移。
+    expect(inferSceneTransition("你检查书桌，想起一层客厅的吊灯与餐厅的壁炉", "三层书房", facts)).toBeNull();
+    expect(inferSceneTransition("你仔细检查书桌，桌上刻着墨渊的印记", "三层书房", facts)).toBeNull();
+    // 有转移动作才切换。
+    expect(inferSceneTransition("你沿楼梯走下一层，来到客厅与餐厅", "三层书房", facts)).toContain("一层");
+    // 当前场景为空时无需动作直接推断。
+    expect(inferSceneTransition("你推门走进书房", "", facts)).toContain("三层");
+  });
+
+  it("hasSceneMovementPhrase 识别位置转移动作", () => {
+    expect(hasSceneMovementPhrase("你走到书桌前")).toBeTrue();
+    expect(hasSceneMovementPhrase("你检查书桌")).toBeFalse();
   });
 
   it("buildRoomFloorRules 从标题提取房间-楼层规则", () => {
