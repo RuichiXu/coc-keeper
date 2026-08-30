@@ -26,6 +26,8 @@ const TESTS = {
     "unit/character-parser.test.mjs",
     "unit/check-command.test.mjs",
     "unit/check-gates.test.mjs",
+    "unit/gate-lifecycle.test.mjs",
+    "unit/ending.test.mjs",
     "unit/game-session.test.mjs",
     "unit/persistence.test.mjs",
     "unit/world-state.test.mjs",

@@ -911,3 +911,19 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - PATCHES 11 标记为已替代；PATCHES 15 的进门证据/咒文兜底部分改为结构化，剩余日记拦截/门禁动作清洗/物品清理仍待后续。
 - 草拟规则本身仍是启发式（PATCHES 行 18），D 阶段由 LLM 深度解析替代并 KP 校对。
+
+---
+
+## Session（2026-08-28 续 10）：B 第四批——门禁创建绑定检定点 / 场景事件失效 / 结局事件化
+
+### 交付
+1. **`checkpoint-match.js`**：`findCheckpointMatch` / `findCheckpointReveal` 从 chat-bridge 下沉到共享层，chat-bridge 保留 re-export 兼容。
+2. **`gate-lifecycle.js`**：`expireSceneGates`（前缀边界规则：当前场景以门禁 scene 为前缀且剩余不是“门外/门口/外部/外”时保留；修复“三层书房门外”在进入“三层书房”后误保留）+ `abandonAllGates`。
+3. **`coc_check` 创建门禁时直接写入 `checkpointId` 与 `target`**：后续消费/短路不再依赖掷骰时匹配；同键旧门禁缺 checkpointId 时补齐。
+4. **`coc_scene` 场景切换立即清理过期门禁**（Scene 事件），trace `gate-expired-scene`；不再只等下一轮聊天开始。
+5. **结局事件化 `ending.js`**：`createEndingResolvedEvent` / `applyEndingResolvedEvent` / `buildEndingKeywords` / `endingSentenceFor`；聊天桥终局短路改为先创建 `EndingResolved` 事件再应用（为 C 阶段 Rule Engine/PlotGraph 发布事件留好接口）；结局门禁冻结改用 `abandonAllGates`。
+6. 测试：新增 gate-lifecycle 4 用例、ending 5 用例；check-gates 集成新增 coc_check checkpointId 绑定用例；全量 48 套通过；ui-check 14/14。
+
+### 备注
+- PATCHES 13/17 更新，新增行 19（场景名前缀边界仍是启发式，待 SceneGraph 按 sceneId 精确失效）。
+- B 收尾完成。下一步 C：游戏引擎增强（Typed Event Log / PlotGraph-Director / Rule Engine 扩展 / World State 一致性）。

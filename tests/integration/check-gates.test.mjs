@@ -99,6 +99,26 @@ describe("检定门禁集成", () => {
     expect(flat.pendingChecks[0].source).toBe("kp-tool");
   });
 
+  it("coc_check 创建时直接绑定检定点 checkpointId 与目标键 target", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-gate-checkpoint-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir, {
+      currentScene: "三层书房",
+      scenarioCheckpoints: [
+        { id: "chk-9", skill: "侦查", difficulty: "regular", scene: "三层书房", floor: "三层", trigger: "仔细摸索地毯接缝", keys: ["地毯", "接缝"] },
+      ],
+    });
+
+    const cocCheck = deps.toolDefs.get("coc_check");
+    await cocCheck.execute({ game: "g1", skill: "侦查", difficulty: "regular", action: "用尺边插入地毯边缘，撬起一角查看下面", hidden: false });
+
+    const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
+    expect(flat.pendingChecks).toHaveLength(1);
+    expect(flat.pendingChecks[0].checkpointId).toBe("chk-9");
+    expect(flat.pendingChecks[0].target).notToBeUndefined();
+    expect(flat.pendingChecks[0].target.length).toBeGreaterThan(0);
+  });
+
   it("玩家选择带门禁的推荐动作时被阻止，不推进剧情", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "coc-gate-block-"));
     const deps = makeDeps(dataDir);
