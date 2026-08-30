@@ -927,3 +927,21 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - PATCHES 13/17 更新，新增行 19（场景名前缀边界仍是启发式，待 SceneGraph 按 sceneId 精确失效）。
 - B 收尾完成。下一步 C：游戏引擎增强（Typed Event Log / PlotGraph-Director / Rule Engine 扩展 / World State 一致性）。
+
+---
+
+## Session（2026-08-28 续 11）：C-1 统一账本 + 流水账（地基）
+
+### 交付
+1. **事件目录**（`lib/core/events.js`）：`GAME_EVENT_TYPES`（15+ 类型）、`EVENT_REQUIRED_FIELDS`、`validateGameEvent`、`createGameEvent`。
+2. **EventLog 流水账**：`append` 自动分配 `id/seq/at`；`query({type, correlationId, afterSeq, limit})` 串因果链；`toJSON/fromJSON` 持久化。
+3. **WorldState 剧情执行账本字段**：`currentBranchId / pendingChecks / skippedChecks / resolvedChecks / passedCheckpointIds / sanitySettled / keyPoints / branches / spellShown / endingReached / endedAt / firedNightEventIds`；新增 `hydratePlotFields`、`addPendingGate/removePendingGate/skipGate/recordResolvedCheck/recordPassedCheckpoint/recordSanitySettled/revealKeyPoint/landBranch/markSpellShown/recordNightEventFired/markEndingResolved`。
+4. **WorldState.applyEvent 新事件实现**：GateCreated/GateResolved/GateFailed/GateExpired/CheckpointPassed/SanitySettled/KeyPointRevealed/BranchLanded/ItemAcquired/SpellShown/NightEventFired/EndingResolved。
+5. **GameSession 集成 EventLog**：`applyEvent` 先盖章再入 WorldState/EventBus；`toJSON/hydrateCore/fromJSON` 携带 eventLog；`syncFromFlat` 吸收剧情账本字段。
+6. **投影/迁移**：`projectToFlat` 从 WorldState 投影剧情账本字段；`commitSession` 先 `hydratePlotFields(flat)` 再应用事件再投影（旧工具直接改 flat 的兼容过渡，见 PATCHES 行 20）。
+7. **事件化改造起步**：`coc_check` 新门禁走 `GateCreated` 事件；`coc_scene` 场景/时间变更走 `SceneChanged/TimeAdvanced` 事件。
+8. 测试：新增 event-log 7 用例、world-plot-fields 5 用例；全量 50 套通过；ui-check 14/14。
+
+### 备注
+- 聊天桥内部多数副作用仍直接改 flat，由 `commitSession`/`saveFlat` 收进 WorldState；C-1 后续继续把聊天桥副作用改为“构造事件 → applyEvent → 投影”。
+- 下一步：C-1 续（聊天桥副作用事件化），然后 C-2 规则补全。

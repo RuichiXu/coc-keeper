@@ -25,6 +25,7 @@
 | 17 | `lib/shared/chat/chat-bridge.js` 检定点消费 / 失败消费 / `lib/shared/chat/gate-lifecycle.js` `expireSceneGates` | `.ra` 前先匹配检定点并绑定到 selectedGate，成功按 checkpointId 记录 passedCheckpointIds；门禁短路过滤同时看 resolvedChecks 与 passedCheckpointIds；失败记 gate-failed trace；`coc_check` 创建门禁时已直接写入 checkpointId/target；`coc_scene` 场景切换与每轮聊天开始时按前缀规则清理过期门禁 | 文本 [团检] 门禁仍依赖 `findCheckpointMatch` 的启发式匹配；前缀规则无法覆盖所有场景命名（见行 19） | 门禁创建时由场景事实/检定点直接写入 checkpointId（coc_check 已完成）；目标失效由 Scene/Plot 事件精确清理 |
 | 18 | `lib/shared/chat/story-prereqs.js` `draftKeyPointPrerequisites` / `draftBranchPrerequisites` / `draftEndingKeyPointPrerequisites` / `entryEvidenceVariants` | 从关键点标题词 + 检定点 keys/trigger + 场景/楼层兼容 + 难度排序，草拟 `requires/requiresAnyOf/autoChooseLabel`；进门证据由动词表（进入/来到/打开…）扩展同义短语 | 仍是规则式草拟，无法理解剧本语义；标题词表与 keys 匹配会漏配/误配（如非《墨渊》剧本） | D 阶段 LLM 深度解析生成结构化前置条件，KP 校对确认后写入；规则草拟仅作无 LLM 兜底 |
 | 19 | `lib/shared/chat/gate-lifecycle.js` `expireSceneGates` 前缀边界规则 | 当前场景以门禁 scene 为前缀且剩余部分不是“门外/门口/外部/外”时保留，否则失效；`coc_scene` 切换时立即执行 | 仍是场景命名启发式，无法覆盖“三层书房门外”之外的同形场景（如“三层书房外间”） | 场景实体/SceneGraph 建立后按 sceneId 邻接关系精确失效；门禁绑定 sceneId 而非场景名 |
+| 20 | `lib/shared/tools/helpers.js` `commitSession` 先 `hydratePlotFields` 再应用事件再投影 | C-1 过渡：旧工具/聊天桥仍直接改 flat 的剧情账本字段，提交时先收进 WorldState，再应用本轮事件，最后投影回 flat | 双写入口仍然存在（flat 与 WorldState 都可改），未做到“flat 只读投影” | C-1 续：聊天桥/旧工具全部改为 world-first（构造事件 → applyEvent → 投影），移除 hydratePlotFields 兼容层 |
 
 ## 使用约定
 

@@ -22,6 +22,7 @@ const TESTS = {
   unit: [
     "unit/dice.test.mjs",
     "unit/events.test.mjs",
+    "unit/event-log.test.mjs",
     "unit/clock.test.mjs",
     "unit/character-parser.test.mjs",
     "unit/check-command.test.mjs",
@@ -31,6 +32,7 @@ const TESTS = {
     "unit/game-session.test.mjs",
     "unit/persistence.test.mjs",
     "unit/world-state.test.mjs",
+    "unit/world-plot-fields.test.mjs",
     "unit/sanity.test.mjs",
     "unit/combat.test.mjs",
     "unit/skill-growth.test.mjs",
