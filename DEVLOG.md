@@ -964,3 +964,27 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - 聊天桥仍保留直接 flat 修改作为过渡（PATCHES 行 20），但所有重要状态变化现在都有对应事件进 EventLog，因果链可查。
 - 下一步 C-1 可选收尾：把 `abandonGates` / `expireSceneGates` / SAN 清理也纳入事件；然后进入 C-2 规则补全。
+
+---
+
+## Session（2026-08-28 续 13）：C-2 规则补全
+
+### 交付
+1. **SAN 规则补全**（`lib/core/rules/sanity.js`）：
+   - `evaluateTemporaryMadness`：单次损失 ≥5 时 INT 检定，失败触发临时性疯狂；
+   - `evaluateIndefiniteMadness`：24h 累计损失 ≥ 当前 SAN 20% 触发不定性疯狂；
+   - `learnCthulhuMythos`：+1d6 克苏鲁神话技能，同时 -1d6 SAN，产出 SanityLost + SkillGrown 事件；
+   - `recoverSanity`：精神分析 1d3 / 冒险奖励 1d6+4 / 战胜神话生物 1d10，产出 StateChanged 事件。
+   - `performSanityCheck` 复用上述判定，新增 `temporaryMadness / indefiniteMadness` 返回字段。
+2. **战斗规则补全**（`lib/core/rules/combat.js`）：
+   - `rollInitiative`：DEX×5 先攻，成功者按出目升序，失败者按 DEX 降序排后；
+   - `evaluateWoundState`：重伤（单次 ≥ 最大 HP 一半）/ 濒死（HP≤0）/ 死亡（HP≤-maxHp）；
+   - `resolveArmor`：数字或骰式护甲解析；`performCombatRound` 应用护甲（至少保留 1 点）并返回 `majorWound/dying/dead/status`，DamageApplied 事件带 `status`。
+3. **工具层同步**（`lib/shared/tools/rules.js`）：
+   - `coc_combat_resolve` 增加 `armor` 参数与 `majorWound/status` 输出；
+   - `coc_sanity_check` 的幂等结算改为发 `SanitySettled` 事件（WorldState 投影 flat.sanitySettled），不再手动写 flat。
+4. 规则文本核对：`rules-content.json` 已含先攻/疯狂/恢复/成长/护甲条目，与新实现一致，无需改文。
+5. 测试：新增 `tests/unit/rules-c2.test.mjs` 9 用例；全量 51 套通过；ui-check 14/14。
+
+### 备注
+- C-2 完成。下一步 C-3：多线剧情图 + 世界事实驱动（PlotGraph 边 requires/consequences、frontier 可达路线、跳线）。

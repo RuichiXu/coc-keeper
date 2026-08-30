@@ -35,6 +35,7 @@ const TESTS = {
     "unit/world-plot-fields.test.mjs",
     "unit/sanity.test.mjs",
     "unit/combat.test.mjs",
+    "unit/rules-c2.test.mjs",
     "unit/skill-growth.test.mjs",
     "unit/plot-graph.test.mjs",
     "unit/clue-graph.test.mjs",
