@@ -34,3 +34,4 @@
 2. 必须新增补丁时，在本表登记，并写清替换方向。
 3. 每次重构命中上表某项，删除或简化该补丁后，更新对应行状态并补回归测试。
 | 21 | `lib/core/scenario/scene-facts.js` `inferSceneTransition` + `hasSceneMovementPhrase`；`chat-bridge.js` 场景落地改用 transition 版 | 当前场景非空时，必须「新场景词 + 位置转移动作（进入/来到/走到…）」同时命中才切换场景；避免“检查书桌”叙述里顺带提到“一层客厅”就把 currentScene 漂走 | 仍是动作词表启发式，复杂转移（“绕到宅邸后”“从暗门爬出”）可能漏配 | SceneGraph/地点实体建立后，按场景邻接关系与移动事件精确切换；动作词表只作兜底 |
+| 22 | `lib/shared/chat/chat-bridge.js` 最终仪式轮失败重试 | 最终咒文仪式轮（意志/SAN）门禁失败后，程序自动以 `source:"final-rite-retry"` 重建同门禁并发布 GateCreated；避免 LLM 不再建门禁导致重试成功时 EventLog 缺 GateResolved | 仍是《墨渊》终局特化；通用“失败后是否可重试/难度是否变化”应由门禁策略引擎决定 | Checkpoint 引擎支持 retryPolicy（可重试/难度递增/消耗时间），由场景契约配置 |

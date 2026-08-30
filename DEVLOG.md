@@ -1071,3 +1071,17 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - E2E 中“scenario-compile plotNodes:0 / game-setup keyPoints=0”为确定性编译器对《墨渊》提取不足 + LLM 契约未生成剧情点，属 D 阶段 LLM 深度解析范围；E2E 用 presets 注入结构后主线通过。
 - 待 Codex 复测：state 路径为 `data.debug.frontier`；core 验证走 `POST /coc-api/debug {action:"dumpCore"}`。
+
+---
+
+## Session（2026-08-28 续 19）：复测反馈修复（GateResolved 缺失 / endingReached 暴露 / 结局事件去重）
+
+### 复测发现与修复
+1. **最终仪式轮重试成功缺 GateResolved**：第一次意志失败后门禁被消费，LLM 未再建门禁，第二次 `.ra意志` 成了自由掷骰。修复：最终仪式轮意志/SAN 门禁失败后，程序以 `source:"final-rite-retry"` 自动重建同门禁并发布 GateCreated；重试成功即消费门禁发布 GateResolved。
+2. **EndingResolved 重复**：终局短路发布一次后，后续 `endingReached` 块又按叙述关键词再发一次。修复：`flat.endingReached === true` 时不再重复发布。
+3. **`/coc-api/state` 顶层缺 `endingReached`**：`stateDigestOf` 与聊天桥 `stateDigest` 均补顶层 `endingReached` 字段。
+4. 测试：c4-hardening 新增“失败重试 → GateResolved 入账且 EndingResolved 不重复”用例（5 用例）；全量 53 套通过；ui-check 14/14。
+5. PATCHES 增补行 22。
+
+### 备注
+- 待 Codex 按修正后路径复测：`data.endingReached`、`dumpCore.eventLog` 应含 `GateResolved`。

@@ -9,7 +9,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it, expect, mockRandom, run, summarize } from "../runner.js";
+import { describe, it, expect, mockRandom, randomForDice, run, summarize } from "../runner.js";
 
 import {
   AssetStore,
@@ -148,6 +148,46 @@ describe("C-4 后端加固", () => {
     await bridge.runKpTurn("g1", "我检查书桌", "玩家");
     const saved = JSON.parse(readFileSync(file, "utf8"));
     expect(saved.currentScene).toBe("三层书房");
+  });
+
+  it("最终仪式轮失败重试：自动重建门禁，成功后 GateResolved 入账且 EndingResolved 不重复", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-c4-final-retry-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir);
+    const file = join(dataDir, "games", "g1.json");
+    const flat = JSON.parse(readFileSync(file, "utf8"));
+    applyStoryPreset(flat, "final-rite");
+    writeFileSync(file, JSON.stringify(flat));
+
+    // 第一次 .ra意志：97 失败。
+    deps.streamBlocks = async () => ({
+      blocks: [{ type: "text", text: "仪式反噬，你咬紧牙关。" }],
+      finish: { kind: "complete" },
+      usage: {},
+    });
+    const bridge = createSharedChatBridge(deps);
+    let restore = mockRandom(randomForDice([{ sides: 100, value: 97 }]));
+    await bridge.runKpTurn("g1", ".ra意志", "玩家");
+    restore();
+    let saved = JSON.parse(readFileSync(file, "utf8"));
+    expect(saved.pendingChecks.some((gate) => gate.skill === "意志" && gate.source === "final-rite-retry")).toBeTrue();
+
+    // 第二次 .ra意志：17 成功，应消费重建门禁并发布 GateResolved。
+    deps.streamBlocks = async () => ({
+      blocks: [{ type: "text", text: "墨渊消散，书房归于寂静。" }],
+      finish: { kind: "complete" },
+      usage: {},
+    });
+    const bridge2 = createSharedChatBridge(deps);
+    restore = mockRandom(randomForDice([{ sides: 100, value: 17 }]));
+    await bridge2.runKpTurn("g1", ".ra意志", "玩家");
+    restore();
+    saved = JSON.parse(readFileSync(file, "utf8"));
+
+    const types = (saved.core?.eventLog?.entries ?? []).map((entry) => entry.type);
+    expect(types.filter((type) => type === "GateResolved")).toHaveLength(1);
+    expect(types.filter((type) => type === "EndingResolved")).toHaveLength(1);
+    expect(saved.endingReached).toBeTrue();
   });
 
   it("旧存档迁移：无 core.eventLog / 无 flags 也能加载并补建 core", async () => {
