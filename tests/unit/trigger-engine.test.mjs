@@ -79,6 +79,37 @@ describe("Trigger Engine", () => {
     expect(engine.evaluate(state)).toHaveLength(0);
     expect(engine.history).toHaveLength(1);
   });
+
+  it("keypoint-prereq：结构化前置条件满足才触发", () => {
+    const prereqState = {
+      currentScene: "三层书房",
+      passedCheckpointIds: ["chk-13"],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "ai-kp-7", title: "拼凑十二字咒文", revealed: false, requires: { checkpointGroups: [["chk-13"]] } },
+        { id: "ai-kp-8", title: "最终抉择", revealed: false, requires: { keyPointIds: ["ai-kp-7"], branchChoiceIds: ["ai-br-3"] } },
+      ],
+      branches: [{ id: "ai-br-3", title: "最终仪式", reached: true, chosen: "逆序" }],
+    };
+    expect(evaluateTrigger({ id: "t1", type: TRIGGER_TYPES.KEYPOINT_PREREQ, keyPointId: "ai-kp-7", text: "" }, prereqState)).toBeTrue();
+    expect(evaluateTrigger({ id: "t2", type: TRIGGER_TYPES.KEYPOINT_PREREQ, keyPointId: "ai-kp-8", text: "" }, prereqState)).toBeFalse();
+  });
+
+  it("branch-prereq 与 ending 触发器", () => {
+    const branchState = {
+      currentScene: "三层书房",
+      passedCheckpointIds: [],
+      sanitySettled: [{ eventId: "scenario:chk-9" }],
+      keyPoints: [],
+      branches: [
+        { id: "ai-br-2", title: "是否掀开地毯", reached: false, chosen: null, requires: { sanityEventIds: ["chk-9"] } },
+      ],
+      endingReached: false,
+    };
+    expect(evaluateTrigger({ id: "b1", type: TRIGGER_TYPES.BRANCH_PREREQ, branchId: "ai-br-2", text: "" }, branchState)).toBeTrue();
+    expect(evaluateTrigger({ id: "e1", type: TRIGGER_TYPES.ENDING, text: "" }, branchState)).toBeFalse();
+    expect(evaluateTrigger({ id: "e2", type: TRIGGER_TYPES.ENDING, text: "" }, { ...branchState, endingReached: true })).toBeTrue();
+  });
 });
 
 // 直接运行

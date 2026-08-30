@@ -1020,3 +1020,20 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - 跳线代价目前体现为「frontier 列出旧线未完成/缺条件」，机械性代价（时间消耗、检定难度提升、选项锁死）待 C-4 触发器/PlotGraph 发布 EndingResolved 后进一步结构化。
 - C-3 完成度：节点/边/可达路线/后果已闭环。进入 C-4。
+
+---
+
+## Session（2026-08-28 续 16）：C-4 统一触发入口（后端验证先行）
+
+### 交付
+1. **前置条件判定并入 Trigger Engine**：`lib/core/trigger/trigger-engine.js` 新增 `evaluatePrerequisites / evaluateRequiresAnyOf / prerequisitesSatisfied / prerequisiteContextFromState`；触发器类型新增 `keypoint-prereq / branch-prereq / ending`。
+2. **`story-prereqs.js` 只负责草拟**：`evaluatePrerequisites / evaluateRequiresAnyOf` 改为 re-export Core Trigger Engine，不再本地重复实现。
+3. **`applyEventDrivenLanding` 薄封装**：聊天桥直接使用 Core Trigger Engine 的条件判定，不再持有条件求值实现。
+4. **PlotGraph 结局节点**：`syncFromStory` 为选项指向结局/END 的分支建 `end:<branch>:*` 节点（含 branchId/chosen/optionLabel），选定后 completed；`completedEndingNodes()` 供聊天桥取已完成结局。
+5. **`EndingResolved` 由 PlotGraph 结局节点驱动**：终局短路先同步剧情图，取已完成结局节点构造最终分支，再 `createEndingResolvedEvent`。
+6. PATCHES 10/13/14 状态更新。
+7. 测试：trigger-engine 10 用例（+keypoint-prereq/branch-prereq/ending）；plot-frontier 10 用例（+结局节点）；全量 52 套通过；ui-check 14/14。
+
+### 备注
+- 本轮只做后端验证，未跑 E2E（用户要求 E2E 前充分后端测试）。
+- E2E 前还需要：重启 dsh web 报告新 PID，并准备《墨渊》全链路（复用 presets/replay/fixture export）。

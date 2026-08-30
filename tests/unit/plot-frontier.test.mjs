@@ -153,6 +153,32 @@ describe("剧情后果（consequences）", () => {
     // 再次调用不重复应用。
     expect(graph.applyCompletedConsequences(world)).toEqual([]);
   });
+
+  it("结局节点：分支选项指向结局时建 ending 节点，选定后 completed", () => {
+    const graph = new PlotGraph();
+    graph.syncFromStory({
+      keyPoints: [],
+      branches: [
+        {
+          id: "ai-br-3",
+          title: "最终咒文念诵方式",
+          scene: "三层书房/结局",
+          reached: true,
+          chosen: "逆序念诵（送神）",
+          options: [
+            { label: "逆序念诵（送神）", leadsTo: "墨渊消散的结局" },
+            { label: "正序念诵（请神）", leadsTo: "夏拉卡拉布降临的结局" },
+          ],
+        },
+      ],
+    });
+    expect(graph.findNode("end:ai-br-3:1")).notToBeUndefined();
+    expect(graph.findNode("end:ai-br-3:2")).notToBeUndefined();
+    const completed = graph.completedEndingNodes();
+    expect(completed).toHaveLength(1);
+    expect(completed[0].title).toBe("墨渊消散的结局");
+    expect(completed[0].chosen).toBe("逆序念诵（送神）");
+  });
 });
 
 const result = await run({ verbose: true });
