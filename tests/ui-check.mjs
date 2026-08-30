@@ -47,18 +47,32 @@ function findChromiumExecutable() {
   return null;
 }
 
+// 结束整个进程树：npx → npm/node → dsh web，避免留下孤儿服务进程。
+function killTree(child) {
+  try {
+    if (process.platform !== "win32" && child.pid !== undefined) {
+      process.kill(-child.pid, "SIGTERM");
+      return;
+    }
+  } catch {
+    // 进程组已退出时回退到只杀 npx 本身。
+  }
+  child.kill();
+}
+
 // ── 启动 dsh web 并解析端口 ────────────────────────────────
 function startDshWeb() {
   return new Promise((resolve, reject) => {
-    const child = spawn("npx", ["@deepseek-ai/dsh", "web", "--port", "0"], {
+    const child = spawn("npx", ["@deepseek-ai/dsh", "web", "--port", "0", "--no-open"], {
       cwd: process.cwd(),
       env: process.env,
       shell: process.platform === "win32",
+      detached: process.platform !== "win32",
     });
     let buffer = "";
     let port = null;
     const timer = setTimeout(() => {
-      child.kill();
+      killTree(child);
       reject(new Error("dsh web 启动超时"));
     }, 30000);
     child.stdout.on("data", (chunk) => {
@@ -207,7 +221,7 @@ try {
   check("UI 检查执行", false, error.message);
 } finally {
   await browser.close().catch(() => {});
-  child.kill();
+  killTree(child);
   await sleep(300);
 }
 
