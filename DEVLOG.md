@@ -945,3 +945,22 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - 聊天桥内部多数副作用仍直接改 flat，由 `commitSession`/`saveFlat` 收进 WorldState；C-1 后续继续把聊天桥副作用改为“构造事件 → applyEvent → 投影”。
 - 下一步：C-1 续（聊天桥副作用事件化），然后 C-2 规则补全。
+
+---
+
+## Session（2026-08-28 续 12）：C-1 续——聊天桥副作用事件化
+
+### 交付
+1. **聊天桥事件提交器 `commitChatEvents`**：先同步 flat → WorldState（保留本轮内存 trace/eventLog）→ `session.applyEvent` → `projectToFlat` → 保存；无事件时退化为 `saveFlat`。
+2. **`syncSession` 调整**：从 flat.core 恢复 plot/clues/sceneMode，但保留本轮内存 trace/eventLog，避免事件与轨迹在同步时被旧 core 回滚。
+3. **`.ra` 路径事件化**：
+   - 掷骰同时提交 `RollPerformed` + `GateResolved`（带 resolvedKey）/ `GateFailed` + `CheckpointPassed`；
+   - 咒文解读兜底改为 `CheckpointPassed` 事件。
+4. **自动落地事件化**：关键点揭示 → `KeyPointRevealed`；分支落地 → `BranchLanded`（先快照 before 集合，再按新增发事件）。
+5. **咒文展示 / 夜晚事件 / 终局事件化**：`SpellShown` / `NightEventFired` / `EndingResolved`（短路径与叙述确认路径都发）。
+6. **文本团检门禁事件化**：新合并的 pendingChecks 发 `GateCreated`。
+7. 全量 50 套通过；ui-check 14/14；EventLog 已能在工具与聊天桥两侧捕获事件。
+
+### 备注
+- 聊天桥仍保留直接 flat 修改作为过渡（PATCHES 行 20），但所有重要状态变化现在都有对应事件进 EventLog，因果链可查。
+- 下一步 C-1 可选收尾：把 `abandonGates` / `expireSceneGates` / SAN 清理也纳入事件；然后进入 C-2 规则补全。
