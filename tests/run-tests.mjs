@@ -38,6 +38,7 @@ const TESTS = {
     "unit/rules-c2.test.mjs",
     "unit/skill-growth.test.mjs",
     "unit/plot-graph.test.mjs",
+    "unit/plot-frontier.test.mjs",
     "unit/clue-graph.test.mjs",
     "unit/scenario-compiler.test.mjs",
     "unit/scene-facts.test.mjs",

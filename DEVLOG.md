@@ -988,3 +988,19 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 
 ### 备注
 - C-2 完成。下一步 C-3：多线剧情图 + 世界事实驱动（PlotGraph 边 requires/consequences、frontier 可达路线、跳线）。
+
+---
+
+## Session（2026-08-28 续 14）：C-3 多线剧情图 + 世界事实驱动（第一批）
+
+### 交付
+1. **PlotGraph 节点/边增强**：节点支持 `requires/consequences/missing`；新增 `addEdge(from,to,{label,requires,consequences})`（同向同目标去重）。
+2. **故事结构同步**：`PlotGraph.syncFromStory({keyPoints,branches})` 建立 `kp:<id>` / `br:<id>` 节点；分支选项 `leadsTo` 命中关键点标题时建边；节点状态由 revealed/reached/chosen 驱动。
+3. **可达路线集合（frontier）**：`computeStoryFrontier(flat)` 纯函数——对每个带结构化前置条件的未揭示关键点，计算其 `requires/requiresAnyOf` 在当前世界事实下是否满足，输出 `{id,title,scene,status,missing,requiresSummary}`；`storyFrontierText(routes)` 渲染“哪条路通、缺什么”。
+4. **每轮注入 KP 提示**：`buildKpSystemPrompt` 新增 `frontier` 行（并修复 `endingStatus` 未透传问题）；聊天桥在叙事循环里每轮重算 frontier。
+5. **调试面板**：`stateDigest.debug.frontier` + 主持页新增「可达路线（程序计算）」卡片。
+6. **测试**：新增 `tests/unit/plot-frontier.test.mjs` 7 用例；全量 52 套通过；ui-check 14/14。
+
+### 备注
+- 本批完成了“程序算哪条路通、缺什么”；边上的 `consequences` 与跳线代价应用留待 C-3 第二批（frontier 注入触发/世界事实变更）。
+- C-4 将把 `evaluatePrerequisites` 并入 trigger-engine，`applyEventDrivenLanding` 变薄封装，`EndingResolved` 改由 PlotGraph 结局节点发布。
