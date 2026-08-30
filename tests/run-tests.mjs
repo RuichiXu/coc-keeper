@@ -64,6 +64,7 @@ const TESTS = {
     "integration/coc-api.test.mjs",
     "integration/shared-chat.test.mjs",
     "integration/check-gates.test.mjs",
+    "integration/c4-hardening.test.mjs",
     "integration/shared-import.test.mjs",
     "integration/import-parity.test.mjs",
     "integration/audit-fixes.test.mjs",

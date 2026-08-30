@@ -1037,3 +1037,19 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - 本轮只做后端验证，未跑 E2E（用户要求 E2E 前充分后端测试）。
 - E2E 前还需要：重启 dsh web 报告新 PID，并准备《墨渊》全链路（复用 presets/replay/fixture export）。
+
+---
+
+## Session（2026-08-28 续 17）：C-4 后端测试加固（E2E 前）
+
+### 交付
+1. 新增 `tests/integration/c4-hardening.test.mjs`（3 用例）：
+   - runKpTurn 全链路：KeyPointRevealed 入 EventLog、PlotGraph 节点 completed、WorldState flags 有剧情后果、digest.debug.frontier 有可达路线；
+   - 旧存档迁移：无 core.eventLog / 无 flags 的旧档加载后正常补建 core（eventLog/world.flags/plot）；
+   - 状态/规则工具一致性：coc_scene/coc_check/coc_sanity_check/coc_combat_resolve 的 WorldState 投影与 flat 一致，且 SceneChanged/GateCreated/SanitySettled/DamageApplied 均入 EventLog。
+2. `tests/replay/final-rite-replay.test.mjs` 扩展断言：EndingResolved 由 PlotGraph 结局节点驱动（`end:<branch>:*` completed）、EndingResolved 进入 EventLog、kp flags 写入 WorldState。
+3. 全量 53 套通过；ui-check 14/14。
+
+### 备注
+- E2E 前纯后端测试已通过：run-tests 53 套（含新加固集成 + replay 扩展）。
+- E2E 操作指令见交付说明（重启 dsh web、验证 PID、按测试清单执行）。

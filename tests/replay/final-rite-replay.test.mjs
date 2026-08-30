@@ -94,6 +94,20 @@ describe("Replay：最终仪式轮", () => {
     expect(saved.pendingChecks).toHaveLength(0);
     expect(saved.keyPoints.find((kp) => kp.id === "ai-kp-7").revealed).toBeTrue();
     expect(saved.keyPoints.find((kp) => kp.id === "ai-kp-8").revealed).toBeTrue();
+
+    // C-4：EndingResolved 由 PlotGraph 结局节点驱动，并进入 EventLog 因果链。
+    const eventTypes = (saved.core?.eventLog?.entries ?? []).map((entry) => entry.type);
+    expect(eventTypes).toContain("RollPerformed");
+    expect(eventTypes).toContain("GateResolved");
+    expect(eventTypes).toContain("EndingResolved");
+    const endingNode = (saved.core?.plot?.nodes ?? []).find((node) => node.type === "ending" && node.status === "completed");
+    expect(endingNode).notToBeUndefined();
+    expect(endingNode.title).toBe("墨渊消散的结局");
+
+    // C-3：已完成关键点的后果写入 WorldState flags。
+    const flags = saved.core?.world?.flags ?? {};
+    expect(flags["kp:ai-kp-7:revealed"]).toBeTrue();
+    expect(flags["kp:ai-kp-8:revealed"]).toBeTrue();
   });
 });
 
