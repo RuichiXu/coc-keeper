@@ -17,6 +17,7 @@ import {
   JsonFilePersistence,
 } from "../../lib/core/index.js";
 import { createSharedToolDefs } from "../../lib/shared/tools/index.js";
+import { commitSession, loadSession, rollEvent } from "../../lib/shared/tools/helpers.js";
 import { createSharedChatBridge } from "../../lib/shared/chat/index.js";
 import { applyStoryPreset } from "../../lib/shared/testing/story-presets.js";
 
@@ -188,6 +189,107 @@ describe("C-4 后端加固", () => {
     expect(types.filter((type) => type === "GateResolved")).toHaveLength(1);
     expect(types.filter((type) => type === "EndingResolved")).toHaveLength(1);
     expect(saved.endingReached).toBeTrue();
+  });
+
+  it("跨场次重置：同名重建后新场次不继承旧 core（eventLog/plot/flags）", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-c4-reset-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir);
+    const file = join(dataDir, "games", "g1.json");
+    const flat = JSON.parse(readFileSync(file, "utf8"));
+    applyStoryPreset(flat, "final-rite");
+    writeFileSync(file, JSON.stringify(flat));
+
+    // 旧场次：加载并写入 core（事件 / 结局节点 / 世界 flags）。
+    const old = loadSession(deps, "g1");
+    old.session.plot.syncFromStory({ keyPoints: old.flat.keyPoints ?? [], branches: old.flat.branches ?? [] });
+    old.session.plot.applyCompletedConsequences(old.session.world);
+    old.session.world.setFlag("old:legacy", true);
+    commitSession(deps, "g1", old.session, old.flat, [
+      rollEvent("g1", {
+        kind: "open",
+        player: "伊芙琳",
+        label: "旧场次检定",
+        skill: "意志",
+        expression: "d100",
+        rolled: 17,
+        target: 65,
+        difficulty: "regular",
+        tier: "regular",
+        passed: true,
+      }),
+    ]);
+    let saved = JSON.parse(readFileSync(file, "utf8"));
+    expect((saved.core?.eventLog?.entries ?? []).length).toBeGreaterThan(0);
+    expect((saved.core?.plot?.nodes ?? []).some((node) => node.type === "ending")).toBeTrue();
+    expect(Object.keys(saved.core?.world?.flags ?? {})).toContain("old:legacy");
+
+    // 模拟删除后同名重建：新 flat 不含 core。
+    writeFlat(dataDir);
+
+    const next = loadSession(deps, "g1");
+    commitSession(deps, "g1", next.session, next.flat, []);
+    saved = JSON.parse(readFileSync(file, "utf8"));
+
+    expect(saved.core?.eventLog?.entries ?? []).toHaveLength(0);
+    expect((saved.core?.plot?.nodes ?? []).some((node) => node.type === "ending")).toBeFalse();
+    expect(Object.keys(saved.core?.world?.flags ?? {}).length).toBe(0);
+  });
+
+  it("最终仪式轮失败后裸 .ra意志 优先消费重试门禁（多候选不卡确认）", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-c4-retry-priority-"));
+    const deps = makeDeps(dataDir);
+    writeFlat(dataDir);
+    const file = join(dataDir, "games", "g1.json");
+    const flat = JSON.parse(readFileSync(file, "utf8"));
+    applyStoryPreset(flat, "final-rite");
+    writeFileSync(file, JSON.stringify(flat));
+
+    // 第一次 .ra意志：78 失败，应自动重建 final-rite-retry 门禁。
+    deps.streamBlocks = async () => ({
+      blocks: [{ type: "text", text: "仪式反噬，你咬紧牙关。" }],
+      finish: { kind: "complete" },
+      usage: {},
+    });
+    const bridge = createSharedChatBridge(deps);
+    let restore = mockRandom(randomForDice([{ sides: 100, value: 78 }]));
+    await bridge.runKpTurn("g1", ".ra意志", "玩家");
+    restore();
+    let saved = JSON.parse(readFileSync(file, "utf8"));
+    expect(saved.pendingChecks.some((gate) => gate.skill === "意志" && gate.source === "final-rite-retry")).toBeTrue();
+
+    // 模拟 LLM 又用 coc_check 创建了另一个意志门禁：动作不同，触发多候选。
+    saved.pendingChecks.push({
+      id: "chk-extra-will",
+      skill: "意志",
+      difficulty: "regular",
+      action: "再念一次咒文",
+      hidden: false,
+      source: "text-marker",
+      at: new Date().toISOString(),
+      scene: saved.currentScene ?? "",
+      checkpointId: "",
+      target: "再念一次咒文",
+    });
+    writeFileSync(file, JSON.stringify(saved));
+
+    // 第二次裸 .ra意志：17 成功，应直接消费重试门禁并收敛结局。
+    deps.streamBlocks = async () => ({
+      blocks: [{ type: "text", text: "墨渊消散，书房归于寂静。" }],
+      finish: { kind: "complete" },
+      usage: {},
+    });
+    const bridge2 = createSharedChatBridge(deps);
+    restore = mockRandom(randomForDice([{ sides: 100, value: 17 }]));
+    await bridge2.runKpTurn("g1", ".ra意志", "玩家");
+    restore();
+    saved = JSON.parse(readFileSync(file, "utf8"));
+
+    const types = (saved.core?.eventLog?.entries ?? []).map((entry) => entry.type);
+    expect(saved.endingReached).toBeTrue();
+    expect(types.filter((type) => type === "GateResolved")).toHaveLength(1);
+    expect(types.filter((type) => type === "EndingResolved")).toHaveLength(1);
+    expect(saved.pendingChecks).toHaveLength(0);
   });
 
   it("旧存档迁移：无 core.eventLog / 无 flags 也能加载并补建 core", async () => {
