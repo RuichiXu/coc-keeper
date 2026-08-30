@@ -1004,3 +1004,19 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - 本批完成了“程序算哪条路通、缺什么”；边上的 `consequences` 与跳线代价应用留待 C-3 第二批（frontier 注入触发/世界事实变更）。
 - C-4 将把 `evaluatePrerequisites` 并入 trigger-engine，`applyEventDrivenLanding` 变薄封装，`EndingResolved` 改由 PlotGraph 结局节点发布。
+
+---
+
+## Session（2026-08-28 续 15）：C-3 第二批——剧情后果与跳线代价基础
+
+### 交付
+1. **剧情后果（consequences）**：`applyConsequences(world, consequences)` 支持 `setFlags / clearFlags / discoverClues / setEntityState / endingInfluence`；`PlotGraph.completeNode` 可在完成时应用后果；`applyCompletedConsequences(world)` 幂等应用所有已完成节点的后果。
+2. **默认后果生成**：`syncFromStory` 为关键点/分支节点补默认后果（关键点揭示 → flag `kp:<id>:revealed`；分支选定 → flag `branch:<id>:chosen`）。
+3. **聊天桥接入**：每轮结束时同步剧情图、重算 frontier、应用已完成节点后果，并把剧情图与 flags 持久化回 core。
+4. **世界 Flag 修复**：`GameSession.syncFromFlat` 不再用空 flags 覆盖 core.world.flags（旧 flat 无 flags 字段时保留已恢复的 Flag）。
+5. **调试面板事实卡**：`stateDigest.debug.facts` 输出 flags / discoveredClues / 实体态度 / 时间。
+6. 测试：plot-frontier 增至 9 用例（新增 applyConsequences 与幂等）；全量 52 套通过；ui-check 14/14。
+
+### 备注
+- 跳线代价目前体现为「frontier 列出旧线未完成/缺条件」，机械性代价（时间消耗、检定难度提升、选项锁死）待 C-4 触发器/PlotGraph 发布 EndingResolved 后进一步结构化。
+- C-3 完成度：节点/边/可达路线/后果已闭环。进入 C-4。

@@ -4,6 +4,8 @@
 import { describe, it, expect, run, summarize } from "../runner.js";
 import {
   PlotGraph,
+  WorldState,
+  applyConsequences,
   computeStoryFrontier,
   storyFrontierText,
 } from "../../lib/core/index.js";
@@ -116,6 +118,40 @@ describe("PlotGraph 故事结构同步", () => {
 
     graph.applyStoryFrontier([{ id: "ai-kp-5", title: "发现墨渊", scene: "三层书房", status: "active", missing: [] }]);
     expect(graph.findNode("kp:ai-kp-5").status).toBe("active");
+  });
+});
+
+describe("剧情后果（consequences）", () => {
+  it("applyConsequences 写 flags / 线索 / 实体状态", () => {
+    const world = new WorldState({ id: "g1" });
+    world.entities = [{ id: "ent-1", type: "npc", name: "艾茜", state: "友善" }];
+    const applied = applyConsequences(world, {
+      setFlags: { "kp:ai-kp-3:revealed": true },
+      clearFlags: ["old-flag"],
+      discoverClues: [{ clueId: "clue-diary", method: "plot" }],
+      setEntityState: [{ name: "艾茜", state: "恐惧" }],
+      endingInfluence: "送神",
+    });
+    expect(world.getFlag("kp:ai-kp-3:revealed")).toBeTrue();
+    expect(world.isClueDiscovered("clue-diary")).toBeTrue();
+    expect(world.entities[0].state).toBe("恐惧");
+    expect(world.getFlag("ending:influence")).toBe("送神");
+    expect(applied.length).toBeGreaterThan(3);
+  });
+
+  it("applyCompletedConsequences 幂等：每个节点只应用一次", () => {
+    const graph = new PlotGraph();
+    const world = new WorldState({ id: "g1" });
+    graph.syncFromStory({
+      keyPoints: [{ id: "ai-kp-4", title: "发现日记与手稿", scene: "三层书房", revealed: true }],
+      branches: [],
+    });
+    const node = graph.findNode("kp:ai-kp-4");
+    expect(node.status).toBe("completed");
+    expect(graph.applyCompletedConsequences(world)).toEqual(["kp:ai-kp-4"]);
+    expect(world.getFlag("kp:ai-kp-4:revealed")).toBeTrue();
+    // 再次调用不重复应用。
+    expect(graph.applyCompletedConsequences(world)).toEqual([]);
   });
 });
 
