@@ -79,10 +79,10 @@ describe("事件驱动落地", () => {
       passedCheckpointIds: [],
       sanitySettled: [{ eventId: "scenario:chk-9", player: "伊芙琳" }],
       keyPoints: [
-        { id: "ai-kp-5", title: "发现墨渊", scene: "书房", revealed: false },
+        { id: "ai-kp-5", title: "发现墨渊", scene: "书房", revealed: false, requires: { sanityEventIds: ["chk-9"] } },
       ],
       branches: [
-        { id: "ai-br-2", title: "是否掀开地毯", scene: "书房", reached: false, chosen: null, options: [{ label: "掀开地毯查看", leadsTo: "发现墨渊" }] },
+        { id: "ai-br-2", title: "是否掀开地毯", scene: "书房", reached: false, chosen: null, options: [{ label: "掀开地毯查看", leadsTo: "发现墨渊" }], requires: { sanityEventIds: ["chk-9"] }, autoChooseLabel: "掀开地毯查看" },
       ],
     };
     const result = applyEventDrivenLanding(flat);
@@ -99,10 +99,10 @@ describe("事件驱动落地", () => {
       passedCheckpointIds: ["chk-7"],
       sanitySettled: [],
       keyPoints: [
-        { id: "ai-kp-5", title: "发现墨渊", scene: "书房", revealed: false },
+        { id: "ai-kp-5", title: "发现墨渊", scene: "书房", revealed: false, requires: { sanityEventIds: ["chk-9"] } },
       ],
       branches: [
-        { id: "ai-br-2", title: "是否掀开地毯", scene: "书房", reached: false, chosen: null, options: [{ label: "掀开地毯查看", leadsTo: "发现墨渊" }] },
+        { id: "ai-br-2", title: "是否掀开地毯", scene: "书房", reached: false, chosen: null, options: [{ label: "掀开地毯查看", leadsTo: "发现墨渊" }], requires: { sanityEventIds: ["chk-9"] }, autoChooseLabel: "掀开地毯查看" },
       ],
     };
     const result = applyEventDrivenLanding(flat);
@@ -118,7 +118,7 @@ describe("事件驱动落地", () => {
       passedCheckpointIds: ["chk-3", "chk-5"],
       sanitySettled: [],
       keyPoints: [
-        { id: "ai-kp-4", title: "发现日记与手稿", scene: "书房", revealed: false },
+        { id: "ai-kp-4", title: "发现日记与手稿", scene: "书房", revealed: false, requires: { checkpointGroups: [["chk-3", "chk-4"], ["chk-5", "chk-6"]] } },
       ],
       branches: [],
     };
@@ -133,7 +133,7 @@ describe("事件驱动落地", () => {
       passedCheckpointIds: [],
       sanitySettled: [],
       keyPoints: [
-        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false },
+        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false, requires: { scene: "三层书房", entryEvidence: ["进入书房", "走进书房", "踏进书房", "迈入书房"] } },
       ],
       branches: [],
     };
@@ -148,7 +148,7 @@ describe("事件驱动落地", () => {
       passedCheckpointIds: [],
       sanitySettled: [],
       keyPoints: [
-        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false },
+        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false, requires: { scene: "三层书房", entryEvidence: ["进入书房", "走进书房", "踏进书房", "迈入书房"] } },
       ],
       branches: [],
     };
@@ -163,7 +163,7 @@ describe("事件驱动落地", () => {
       passedCheckpointIds: [],
       sanitySettled: [],
       keyPoints: [
-        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false },
+        { id: "ai-kp-3", title: "进入书房", scene: "三层书房", revealed: false, requires: { scene: "三层书房", entryEvidence: ["进入书房", "走进书房", "踏进书房", "迈入书房"] } },
       ],
       branches: [],
     };
@@ -193,8 +193,8 @@ describe("事件驱动落地", () => {
       passedCheckpointIds: [],
       sanitySettled: [],
       keyPoints: [
-        { id: "ai-kp-7", title: "拼凑十二字咒文", scene: "书房", revealed: false },
-        { id: "ai-kp-8", title: "最终抉择", scene: "书房/结局", revealed: false },
+        { id: "ai-kp-7", title: "拼凑十二字咒文", scene: "书房", revealed: false, requires: { checkpointGroups: [["chk-13"]] } },
+        { id: "ai-kp-8", title: "最终抉择", scene: "书房/结局", revealed: false, requires: { keyPointIds: ["ai-kp-7"], branchChoiceIds: ["ai-br-3"] } },
       ],
       branches: [
         { id: "ai-br-3", title: "最终仪式", scene: "书房", reached: true, chosen: "逆序念诵（送神）", options: [{ label: "逆序念诵（送神）", leadsTo: "结局" }] },
@@ -211,7 +211,7 @@ describe("事件驱动落地", () => {
       passedCheckpointIds: [],
       sanitySettled: [],
       keyPoints: [
-        { id: "ai-kp-6", title: "克罗斯临终提示", scene: "三层/书房", revealed: false },
+        { id: "ai-kp-6", title: "克罗斯临终提示", scene: "三层/书房", revealed: false, requiresAnyOf: [{ keyPointIds: ["ai-kp-7"] }, { branchChoiceIds: ["ai-br-3"] }] },
       ],
       branches: [
         { id: "ai-br-3", title: "最终仪式", scene: "书房", reached: true, chosen: "逆序念诵（送神）", options: [{ label: "逆序念诵（送神）", leadsTo: "结局" }] },
@@ -228,8 +228,8 @@ describe("事件驱动落地", () => {
       passedCheckpointIds: [],
       sanitySettled: [],
       keyPoints: [
-        { id: "ai-kp-7", title: "拼凑十二字咒文", scene: "书房", revealed: true },
-        { id: "ai-kp-8", title: "最终抉择", scene: "书房/结局", revealed: false },
+        { id: "ai-kp-7", title: "拼凑十二字咒文", scene: "书房", revealed: true, requires: { checkpointGroups: [["chk-13"]] } },
+        { id: "ai-kp-8", title: "最终抉择", scene: "书房/结局", revealed: false, requires: { keyPointIds: ["ai-kp-7"], branchChoiceIds: ["ai-br-3"] } },
       ],
       branches: [
         { id: "ai-br-3", title: "最终仪式", scene: "书房", reached: true, chosen: "逆序念诵（送神）", options: [{ label: "逆序念诵（送神）", leadsTo: "结局" }] },

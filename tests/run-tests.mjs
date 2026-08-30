@@ -45,6 +45,7 @@ const TESTS = {
     "unit/recovery.test.mjs",
     "unit/asset-store.test.mjs",
     "unit/state-autolanding.test.mjs",
+    "unit/story-prereqs.test.mjs",
     "unit/narration-guard.test.mjs",
     "unit/scenario-contract.test.mjs",
     "unit/story-presets.test.mjs",

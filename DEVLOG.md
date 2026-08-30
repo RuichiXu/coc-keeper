@@ -891,3 +891,23 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 
 ### 备注
 - PATCHES 行 17 登记；门禁 schema 的 checkpointId/target 已可承载，后续在 `coc_check` 创建时直接写入 checkpointId（需把检定点匹配下沉到 shared 层，避免状态工具反向依赖 chat-bridge）。
+
+---
+
+## Session（2026-08-28 续 9）：B 第三批——结构化剧情前置条件（替换 PATCHES 11）
+
+### 交付
+1. **新模块 `lib/shared/chat/story-prereqs.js`**：
+   - 条件判定 `evaluatePrerequisites` / `evaluateRequiresAnyOf`：支持 scene / entryEvidence / checkpointGroups（组内 OR 组间 AND）/ sanityEventIds / keyPointIds / branchChoiceIds。
+   - 草拟规则 `draftKeyPointPrerequisites` / `draftBranchPrerequisites` / `draftEndingKeyPointPrerequisites`：从关键点标题词 + 检定点 keys/trigger + 场景/楼层兼容 + 难度排序生成 `requires/requiresAnyOf`，不再含《墨渊》ID。
+   - 结构化查找 `findSpellKeyPoint` / `findFinalBranch` / `findKeyPointsRequiringBranch` / `requiredCheckpointIdsOf`。
+   - `enrichStoryPrerequisites(flat)`：只补写缺失条件，已手工配置的不覆盖；导入时与每轮聊天开始前调用。
+2. **`applyEventDrivenLanding` 改为通用触发器**：只读 keyPoints/branches 上的 `requires/requiresAnyOf`，删掉全部 ai-kp/ai-br/chk 硬编码；无结构化条件的不由事件驱动落地（交给叙述兜底）。
+3. **`revealKeyPointsForBranchChoices`**：带结构化条件的关键点不再按 branch.leadsTo 提前揭示；旧数据保留“结局分支已选时最终/抉择类不提前揭示”的语义兜底。
+4. **咒文解读兜底/咒文展示/终局短路/结局门禁冻结**：改用 `findSpellKeyPoint` / `findFinalBranch` / `findKeyPointsRequiringBranch` / `requiredCheckpointIdsOf` 做结构化查找，去除 chk-13/ai-kp-4/ai-br-3 等硬编码引用。
+5. **story-presets**：预设补挂与生产草拟一致的结构化前置条件；`exportStoryFixture` 导出 requires/requiresAnyOf/autoChooseLabel。
+6. 测试：新增 `tests/unit/story-prereqs.test.mjs`（20 用例）；state-autolanding 更新为带结构化条件的断言；全量 46 套通过；ui-check 14/14。
+
+### 备注
+- PATCHES 11 标记为已替代；PATCHES 15 的进门证据/咒文兜底部分改为结构化，剩余日记拦截/门禁动作清洗/物品清理仍待后续。
+- 草拟规则本身仍是启发式（PATCHES 行 18），D 阶段由 LLM 深度解析替代并 KP 校对。
