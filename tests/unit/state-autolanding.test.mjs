@@ -19,6 +19,26 @@ import {
 import { resolveRaCandidateChoice, sanitizeGateAction } from "../../lib/shared/chat/check-gates.js";
 
 describe("关键点自动揭示", () => {
+  it("applyEventDrivenLanding 同一轮不 cascade：快照阻止链式揭示", () => {
+    const flat = {
+      currentScene: "书房",
+      playerText: "",
+      narration: "",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [
+        { id: "kp-1", title: "进入书房", revealed: true, requires: { scene: "书房" } },
+        { id: "kp-2", title: "发现日记", revealed: false, requires: { keyPointIds: ["kp-1"] } },
+        { id: "kp-3", title: "发现手稿", revealed: false, requires: { keyPointIds: ["kp-2"] } },
+      ],
+      branches: [],
+    };
+    const result = applyEventDrivenLanding(flat, "", "");
+    expect(result.revealed).toBe(1);
+    expect(flat.keyPoints[1].revealed).toBeTrue();
+    expect(flat.keyPoints[2].revealed).toBeFalse();
+  });
+
   it("叙述完整出现未揭示关键点标题时揭示", () => {
     const keyPoints = [
       { id: "kp-1", title: "墨渊", desc: "屋顶的墨色深渊", revealed: false },

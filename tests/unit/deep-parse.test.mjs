@@ -238,6 +238,19 @@ describe("deep-parse 深度剧本解析", () => {
     expect(draft.endingsAdded).toBe(0);
   });
 
+  it("syncPlotGraphFromDeepParse：分支选项 leadsTo 无节点时自动补关键点与边", () => {
+    const plot = new PlotGraph();
+    const story = {
+      keyPoints: [],
+      branches: [{ id: "br-5", title: "前往七星旅店", options: [{ label: "前往", leadsTo: "七星旅店" }] }],
+    };
+    const deepParse = { status: "confirmed", plotEdges: [], endings: [] };
+    const result = syncPlotGraphFromDeepParse(plot, deepParse, story);
+    expect(result.edgesAdded).toBe(1);
+    expect(plot.nodes.some((node) => node.type === "keypoint" && node.title === "七星旅店")).toBeTrue();
+    expect(plot.edges.some((edge) => edge.from === "br:br-5" && edge.to === "kp:auto:1")).toBeTrue();
+  });
+
   it("validateDeepParse：optionLabel / not / mutexGroup 合法时通过", () => {
     const deepParse = normalizeDeepParse({
       keyPointConditions: [{ keyPointId: "ai-kp-3", requires: { scene: "三层书房", not: { entryEvidence: ["没能进入"] } } }],

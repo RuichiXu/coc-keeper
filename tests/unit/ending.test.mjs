@@ -70,6 +70,24 @@ describe("createEndingResolvedEvent 结局事件创建", () => {
     expect(createEndingResolvedEvent(flat, "x", { rolledRaSkill: "侦查", lastRoll: { passed: true } })).toBeNull();
     expect(createEndingResolvedEvent(flat, "x", { rolledRaSkill: "意志", lastRoll: { passed: false } })).toBeNull();
   });
+
+  it("同一 branchId+optionLabel 多结局按 requires/blockers 筛选，不遮蔽后续结局", () => {
+    const flat = finalRiteFlat({
+      keyPoints: [
+        { id: "ai-kp-7", title: "拼凑十二字咒文", revealed: true },
+        { id: "ai-kp-8", title: "最终抉择", revealed: true },
+      ],
+      deepParse: {
+        status: "confirmed",
+        endings: [
+          { id: "end-1", branchId: "ai-br-3", optionLabel: "逆序念诵（送神）", title: "墨渊消散的结局", requires: { keyPointIds: ["ai-kp-999"] }, blockers: [], endingKeywords: ["墨渊消散"] },
+          { id: "end-2", branchId: "ai-br-3", optionLabel: "逆序念诵（送神）", title: "克罗斯之死", requires: { keyPointIds: ["ai-kp-8"] }, blockers: [], endingKeywords: ["克罗斯之死"] },
+        ],
+      },
+    });
+    const picked = confirmedEndingForBranch(flat, flat.branches[0], "逆序念诵（送神）");
+    expect(picked.id).toBe("end-2");
+  });
 });
 
 describe("applyEndingResolvedEvent 结局事件应用", () => {

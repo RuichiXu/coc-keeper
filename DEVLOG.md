@@ -1255,3 +1255,23 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - `scripts/deep-parse-loop-status.mjs` 已支持指定 base 目录：`node scripts/deep-parse-loop-status.mjs deep-parse-loop-v2`。
 - 下一步不再建议继续加 schema 字段；应进入**引擎侧修复**：结局多候选筛选、节点激活 gate、边缘一致性检查与自动修复。
+
+---
+
+## Session（2026-08-31 续）：引擎侧修复 1-2-3
+
+### 交付
+1. **结局多候选筛选**（`lib/shared/chat/ending.js`）：
+   - `confirmedEndingForBranch` 不再按 `optionLabel` 取首个；候选结局先按 `requires` 满足且 `blockers` 未命中筛选，再回退首个候选。
+   - 解决同一 `branchId+optionLabel` 多结局被第一个遮蔽的问题（墨渊 end-1/2/3）。
+2. **边缘一致性自动修复**（`lib/core/scenario/deep-parse.js`）：
+   - `syncPlotGraphFromDeepParse`：分支选项 `leadsTo` 无匹配现有关键点/结局时，自动补 `kp:auto:*` 节点并补边；
+   - 深解析 `plotEdges` 的 `end:<id>` 端点归一化到已声明结局节点；`kp:/br:` 引用不存在则跳过悬空边。
+3. **同轮 cascade gate**（`lib/shared/chat/chat-bridge.js`）：
+   - `applyEventDrivenLanding` 在同一轮内使用 keyPoints/branches 快照，本回合新揭示/新选择不再于同轮继续满足后续节点，链式塌缩被阻止。
+4. 测试：`deep-parse.test` 新增自动补点用例；`ending.test` 新增多结局筛选用例；`state-autolanding.test` 新增快照防 cascade 用例；全量 55/55；ui-check 14/14。
+5. `PATCHES.md` 行 23 登记三处启发式及替换方向。
+
+### 备注
+- 引擎侧修复 1-3 已完成；时序/状态机（两面 end-4）仍不在本轮范围。
+- 下一步建议：对 5 本剧本的 v2 `deep-parse.r2.json` 做一次**快速回归审核**，确认引擎修复后剩余 high 是否收敛；若收敛，可回填确认稿。
