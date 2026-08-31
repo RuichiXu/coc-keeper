@@ -39,6 +39,25 @@ describe("关键点自动揭示", () => {
     expect(flat.keyPoints[2].revealed).toBeFalse();
   });
 
+  it("applyEventDrivenLanding：多选项分支无 autoChooseLabel 时只 reached 不代选", () => {
+    const flat = {
+      currentScene: "书房",
+      playerText: "",
+      narration: "",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [],
+      branches: [
+        { id: "br-1", title: "如何进入书房", scene: "书房", reached: false, chosen: null, requires: { scene: "书房" }, options: [{ label: "撬锁", leadsTo: "书房" }, { label: "撞门", leadsTo: "书房" }] },
+      ],
+    };
+    const result = applyEventDrivenLanding(flat, "", "");
+    expect(result.branches).toBe(1);
+    expect(flat.branches[0].reached).toBeTrue();
+    expect(flat.branches[0].chosen).toBe("");
+    expect(flat.currentBranchId).toBe("br-1");
+  });
+
   it("叙述完整出现未揭示关键点标题时揭示", () => {
     const keyPoints = [
       { id: "kp-1", title: "墨渊", desc: "屋顶的墨色深渊", revealed: false },

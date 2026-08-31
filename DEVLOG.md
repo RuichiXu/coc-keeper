@@ -1329,3 +1329,22 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - 终审暴露出前几轮子 agent 审核遗漏的交叉问题；说明 LLM 审核仍存在轮次间方差。
 - 剩余问题大多仍是数据侧可修的（补/删 branchConditions、补 keyPointCondition、补出口分支、收紧 ending 关键词）；建议再做一轮定向修正后**只跑确定性校验**，不再无休止 LLM 审核。
+
+---
+
+## Session（2026-08-31 续）：引擎规则 4-6（数据问题引擎化）
+
+### 交付
+1. **分支选择权保留**（`lib/shared/chat/chat-bridge.js`）：
+   - `applyEventDrivenLanding`：多选项分支没有 `autoChooseLabel` 时只标记 `reached`，不再默认代选第一个选项；单选项分支或明确 `autoChooseLabel` 才代选。
+2. **自动 scene 门控**（`lib/core/scenario/deep-parse.js`）：
+   - `applyConfirmedDeepParse`：确认稿条件对象缺 `scene` 时，自动补目标关键点/分支的 scene，防止纯 `keyPointIds` 链跨场景多轮自动揭示。
+3. **无出口场景提示**（`lib/core/scenario/deep-parse.js` + `lib/shared/tools/import.js` + `lib/shared/api/coc-api.js` + `lib/client.js`）：
+   - 新增 `detectDeadEndScenes`，导入后与保存草稿时写入 `deepParse.graphIssues`；
+   - 主持页 DeepParse 卡片顶部渲染 `⚠ 剧情图提示：场景（no_exit）…`。
+4. 测试：新增分支不代选、scene 门控、detectDeadEndScenes 用例；全量 55/55；ui-check 14/14。
+5. `PATCHES.md` 行 24 登记。
+
+### 备注
+- 这三个规则把 review5 里“数据侧反复修”的问题变成了引擎自动行为；后续回填确认稿时不再需要为这些点手工改数据。
+- 剩余仍需数据侧处理或状态机的点：墨渊 ending 关键词宽匹配、两面 end-4 时序互斥、盲愚奥尔德克宅邸出口（detectDeadEndScenes 已能提示，补边仍需数据修正）。

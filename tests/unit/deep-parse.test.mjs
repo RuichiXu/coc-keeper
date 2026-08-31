@@ -7,6 +7,7 @@ import {
   PlotGraph,
   applyConfirmedDeepParse,
   buildDeepParsePrompt,
+  detectDeadEndScenes,
   mergeDeepParseDraft,
   normalizeDeepParse,
   parseDeepParseResult,
@@ -213,6 +214,36 @@ describe("deep-parse 深度剧本解析", () => {
     expect(flat.keyPoints[0].deepParseApplied).toBeTrue();
     expect(flat.keyPoints[1].requires).toEqual({ scene: "门厅" });
     expect(flat.branches[0].autoChooseLabel).toBe("进入");
+  });
+
+  it("applyConfirmedDeepParse：无 scene 条件自动补目标节点 scene 门控", () => {
+    const flat = {
+      deepParse: {
+        status: "confirmed",
+        keyPointConditions: [{ keyPointId: "kp-2", requires: { keyPointIds: ["kp-1"] } }],
+        branchConditions: [{ branchId: "br-1", requires: { keyPointIds: ["kp-1"] } }],
+      },
+      keyPoints: [
+        { id: "kp-1", title: "进入书房", scene: "书房", revealed: false },
+        { id: "kp-2", title: "发现日记", scene: "书房", revealed: false },
+      ],
+      branches: [{ id: "br-1", title: "是否翻看", scene: "书房", options: [] }],
+    };
+    applyConfirmedDeepParse(flat);
+    expect(flat.keyPoints[1].requires.scene).toBe("书房");
+    expect(flat.branches[0].requires.scene).toBe("书房");
+  });
+
+  it("detectDeadEndScenes：无出口分支的场景被标记", () => {
+    const issues = detectDeadEndScenes({
+      keyPoints: [{ id: "kp-1", title: "宅邸门厅", scene: "宅邸" }],
+      branches: [
+        { id: "br-1", title: "进入宅邸", scene: "宅邸", options: [] },
+        { id: "br-2", title: "是否离开", scene: "街道", options: [{ label: "离开", leadsTo: "宅邸" }] },
+      ],
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toEqual({ scene: "宅邸", issue: "no_exit" });
   });
 
   it("syncPlotGraphFromDeepParse：确认稿追加边与结局节点，未确认不追加", () => {
