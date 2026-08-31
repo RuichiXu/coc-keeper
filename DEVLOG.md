@@ -1219,3 +1219,39 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - 当前 `deep-parse.fixed2.json` 为 loop 后最优稿，`review3.md/json` 为终审报告。
 - 下一步建议：扩展条件 schema（如 `optionLabel`、`not` 条件、时间窗口），或为互斥结局引入 `mutexGroup`；然后再跑一次 loop 应能显著提高通过率。
+
+---
+
+## Session（2026-08-31 续）：schema 扩充 + v2 loop 复跑
+
+### 交付
+1. **条件 schema 扩充**：
+   - `optionLabel`：与 `branchChoiceIds` 搭配，选项级判定（相等/互相包含）；
+   - `not`：嵌套条件取反；
+   - `endings[].mutexGroup`：互斥结局组；
+   - `evaluatePrerequisites`、`validateConditionObject`、Prompt 均已同步；`confirmedEndingForBranch` 优先按 chosen 匹配 `optionLabel`。
+2. 测试：`deep-parse.test` 新增 optionLabel/not/mutexGroup 校验；`trigger-engine.test` 新增 optionLabel/not 判定；全量 55 套通过；ui-check 14/14。
+3. **v2 loop 复跑**（warm start：初始稿 = v1 `deep-parse.fixed2.json`；目录 `artifacts/deep-parse-loop-v2/`）：
+   - 3 轮审核/修正全部走子 agent；
+   - 结果：
+
+| 剧本 | 第1轮 | 第2轮 | 第3轮 |
+|---|---|---|---|
+| 墨渊V1.1 | FAIL h1/m1 | FAIL h1/m2 | FAIL h1/m2 |
+| 两面不是人v2.1 | FAIL h1/m6 | FAIL h1/m2 | FAIL h1/m3 |
+| 观止-见世之蝶 | FAIL h0/m2 | FAIL h0/m1 | **PASS h0/m0** |
+| 淡焱无生-对流 | FAIL h2/m2 | FAIL h1/m3 | FAIL h1/m2 |
+| 盲愚之眼_瓦上狸奴译 | FAIL h2/m5 | FAIL h0/m2 | FAIL h1/m5 |
+
+4. 所有 `deep-parse.r2.json` 本地校验 0 issues。
+
+### 结论
+- 扩充 schema 后，观止收敛；其余 4 本剩余 high 问题集中在：
+  1. 多结局共用同一 `branchId+optionLabel` 时，运行时取首个会遮蔽其他结局（墨渊 end-1/2/3）——需要**引擎按 requires/blockers 筛选候选结局**，不能只按 optionLabel 取首个；
+  2. 剧情图 cascade：`keyPointIds` 链无 scene 门控导致节点连环揭示（淡焱）——需要**节点级 gate 或 edge 级激活**；
+  3. 不可达场景/悬空边（盲愚 br-5 无 leadsTo 七星旅店）——需要**补生成规则或边缘一致性修复**；
+  4. 正常时间线互斥前提（两面 end-4）——需要**时序/状态机**，条件 schema 已到极限。
+
+### 备注
+- `scripts/deep-parse-loop-status.mjs` 已支持指定 base 目录：`node scripts/deep-parse-loop-status.mjs deep-parse-loop-v2`。
+- 下一步不再建议继续加 schema 字段；应进入**引擎侧修复**：结局多候选筛选、节点激活 gate、边缘一致性检查与自动修复。

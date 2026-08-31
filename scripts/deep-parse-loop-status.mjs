@@ -15,7 +15,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const reviewDir = join(__dirname, "..", "artifacts", "deep-parse-review");
+const reviewDir = process.argv[2]
+  ? join(__dirname, "..", "artifacts", process.argv[2])
+  : join(__dirname, "..", "artifacts", "deep-parse-review");
 
 function countSeverity(issues) {
   const counts = { high: 0, medium: 0, low: 0 };
@@ -41,8 +43,9 @@ function loadReview(dir, name) {
   }
 }
 
-const slugs = process.argv.slice(2).length > 0
-  ? process.argv.slice(2)
+const baseArg = process.argv[2] ?? null;
+const slugs = baseArg !== null && process.argv[3]
+  ? process.argv.slice(3)
   : readdirSync(reviewDir).filter((name) => {
       const stat = existsSync(join(reviewDir, name)) && !name.startsWith(".");
       return stat;
@@ -51,7 +54,7 @@ const slugs = process.argv.slice(2).length > 0
 for (const slug of slugs) {
   const dir = join(reviewDir, slug);
   const reviews = [
-    { round: 1, data: loadReview(dir, "review.json"), label: "第1轮" },
+    { round: 1, data: loadReview(dir, "review1.json") ?? loadReview(dir, "review.json"), label: "第1轮" },
     { round: 2, data: loadReview(dir, "review2.json"), label: "第2轮" },
     { round: 3, data: loadReview(dir, "review3.json"), label: "第3轮" },
   ];
