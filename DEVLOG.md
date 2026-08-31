@@ -1169,3 +1169,29 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - D-4 代码链路完成；`story-prereqs` 兜底仍在（PATCHES 18），待全量剧本深度解析校对后逐步删除。
 - 下一步：导出全部剧本的 deepParse 校对包，委派子 agent 逐本校验，再按校对结果修正/确认。
+
+---
+
+## Session（2026-08-31）：全量剧本深度解析 + 子 agent 校对/修正
+
+### 完成
+1. **导出脚本**：`scripts/export-deep-parse-review.mjs` 为每个剧本导出 `original.txt / deterministic.json / prompt.txt / deep-parse.json / status.json` 到 `artifacts/deep-parse-review/<slug>/`（artifacts 不入库）。
+2. **生成**：委派 5 个独立子 agent 分别为墨渊V1.1 / 两面不是人v2.1 / 观止-见世之蝶 / 淡焱无生-对流 / 盲愚之眼_瓦上狸奴译 生成 deepParse 草稿；本地 `parseDeepParseResult` 校验全部 0 issues。
+3. **校对**：再委派 5 个子 agent 对照原文与 deterministic 结构逐项校对，写出 `review.md / review.json`。
+4. **修正**：5 个校对子 agent 按其 high/medium 问题写回 `deep-parse.fixed.json`；本地校验 fixed 全部 0 issues。
+5. **模型/超参**：`callLlmApi` 增加 `options.model` / `options.provider` 覆盖；导入链路 deepParse max_tokens 4000→12000、contract 3000→8000。
+6. 测试：全量 55 套通过；ui-check 14/14。
+
+### 各剧本校对摘要
+| 剧本 | 初稿规模 | 校对 issue | high | 修正 |
+|---|---|---|---|---|
+| 墨渊V1.1 | kp19/br8/end4 | 16 | 3 | 修 8 条（high 3，medium 5；1 medium 未修：地窖合金栅栏缺化学熔化约束） |
+| 两面不是人v2.1 | kp38/br19/end4 | 17 | 4 | 修 9 条（high 3，medium 6；2 未修：曼珠诞生需否定/新节点、kp-29 缺方振邦供述路径） |
+| 观止-见世之蝶 | kp13/br5/end2 | 10 | 1 | 修 4 条（high 1，medium 3；2 medium 未修：警方背景直入龙川旅馆、杀死/未杀死映夜区分） |
+| 淡焱无生-对流 | kp17/br4/end5 | 8 | 2 | 修 5 条（high 2，medium 3；0 未修） |
+| 盲愚之眼_瓦上狸奴译 | kp24/br13/end4 | 23 | 3 | 修 10 条（high 3，medium 7；4 medium 未修：时间窗口与选项级状态无字段可表达） |
+
+### 备注
+- `artifacts/deep-parse-review/*` 为本地校对工作区，未提交；`deep-parse.fixed.json` 是当前推荐稿。
+- 未修项集中在「现有条件 schema 无法表达选项级/否定/时间窗口/背景」等 D 阶段后续增强点，已记录在各自 review.md。
+- 下一步：把这些 fixed 稿回填到各场次/资产（`flat.deepParse`）并 KP 确认，或按未修项扩展条件 schema。
