@@ -2,9 +2,13 @@
  * 深度剧本解析（deep-parse）真实剧本夹具测试
  *
  * 不依赖 LLM、不启动浏览器。用真实剧本文件走确定性链路：
- *   提取文本 → compileByPattern / extractSceneFacts / extractCheckpoints 造 flat
+ *   读取文本 → compileByPattern / extractSceneFacts / extractCheckpoints 造 flat
  *   → buildDeepParsePrompt → 解析固定样本 → validateDeepParse。
+ *
+ * PDF 使用预提取的 .txt 缓存（避免每次测试都跑 pdf-parse），
+ * DOCX 直接走 extractFileText（毫秒级）。
  */
+import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect, run, summarize } from "../runner.js";
@@ -24,9 +28,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = join(__dirname, "..", "fixtures", "scenarios");
 
 const TEXT_SCENARIOS = [
-  { file: "两面不是人v2.1.pdf", minChars: 5000, minCheckpoints: 1 },
-  { file: "观止-见世之蝶.docx", minChars: 2000, minCheckpoints: 1 },
+  { file: "两面不是人v2.1.pdf", minChars: 5000, minCheckpoints: 1, useCache: true },
+  { file: "观止-见世之蝶.docx", minChars: 2000, minCheckpoints: 1, useCache: false },
+  { file: "淡焱无生-对流.docx", minChars: 2000, minCheckpoints: 1, useCache: false },
+  { file: "盲愚之眼_瓦上狸奴译.pdf", minChars: 5000, minCheckpoints: 1, useCache: true },
 ];
+
+async function readScenarioText({ file, useCache }) {
+  if (useCache) {
+    const cacheFile = file.replace(/\.pdf$/i, ".txt");
+    return readFileSync(join(FIXTURE_DIR, cacheFile), "utf8");
+  }
+  return extractFileText(join(FIXTURE_DIR, file));
+}
 
 function buildFlat(name, text) {
   const model = compileByPattern(text, name);
@@ -42,14 +56,9 @@ function buildFlat(name, text) {
 }
 
 describe("deep-parse 真实剧本夹具", () => {
-  it("扫描型 PDF 保持“无文本层”的可观测失败，不做 OCR", async () => {
-    const text = await extractFileText(join(FIXTURE_DIR, "（已压缩）生日均衡版.pdf"));
-    expect(text.trim().length).toBeLessThan(200);
-  });
-
-  for (const { file, minChars, minCheckpoints } of TEXT_SCENARIOS) {
-    it(`${file}：文本提取 → 确定性结构 → Prompt → 解析校验`, async () => {
-      const text = await extractFileText(join(FIXTURE_DIR, file));
+  for (const { file, minChars, minCheckpoints, useCache } of TEXT_SCENARIOS) {
+    it(`${file}：文本读取 → 确定性结构 → Prompt → 解析校验`, async () => {
+      const text = await readScenarioText({ file, useCache });
       expect(text.length).toBeGreaterThan(minChars);
 
       const flat = buildFlat(file, text);

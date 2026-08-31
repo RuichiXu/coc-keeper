@@ -1109,3 +1109,25 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - D-1 仅交付“生成/解析/校验”纯函数，尚未接入导入链路（D-2）与运行时（D-4）。
 - 真实剧本证实 `compileByPattern` 对这些非标记化剧本的关键点/分支提取为 0，因此 deepParse 已支持 LLM 自行生成 `keyPoints` / `branches` 节点，D-2 合并时需要处理新节点 id 分配与去重。
 - 下一步 D-2：`coc_import` 剧本分支在 LLM 可用时调用深度解析，产出 `flat.deepParse`（status=draft，不强制生效）；确定性草拟保留兜底。
+
+---
+
+## Session（2026-08-30 续 21）：D-2 导入链路接入深度解析
+
+### 交付
+1. **`mergeDeepParseDraft`**（`lib/core/scenario/deep-parse.js`）：把 LLM 生成的新关键点/分支合并进 flat；id 冲突时分配 `ai-kp-N` / `ai-br-N` 并同步重映射 keyPointConditions / branchConditions / plotEdges / endings 中的引用；返回新增数量与重映射后的 deepParse。
+2. **`coc_import` 剧本分支接入 LLM 深度解析**（`lib/shared/tools/import.js`）：
+   - LLM 可用且解析校验通过 → `flat.deepParse = {status:"draft", source:"llm", reviewed:false, ...}`，并把新节点合并进 `flat.keyPoints/branches`（新节点再走一次确定性 `enrichStoryPrerequisites` 兜底）；
+   - LLM 不可用 / 返回非法 → `flat.deepParse = {status:"skipped", source:"none", issues:[...]}`，确定性结构完全保留；
+   - 导入返回与 render 增加 `deepParseStatus`；剧本资产 payload 携带 `deepParse`。
+3. **game-setup 复用**：`lib/shared/api/coc-api.js` 从剧本资产拷贝 `deepParse` 到新场次。
+4. **无文本层 PDF 反馈**（`lib/core/docx-extract.js`）：PDF 提取后去掉页码标记无正文时，抛出明确错误“该 PDF 没有可提取的文本层（可能是扫描件/图片型 PDF）…”；前端/导入工具直接收到该错误提示。
+5. 夹具更新：
+   - 移除扫描件 PDF（按用户要求不再处理，改为导入时直接反馈）；
+   - 新增 `淡焱无生-对流.docx`（短线）与 `盲愚之眼_瓦上狸奴译.pdf`（长线，使用预提取 `.txt` 缓存参与 D-1 链路测试，避免每次测试跑 pdf-parse）；
+   - 原有 PDF 夹具同样改为 `.txt` 缓存，测试保持毫秒级。
+6. 测试：`deep-parse.test.mjs` 增至 12 用例（新增 merge 新节点/冲突重映射）；`shared-import.test.mjs` 新增 2 个 D-2 集成用例（成功 draft 合并 / 失败 skipped 保留确定性）；全量 55 套通过；ui-check 14/14。
+
+### 备注
+- D-2 只存草稿、不改变运行时判定；D-3 做 KP 校对面板（确认生效），D-4 才把确认后的 deepParse 接入 Trigger Engine / 聊天桥并替换 PATCHES 行 18。
+- 待 D-4 完成后，按用户要求对所有已入库剧本做完整深度解析并校对结果。

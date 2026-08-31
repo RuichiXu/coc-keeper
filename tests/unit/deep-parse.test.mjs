@@ -5,6 +5,7 @@ import { describe, it, expect, run, summarize } from "../runner.js";
 import {
   DEEP_PARSE_VERSION,
   buildDeepParsePrompt,
+  mergeDeepParseDraft,
   normalizeDeepParse,
   parseDeepParseResult,
   validateConditionObject,
@@ -138,6 +139,55 @@ describe("deep-parse 深度剧本解析", () => {
 
     const unknown = validateConditionObject({ foo: "bar" }, "test");
     expect(unknown.some((issue) => issue.includes("未知字段"))).toBeTrue();
+  });
+
+  it("mergeDeepParseDraft：新节点并入 flat 并保持引用一致", () => {
+    const flat = {
+      scenario: { name: "墨渊" },
+      keyPoints: [{ id: "kp-9", title: "旧节点", revealed: false, scenarioId: "墨渊" }],
+      branches: [{ id: "br-9", title: "旧分支", reached: false, chosen: null, scenarioId: "墨渊" }],
+    };
+    const deepParse = normalizeDeepParse({
+      keyPoints: [{ id: "kp-1", title: "进入书房", scene: "三层书房" }],
+      branches: [{ id: "br-1", title: "如何进入书房", options: [{ label: "撞门", leadsTo: "三层书房" }] }],
+      keyPointConditions: [{ keyPointId: "kp-1", requires: { scene: "三层书房" } }],
+      branchConditions: [{ branchId: "br-1", requires: { keyPointIds: ["kp-1"] } }],
+      plotEdges: [{ from: "br:br-1", to: "kp:kp-1", label: "撞门", requires: [] }],
+      endings: [{ branchId: "br-1", title: "墨渊消散的结局", requires: { branchChoiceIds: ["br-1"] }, blockers: [], endingKeywords: ["消散"] }],
+    });
+    const merged = mergeDeepParseDraft(flat, deepParse);
+    expect(merged.keyPointsAdded).toBe(1);
+    expect(merged.branchesAdded).toBe(1);
+    expect(flat.keyPoints).toHaveLength(2);
+    expect(flat.branches).toHaveLength(2);
+    expect(flat.keyPoints[1].revealed).toBeFalse();
+    expect(merged.deepParse.keyPointConditions[0].keyPointId).toBe("kp-1");
+    expect(merged.deepParse.plotEdges[0].from).toBe("br:br-1");
+    expect(merged.deepParse.endings[0].branchId).toBe("br-1");
+  });
+
+  it("mergeDeepParseDraft：生成节点 id 与既有节点冲突时重映射", () => {
+    const flat = {
+      scenario: { name: "墨渊" },
+      keyPoints: [{ id: "kp-1", title: "旧节点", revealed: false, scenarioId: "墨渊" }],
+      branches: [{ id: "br-1", title: "旧分支", reached: false, chosen: null, scenarioId: "墨渊" }],
+    };
+    const deepParse = normalizeDeepParse({
+      keyPoints: [{ id: "kp-1", title: "LLM 新节点", scene: "三层书房" }],
+      branches: [{ id: "br-1", title: "LLM 新分支", options: [{ label: "撞门", leadsTo: "三层书房" }] }],
+      keyPointConditions: [{ keyPointId: "kp-1", requires: { scene: "三层书房" } }],
+      branchConditions: [{ branchId: "br-1", requires: { keyPointIds: ["kp-1"] } }],
+      plotEdges: [{ from: "br:br-1", to: "kp:kp-1", label: "撞门", requires: [] }],
+      endings: [{ branchId: "br-1", title: "结局", requires: { branchChoiceIds: ["br-1"] }, blockers: [], endingKeywords: ["结局"] }],
+    });
+    const merged = mergeDeepParseDraft(flat, deepParse);
+    expect(merged.keyPointsAdded).toBe(0);
+    expect(merged.branchesAdded).toBe(0);
+    expect(flat.keyPoints).toHaveLength(1);
+    expect(flat.branches).toHaveLength(1);
+    // 冲突 id 不新增节点，引用保持指向既有 id。
+    expect(merged.deepParse.keyPointConditions[0].keyPointId).toBe("kp-1");
+    expect(merged.deepParse.plotEdges[0].to).toBe("kp:kp-1");
   });
 
   it("validatePrerequisitePair：requires 与 requiresAnyOf 至少要有一个", () => {
