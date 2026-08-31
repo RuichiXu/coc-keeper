@@ -238,6 +238,22 @@ describe("deep-parse 深度剧本解析", () => {
     expect(draft.endingsAdded).toBe(0);
   });
 
+  it("validateDeepParse：optionLabel / not / mutexGroup 合法时通过", () => {
+    const deepParse = normalizeDeepParse({
+      keyPointConditions: [{ keyPointId: "ai-kp-3", requires: { scene: "三层书房", not: { entryEvidence: ["没能进入"] } } }],
+      branchConditions: [{ branchId: "ai-br-3", requires: { branchChoiceIds: ["ai-br-3"], optionLabel: "逆序念诵（送神）" } }],
+      endings: [{ branchId: "ai-br-3", title: "墨渊消散的结局", mutexGroup: "最终结局", endingKeywords: ["墨渊消散"] }],
+    });
+    expect(validateDeepParse(deepParse, FLAT)).toEqual([]);
+  });
+
+  it("validateConditionObject：optionLabel 缺 branchChoiceIds 或 not 非对象时报错", () => {
+    const missingBranch = validateConditionObject({ optionLabel: "逆序" }, "test");
+    expect(missingBranch.some((issue) => issue.includes("必须与 branchChoiceIds 搭配"))).toBeTrue();
+    const badNot = validateConditionObject({ not: "不是对象" }, "test");
+    expect(badNot.some((issue) => issue.includes("not 必须是条件对象"))).toBeTrue();
+  });
+
   it("validatePrerequisitePair：requires 与 requiresAnyOf 至少要有一个", () => {
     expect(validatePrerequisitePair({}, "test").length).toBeGreaterThan(0);
     expect(validatePrerequisitePair({ requires: { scene: "三层书房" } }, "test")).toEqual([]);

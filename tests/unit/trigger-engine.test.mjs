@@ -4,6 +4,7 @@
 import { describe, it, expect } from "../runner.js";
 import {
   TRIGGER_TYPES,
+  evaluatePrerequisites,
   evaluateTrigger,
   evaluateTriggers,
   remindersToTriggers,
@@ -93,6 +94,38 @@ describe("Trigger Engine", () => {
     };
     expect(evaluateTrigger({ id: "t1", type: TRIGGER_TYPES.KEYPOINT_PREREQ, keyPointId: "ai-kp-7", text: "" }, prereqState)).toBeTrue();
     expect(evaluateTrigger({ id: "t2", type: TRIGGER_TYPES.KEYPOINT_PREREQ, keyPointId: "ai-kp-8", text: "" }, prereqState)).toBeFalse();
+  });
+
+  it("evaluatePrerequisites 支持 optionLabel 选项级条件", () => {
+    const ctx = {
+      currentScene: "三层书房",
+      playerText: "",
+      narration: "",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [],
+      branches: [
+        { id: "ai-br-3", title: "最终仪式", reached: true, chosen: "逆序念诵（送神）" },
+      ],
+    };
+    expect(evaluatePrerequisites({ branchChoiceIds: ["ai-br-3"], optionLabel: "逆序念诵（送神）" }, ctx)).toBeTrue();
+    expect(evaluatePrerequisites({ branchChoiceIds: ["ai-br-3"], optionLabel: "正序念诵（请神）" }, ctx)).toBeFalse();
+    expect(evaluatePrerequisites({ optionLabel: "逆序念诵（送神）" }, ctx)).toBeFalse();
+  });
+
+  it("evaluatePrerequisites 支持 not 否定条件", () => {
+    const ctx = {
+      currentScene: "三层书房",
+      playerText: "",
+      narration: "",
+      passedCheckpointIds: [],
+      sanitySettled: [],
+      keyPoints: [{ id: "kp-1", title: "失败", revealed: false }],
+      branches: [],
+    };
+    expect(evaluatePrerequisites({ not: { keyPointIds: ["kp-1"] } }, ctx)).toBeTrue();
+    ctx.keyPoints[0].revealed = true;
+    expect(evaluatePrerequisites({ not: { keyPointIds: ["kp-1"] } }, ctx)).toBeFalse();
   });
 
   it("branch-prereq 与 ending 触发器", () => {
