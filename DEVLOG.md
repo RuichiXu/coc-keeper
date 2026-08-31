@@ -1348,3 +1348,34 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - 这三个规则把 review5 里“数据侧反复修”的问题变成了引擎自动行为；后续回填确认稿时不再需要为这些点手工改数据。
 - 剩余仍需数据侧处理或状态机的点：墨渊 ending 关键词宽匹配、两面 end-4 时序互斥、盲愚奥尔德克宅邸出口（detectDeadEndScenes 已能提示，补边仍需数据修正）。
+
+---
+
+## Session（2026-08-31 续）：v3 完整 loop 复跑（全新生成，3 轮）
+
+### 结果
+| 剧本 | 第1轮 | 第2轮 | 第3轮 |
+|---|---|---|---|
+| 墨渊V1.1 | FAIL h4/m7 | FAIL h2/m4 | FAIL h1/m3 |
+| 两面不是人v2.1 | FAIL h3/m7 | FAIL h1/m1 | FAIL h1/m2 |
+| 观止-见世之蝶 | FAIL h2/m6 | **PASS h0/m0** | **PASS h0/m1** |
+| 淡焱无生-对流 | FAIL h3/m4 | FAIL h1/m5 | FAIL h2/m3 |
+| 盲愚之眼_瓦上狸奴译 | FAIL h4/m5 | FAIL h0/m2 | FAIL h1/m4 |
+
+### 对比
+- v1（schema 前，warm start 自固定稿）：第 3 轮 2/5 PASS。
+- v2（schema 后，warm start 自 v1 最优稿）：第 3 轮 1/5 PASS（观止）。
+- v3（schema+引擎规则 4-6 后，**全新生成**）：第 2 轮观止即 PASS，第 3 轮 1/5 PASS。
+
+### 结论
+- 引擎规则让观止稳定收敛；但全新生成的首稿质量仍不足，剩余 4 本在第 3 轮仍各有 1-2 个 high。
+- 剩余 high 全部是“生成首稿的语义/结构错误”，不是 schema 或引擎问题：
+  - 墨渊：kp-9 场景名导致自动补 scene 门控后 GE 卡死；
+  - 两面：kp-34 纯 not 条件开局即揭示，解锁错误结局；
+  - 淡焱：br-8 leadsTo 场景与 kp-19.scene 不一致，结局三不可达；
+  - 盲愚：br-7 选项 leadsTo 未指向纽伯里，end-1~end-4 不可达。
+- 说明：**单轮生成 + 3 轮修复仍不够稳**；下一阶段重点应是生成器质量（分段生成 + 确定性结构校验 + 生成即跑可达性检查），而不是继续增加 loop 轮数。
+
+### 备注
+- `artifacts/deep-parse-loop-v3/<slug>/` 为 v3 工作区，`deep-parse.r2.json`（观止为 r1）为各剧本当前终审对象。
+- 下一步建议：把“生成即校验”做成工具：生成后立刻跑 `parseDeepParseResult + detectDeadEndScenes + 边/结局可达性`，不通过就自动修订，再进入 loop。
