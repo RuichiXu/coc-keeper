@@ -1195,3 +1195,27 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - `artifacts/deep-parse-review/*` 为本地校对工作区，未提交；`deep-parse.fixed.json` 是当前推荐稿。
 - 未修项集中在「现有条件 schema 无法表达选项级/否定/时间窗口/背景」等 D 阶段后续增强点，已记录在各自 review.md。
 - 下一步：把这些 fixed 稿回填到各场次/资产（`flat.deepParse`）并 KP 确认，或按未修项扩展条件 schema。
+
+---
+
+## Session（2026-08-31 续）：生成-审核 loop 离线验证（3 轮）
+
+### 交付
+1. 脚本 `scripts/deep-parse-loop-status.mjs`：读取 review.json / review2.json / review3.json，按通过标准（第 1-2 轮 high=0 && medium=0；第 3 轮 high=0 && medium<=2）输出各轮 PASS/FAIL。
+2. 用子 agent 跑了完整 3 轮 loop：生成 → 审核1 → 修正1 → 审核2 → 修正2 → 终审。
+3. 各轮结果：
+
+| 剧本 | 第1轮 | 第2轮 | 第3轮 |
+|---|---|---|---|
+| 墨渊V1.1 | FAIL h3/m6 | FAIL h0/m4 | **PASS h0/m1** |
+| 两面不是人v2.1 | FAIL h4/m7 | FAIL h1/m2 | FAIL h0/m3 |
+| 观止-见世之蝶 | FAIL h1/m5 | FAIL h0/m4 | FAIL h0/m3 |
+| 淡焱无生-对流 | FAIL h2/m3 | FAIL h2/m1 | **PASS h0/m0** |
+| 盲愚之眼_瓦上狸奴译 | FAIL h3/m11 | FAIL h1/m4 | FAIL h2/m5 |
+
+4. 所有 `deep-parse.fixed2.json` 本地 `parseDeepParseResult` 校验 0 issues。
+5. 结论：3 轮 loop 能把 2/5 剧本收敛到通过；剩余 3 本的主要阻塞是条件 schema 缺「选项级选择 / 互斥分支 / 时间窗口 / 背景条件」等表达能力，不是 loop 本身失效。
+
+### 备注
+- 当前 `deep-parse.fixed2.json` 为 loop 后最优稿，`review3.md/json` 为终审报告。
+- 下一步建议：扩展条件 schema（如 `optionLabel`、`not` 条件、时间窗口），或为互斥结局引入 `mutexGroup`；然后再跑一次 loop 应能显著提高通过率。
