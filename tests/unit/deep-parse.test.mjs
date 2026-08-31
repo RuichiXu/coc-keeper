@@ -80,6 +80,32 @@ describe("deep-parse 深度剧本解析", () => {
     expect(normalized.unknown).toBeUndefined();
   });
 
+  it("parseDeepParseResult：flat 无关键点/分支时，LLM 生成新节点并通过校验", () => {
+    const emptyFlat = { keyPoints: [], branches: [] };
+    const raw = JSON.stringify({
+      keyPoints: [{ id: "kp-1", title: "关键发现", scene: "书房" }],
+      branches: [{ id: "br-1", title: "关键抉择", options: [{ label: "继续调查", leadsTo: "关键发现" }] }],
+      keyPointConditions: [{ keyPointId: "kp-1", requires: { scene: "书房" } }],
+      branchConditions: [{ branchId: "br-1", requires: { scene: "书房" } }],
+      plotEdges: [{ from: "br:br-1", to: "kp:kp-1", label: "继续调查", requires: [], consequences: { setFlags: { "branch:br-1:chosen": "继续调查" } } }],
+      endings: [{ branchId: "br-1", title: "调查结局", requires: { branchChoiceIds: ["br-1"] }, blockers: [], endingKeywords: ["调查结局"] }],
+    });
+    const result = parseDeepParseResult(raw, emptyFlat);
+    expect(result.issues).toEqual([]);
+    expect(result.deepParse.keyPoints).toHaveLength(1);
+    expect(result.deepParse.branches).toHaveLength(1);
+  });
+
+  it("validateDeepParse：生成的节点缺 id / 分支缺 options 时报告问题", () => {
+    const deepParse = normalizeDeepParse({
+      keyPoints: [{ title: "没 id 的关键点" }],
+      branches: [{ id: "br-1", title: "没 options 的分支" }],
+    });
+    const issues = validateDeepParse(deepParse, { keyPoints: [], branches: [] });
+    expect(issues.some((issue) => issue.includes("keyPoints[0].id"))).toBeTrue();
+    expect(issues.some((issue) => issue.includes("options"))).toBeTrue();
+  });
+
   it("validateDeepParse：合法产物通过", () => {
     const deepParse = {
       keyPointConditions: [

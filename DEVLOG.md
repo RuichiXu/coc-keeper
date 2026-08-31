@@ -1098,12 +1098,14 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### D-1 深度解析数据模型 + Prompt/解析器
 1. 新增 `lib/core/scenario/deep-parse.js`（纯函数，DSH-free）：
    - `DEEP_PARSE_VERSION` / `normalizeDeepParse` / `validateDeepParse` / `buildDeepParsePrompt` / `parseDeepParseResult`；
-   - 产物结构：`keyPointConditions` / `branchConditions` / `plotEdges` / `endings`；
+   - 产物结构：`keyPoints` / `branches`（确定性草拟为空时由 LLM 生成新节点）/ `keyPointConditions` / `branchConditions` / `plotEdges` / `endings`；
    - 条件对象沿用 B-3/C-4 运行时 schema（scene / entryEvidence / checkpointGroups / sanityEventIds / keyPointIds / branchChoiceIds）。
    - `endings[].blockers`：阻断条件数组，命中任意一个即不可抵达；`endingKeywords` 供结局判定使用。
 2. 导出：`lib/core/scenario/index.js` 与 `lib/core/index.js` 已挂载。
-3. 测试：新增 `tests/unit/deep-parse.test.mjs`（8 用例）；`tests/run-tests.mjs` 已注册；全量 54 套通过；ui-check 14/14。
+3. 真实剧本夹具：新增 `tests/fixtures/scenarios/`（两面不是人v2.1.pdf / 观止-见世之蝶.docx / 已压缩生日均衡版.pdf），其中前两本可提取文本并用于 D-1 链路测试；生日均衡版为无文本层扫描件，保留负向提取断言（不 OCR）。
+4. 测试：新增 `tests/unit/deep-parse.test.mjs`（10 用例）与 `tests/unit/deep-parse-fixtures.test.mjs`（真实剧本链路）；`tests/run-tests.mjs` 已注册；全量 55 套通过；ui-check 14/14。
 
 ### 备注
 - D-1 仅交付“生成/解析/校验”纯函数，尚未接入导入链路（D-2）与运行时（D-4）。
+- 真实剧本证实 `compileByPattern` 对这些非标记化剧本的关键点/分支提取为 0，因此 deepParse 已支持 LLM 自行生成 `keyPoints` / `branches` 节点，D-2 合并时需要处理新节点 id 分配与去重。
 - 下一步 D-2：`coc_import` 剧本分支在 LLM 可用时调用深度解析，产出 `flat.deepParse`（status=draft，不强制生效）；确定性草拟保留兜底。
