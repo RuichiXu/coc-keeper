@@ -11,6 +11,7 @@ import {
   mergeDeepParseDraft,
   normalizeDeepParse,
   parseDeepParseResult,
+  runDeepParsePreflight,
   syncPlotGraphFromDeepParse,
   validateConditionObject,
   validateDeepParse,
@@ -244,6 +245,46 @@ describe("deep-parse 深度剧本解析", () => {
     });
     expect(issues).toHaveLength(1);
     expect(issues[0]).toEqual({ scene: "宅邸", issue: "no_exit" });
+  });
+
+  it("runDeepParsePreflight：捕获 end 悬空、结局无入边、leadsTo 未命中", () => {
+    const flat = {
+      scenario: { name: "测试" },
+      keyPoints: [{ id: "kp-1", title: "书房", scene: "书房" }],
+      branches: [
+        { id: "br-1", title: "是否进入", scene: "书房", options: [{ label: "进入", leadsTo: "不存在的地方" }] },
+      ],
+    };
+    const deepParse = normalizeDeepParse({
+      branches: [],
+      endings: [{ id: "end-1", branchId: "br-1", title: "进入结局", optionLabel: "进入", endingKeywords: ["结局"] }],
+      plotEdges: [{ from: "br:br-1", to: "end:end-9", label: "进入", requires: [] }],
+    });
+    const report = runDeepParsePreflight(deepParse, flat);
+    expect(report.high).toBeGreaterThanOrEqual(1);
+    expect(report.medium).toBeGreaterThanOrEqual(1);
+    expect(report.pass).toBeFalse();
+    expect(report.issues.some((issue) => issue.problem.includes("end: 端点没有对应已声明结局"))).toBeTrue();
+    expect(report.issues.some((issue) => issue.problem.includes("没有任何分支选项 leadsTo"))).toBeTrue();
+    expect(report.issues.some((issue) => issue.problem.includes("leadsTo 未命中"))).toBeTrue();
+  });
+
+  it("runDeepParsePreflight：结构合法且入边完整时 pass", () => {
+    const flat = {
+      scenario: { name: "测试" },
+      keyPoints: [],
+      branches: [
+        { id: "br-1", title: "最终抉择", scene: "书房", options: [{ label: "进入", leadsTo: "进入结局" }] },
+      ],
+    };
+    const deepParse = normalizeDeepParse({
+      endings: [{ id: "end-1", branchId: "br-1", title: "进入结局", optionLabel: "进入", endingKeywords: ["结局"] }],
+      plotEdges: [{ from: "br:br-1", to: "end:end-1", label: "进入", requires: [] }],
+    });
+    const report = runDeepParsePreflight(deepParse, flat);
+    expect(report.high).toBe(0);
+    expect(report.medium).toBe(0);
+    expect(report.pass).toBeTrue();
   });
 
   it("syncPlotGraphFromDeepParse：确认稿追加边与结局节点，未确认不追加", () => {
