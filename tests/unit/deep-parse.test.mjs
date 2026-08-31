@@ -4,10 +4,13 @@
 import { describe, it, expect, run, summarize } from "../runner.js";
 import {
   DEEP_PARSE_VERSION,
+  PlotGraph,
+  applyConfirmedDeepParse,
   buildDeepParsePrompt,
   mergeDeepParseDraft,
   normalizeDeepParse,
   parseDeepParseResult,
+  syncPlotGraphFromDeepParse,
   validateConditionObject,
   validateDeepParse,
   validatePrerequisitePair,
@@ -188,6 +191,51 @@ describe("deep-parse 深度剧本解析", () => {
     // 冲突 id 不新增节点，引用保持指向既有 id。
     expect(merged.deepParse.keyPointConditions[0].keyPointId).toBe("kp-1");
     expect(merged.deepParse.plotEdges[0].to).toBe("kp:kp-1");
+  });
+
+  it("applyConfirmedDeepParse：确认稿覆盖节点条件，未覆盖节点保留确定性条件", () => {
+    const flat = {
+      deepParse: {
+        status: "confirmed",
+        keyPointConditions: [{ keyPointId: "kp-1", requires: { scene: "书房" } }],
+        branchConditions: [{ branchId: "br-1", requires: { keyPointIds: ["kp-1"] }, autoChooseLabel: "进入" }],
+      },
+      keyPoints: [
+        { id: "kp-1", title: "发现暗门", requires: { checkpointGroups: [["chk-1"]] } },
+        { id: "kp-2", title: "保留兜底", requires: { scene: "门厅" } },
+      ],
+      branches: [{ id: "br-1", title: "是否进入", options: [] }],
+    };
+    const result = applyConfirmedDeepParse(flat);
+    expect(result.keyPointsApplied).toBe(1);
+    expect(result.branchesApplied).toBe(1);
+    expect(flat.keyPoints[0].requires).toEqual({ scene: "书房" });
+    expect(flat.keyPoints[0].deepParseApplied).toBeTrue();
+    expect(flat.keyPoints[1].requires).toEqual({ scene: "门厅" });
+    expect(flat.branches[0].autoChooseLabel).toBe("进入");
+  });
+
+  it("syncPlotGraphFromDeepParse：确认稿追加边与结局节点，未确认不追加", () => {
+    const plot = new PlotGraph();
+    const story = {
+      keyPoints: [{ id: "kp-1", title: "发现暗门", revealed: false }],
+      branches: [{ id: "br-1", title: "是否进入", reached: true, chosen: "进入", options: [{ label: "进入", leadsTo: "发现暗门" }] }],
+    };
+    const deepParse = {
+      status: "confirmed",
+      plotEdges: [{ from: "br:br-1", to: "kp:kp-1", label: "进入", requires: [], consequences: { setFlags: { "branch:br-1:chosen": "进入" } } }],
+      endings: [{ id: "end-1", branchId: "br-1", title: "暗门结局", optionLabel: "进入", requires: { branchChoiceIds: ["br-1"] }, blockers: [], endingKeywords: ["暗门"] }],
+    };
+    const result = syncPlotGraphFromDeepParse(plot, deepParse, story);
+    expect(result.endingsAdded).toBe(1);
+    expect(plot.findNode("end-1").status).toBe("completed");
+    expect(plot.findNode("end-1").endingKeywords).toEqual(["暗门"]);
+    expect(plot.edges.some((edge) => edge.from === "br:br-1" && edge.to === "kp:kp-1")).toBeTrue();
+
+    const plot2 = new PlotGraph();
+    const draft = syncPlotGraphFromDeepParse(plot2, { status: "draft", plotEdges: [], endings: [] }, story);
+    expect(draft.edgesAdded).toBe(0);
+    expect(draft.endingsAdded).toBe(0);
   });
 
   it("validatePrerequisitePair：requires 与 requiresAnyOf 至少要有一个", () => {

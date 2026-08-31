@@ -1148,3 +1148,24 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - D-3 完成：KP 现在可以在主持页校对 deepParse JSON 并确认生效。
 - 下一步 D-4：运行时替换——确认后的 deepParse 覆盖/补充关键点与分支结构化条件，PlotGraph 边与结局 requirements/blockers 接入 Trigger Engine / 聊天桥；`story-prereqs` 降级为无 LLM 兜底；更新 PATCHES 行 18。
+
+---
+
+## Session（2026-08-30 续 23）：D-4 运行时替换（确认稿接入）
+
+### 交付
+1. **`applyConfirmedDeepParse`**（`lib/core/scenario/deep-parse.js`）：确认稿的 `keyPointConditions / branchConditions` 覆盖到 flat 关键点/分支；未覆盖节点保留确定性草拟条件。
+2. **`syncPlotGraphFromDeepParse`**（同上）：`syncFromStory` 后追加确认稿的 `plotEdges` 与 `endings` 节点（含 `endingKeywords / endingRequires / endingBlockers`）；未确认不追加。
+3. **聊天桥接入**（`lib/shared/chat/chat-bridge.js`）：
+   - 每轮开始时若 `flat.deepParse.status === "confirmed"` 先 `applyConfirmedDeepParse`；
+   - `refreshPlotFrontier` 与终局/收尾的 PlotGraph 同步统一走 `syncPlotGraphFromDeepParse`；
+   - 终局短路把完成结局节点的 `endingKeywords/endingRequires/endingBlockers` 透传给 `createEndingResolvedEvent`。
+4. **结局条件**（`lib/shared/chat/ending.js`）：
+   - `confirmedEndingForBranch` / `endingKeywordsFor`：确认稿关键词优先，否则回退分支选项；
+   - `createEndingResolvedEvent` 在确认稿存在时校验 `requires` 与 `blockers`，未满足/被阻断不发布结局。
+5. **PATCHES 行 18 更新**：规则草拟正式降级为无 LLM / 未确认时的兜底。
+6. 测试：`deep-parse.test.mjs` 增至 14 用例（applyConfirmedDeepParse / syncPlotGraphFromDeepParse）；`ending.test.mjs` 新增确认稿关键词与 requires/blockers 用例；全量 55 套通过；ui-check 14/14。
+
+### 备注
+- D-4 代码链路完成；`story-prereqs` 兜底仍在（PATCHES 18），待全量剧本深度解析校对后逐步删除。
+- 下一步：导出全部剧本的 deepParse 校对包，委派子 agent 逐本校验，再按校对结果修正/确认。

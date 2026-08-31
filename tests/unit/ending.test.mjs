@@ -5,7 +5,9 @@ import { describe, it, expect, run, summarize } from "../runner.js";
 import {
   applyEndingResolvedEvent,
   buildEndingKeywords,
+  confirmedEndingForBranch,
   createEndingResolvedEvent,
+  endingKeywordsFor,
 } from "../../lib/shared/chat/index.js";
 
 function finalRiteFlat(overrides = {}) {
@@ -89,6 +91,60 @@ describe("applyEndingResolvedEvent 结局事件应用", () => {
     expect(flat.keyPoints[1].revealed).toBeTrue();
     expect(flat.keyPoints[2].revealed).toBeTrue();
     expect(revealed).toBe(3);
+  });
+});
+
+describe("confirmed deepParse 结局条件", () => {
+  it("endingKeywordsFor：确认稿优先返回 endingKeywords，未确认回退分支选项", () => {
+    const flat = finalRiteFlat({
+      deepParse: {
+        status: "confirmed",
+        endings: [{ branchId: "ai-br-3", title: "墨渊消散的结局", endingKeywords: ["墨渊被逐回虚空"] }],
+      },
+    });
+    expect(endingKeywordsFor(flat, flat.branches[0])).toEqual(["墨渊被逐回虚空"]);
+    expect(confirmedEndingForBranch(flat, flat.branches[0]).title).toBe("墨渊消散的结局");
+    expect(endingKeywordsFor(finalRiteFlat(), finalRiteFlat().branches[0])).toEqual(["墨渊消散"]);
+  });
+
+  it("requires 未满足或 blockers 命中时不创建结局事件", () => {
+    const flat = finalRiteFlat({
+      keyPoints: [],
+      deepParse: {
+        status: "confirmed",
+        endings: [{
+          branchId: "ai-br-3",
+          title: "墨渊消散的结局",
+          requires: { keyPointIds: ["ai-kp-7"] },
+          blockers: [],
+          endingKeywords: ["墨渊消散"],
+        }],
+      },
+    });
+    expect(createEndingResolvedEvent(flat, "你念出最后一个字。", {
+      rolledRaSkill: "意志",
+      lastRoll: { passed: true },
+    })).toBeNull();
+
+    const blocked = finalRiteFlat({
+      keyPoints: [
+        { id: "ai-kp-7", title: "拼凑十二字咒文", revealed: true },
+      ],
+      deepParse: {
+        status: "confirmed",
+        endings: [{
+          branchId: "ai-br-3",
+          title: "墨渊消散的结局",
+          requires: { keyPointIds: ["ai-kp-7"] },
+          blockers: [{ branchChoiceIds: ["ai-br-3"] }],
+          endingKeywords: ["墨渊消散"],
+        }],
+      },
+    });
+    expect(createEndingResolvedEvent(blocked, "你念出最后一个字。", {
+      rolledRaSkill: "意志",
+      lastRoll: { passed: true },
+    })).toBeNull();
   });
 });
 
