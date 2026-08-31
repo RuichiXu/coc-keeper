@@ -216,6 +216,55 @@ describe("/coc-api 集成", () => {
     expect(fixture.data.keyPoints.find((kp) => kp.id === "ai-kp-4").revealed).toBeTrue();
   });
 
+  it("GET/POST /coc-api/deep-parse 支持草稿保存与确认生效", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "games"), { recursive: true });
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    writeFileSync(join(dir, "games", "g1.json"), JSON.stringify({
+      id: "g1", title: "g1", updatedAt: new Date().toISOString(), kpMode: "ai",
+      rules: null, scenario: null, characters: [], keyPoints: [], branches: [],
+      currentScene: "书房", currentBranchId: "", time: "", synopsis: "", tasks: [],
+      entities: [], log: [], toolTrace: [], rollHistory: [], reminders: [], busy: false,
+    }));
+
+    const empty = await handle(handler, createFakeReq("GET", "/coc-api/deep-parse?game=g1"), createFakeRes());
+    expect(empty.ok).toBeTrue();
+    expect(empty.data.status).toBe("none");
+
+    const saved = await handle(handler, createFakeReq("POST", "/coc-api/deep-parse", {
+      game: "g1",
+      status: "draft",
+      source: "manual",
+      deepParse: {
+        keyPoints: [{ id: "kp-1", title: "发现暗门", scene: "书房" }],
+        branches: [{ id: "br-1", title: "是否进入暗门", options: [{ label: "进入", leadsTo: "发现暗门" }] }],
+        keyPointConditions: [{ keyPointId: "kp-1", requires: { scene: "书房" } }],
+        branchConditions: [{ branchId: "br-1", requires: { scene: "书房" } }],
+        plotEdges: [{ from: "br:br-1", to: "kp:kp-1", label: "进入", requires: [], consequences: { setFlags: { "branch:br-1:chosen": "进入" } } }],
+        endings: [{ branchId: "br-1", title: "暗门结局", requires: { branchChoiceIds: ["br-1"] }, blockers: [], endingKeywords: ["暗门"] }],
+      },
+    }), createFakeRes());
+    expect(saved.ok).toBeTrue();
+    expect(saved.data.status).toBe("draft");
+    let flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
+    expect(flat.deepParse.status).toBe("draft");
+    expect(flat.keyPoints.some((kp) => kp.id === "kp-1")).toBeTrue();
+
+    const confirmed = await handle(handler, createFakeReq("POST", "/coc-api/deep-parse", { action: "confirm", game: "g1" }), createFakeRes());
+    expect(confirmed.ok).toBeTrue();
+    flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
+    expect(flat.deepParse.status).toBe("confirmed");
+    expect(flat.deepParse.reviewed).toBeTrue();
+  });
+
   it("POST /coc-api/roll 走新工具并写入 core", async () => {
     const ctx = new Context();
     const tools = new TestTools(ctx);

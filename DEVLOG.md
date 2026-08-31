@@ -1131,3 +1131,20 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - D-2 只存草稿、不改变运行时判定；D-3 做 KP 校对面板（确认生效），D-4 才把确认后的 deepParse 接入 Trigger Engine / 聊天桥并替换 PATCHES 行 18。
 - 待 D-4 完成后，按用户要求对所有已入库剧本做完整深度解析并校对结果。
+
+---
+
+## Session（2026-08-30 续 22）：D-3 KP 校对面板（DeepParse）
+
+### 交付
+1. **API**（`lib/shared/api/coc-api.js`）：
+   - `GET /coc-api/deep-parse?game=` 返回 `{status, source, reviewed, deepParse}`；
+   - `POST /coc-api/deep-parse` 支持 `{deepParse, status, source}` 保存草稿（校验 + 归一化 + `mergeDeepParseDraft` 合并新节点）与 `{action:"confirm"}` 确认生效（确认前再次 `validateDeepParse`）。
+2. **前端主持页**（`lib/client.js`）：
+   - 新增「深度剧情解析（DeepParse）」卡片：状态/来源展示、JSON 编辑器、刷新/保存草稿/确认生效；
+   - 文案明确“确认前不参与运行时判定；确认后 D-4 接入运行时”。
+3. 测试：`coc-api.test.mjs` 新增 GET/POST deep-parse 用例（草稿保存合并 / 确认生效）；全量 55 套通过；ui-check 14/14。
+
+### 备注
+- D-3 完成：KP 现在可以在主持页校对 deepParse JSON 并确认生效。
+- 下一步 D-4：运行时替换——确认后的 deepParse 覆盖/补充关键点与分支结构化条件，PlotGraph 边与结局 requirements/blockers 接入 Trigger Engine / 聊天桥；`story-prereqs` 降级为无 LLM 兜底；更新 PATCHES 行 18。
