@@ -1379,3 +1379,34 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 ### 备注
 - `artifacts/deep-parse-loop-v3/<slug>/` 为 v3 工作区，`deep-parse.r2.json`（观止为 r1）为各剧本当前终审对象。
 - 下一步建议：把“生成即校验”做成工具：生成后立刻跑 `parseDeepParseResult + detectDeadEndScenes + 边/结局可达性`，不通过就自动修订，再进入 loop。
+
+---
+
+## Session（2026-08-31 续）：exp/deep-parse-quality-0045 探索
+
+### 交付
+1. **生成即校验工具**：
+   - `runDeepParsePreflight(deepParse, flat)`：结构校验 + leadsTo 命中 + 结局入边 + end: 端点 + 玩家选择型分支误代选 + scene 缺失低危提示；
+   - `scripts/deep-parse-preflight.mjs` CLI（exit 0 = high/medium 均为 0）；
+   - `buildDeepParsePrompt` 增加生成后自检清单；
+   - 单测覆盖（deep-parse.test 新增 2 例），全量 55/55、ui-check 14/14；
+   - `PATCHES.md` 行 25 登记文本匹配启发式。
+2. **v4 实验**（原 5 剧本，全新生成 + preflight gate + 3 轮 LLM loop）：
+
+| 剧本 | 第1轮 | 第2轮 | 第3轮 |
+|---|---|---|---|
+| 墨渊V1.1 | FAIL h5/m3 | FAIL h0/m3 | **PASS h0/m1** |
+| 两面不是人v2.1 | FAIL h5/m6 | FAIL h0/m4 | FAIL h2/m6 |
+| 观止-见世之蝶 | FAIL h5/m7 | FAIL h2/m5 | FAIL h1/m4 |
+| 淡焱无生-对流 | FAIL h4/m5 | FAIL h0/m5 | FAIL h0/m5 |
+| 盲愚之眼_瓦上狸奴译 | FAIL h5/m3 | FAIL h0/m2 | FAIL h0/m6 |
+
+### 结论
+- 生成即校验能把结构硬伤（悬空 end、无入边结局、leadsTo 未命中）在生成阶段清零，生成稿全部 preflight pass。
+- 但 v4 首稿的 LLM 语义错误比 v3 更严重（h4~h5），3 轮后仅墨渊达到 h0/m2；preflight 文本匹配无法覆盖语义可达性（缺边、过松/过严条件、自动揭示时机）。
+- 效率：每剧本仍跑满 3 轮 LLM；preflight 未减少 LLM 轮次，因为语义错误只有 LLM 审核能发现。
+
+### 回退决定
+- 原 5 剧本未能在 3 轮内稳定达到 h0/m2；按任务要求，不下载/评估新 3 个模组。
+- `main` 保持不动；本分支保留工具与实验记录，不合并。
+- 回退步骤：`git checkout main`；如需继续实验 `git checkout exp/deep-parse-quality-0045`。
