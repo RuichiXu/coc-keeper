@@ -1085,3 +1085,25 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 
 ### 备注
 - 待 Codex 按修正后路径复测：`data.endingReached`、`dumpCore.eventLog` 应含 `GateResolved`。
+
+---
+
+## Session（2026-08-30 续 20）：E2E r3 修复 + D-1 深度解析模型
+
+### E2E r3 修复
+1. **跨场次 core 污染**：`GameSession.syncFromFlat` 在 `flat.core` 缺失时重置 `trace / eventLog / plot / clues`；`flagsSource` 缺失时重置 `world.flags`。修复 `game-delete` 后同名 `game-create` 把旧场次运行时账本带入新场次。
+2. **最终仪式重试门禁优先消费**：`.ra` 处理段在多候选且存在 `source:"final-rite-retry"` 门禁时直接消费该门禁，不进入候选确认。修复裸 `.ra意志` 被 LLM 额外意志门禁卡在确认分支。
+3. 回归：c4-hardening 新增 2 用例（跨场次重置 / 重试门禁优先消费）；全量 53 套通过；ui-check 14/14。
+
+### D-1 深度解析数据模型 + Prompt/解析器
+1. 新增 `lib/core/scenario/deep-parse.js`（纯函数，DSH-free）：
+   - `DEEP_PARSE_VERSION` / `normalizeDeepParse` / `validateDeepParse` / `buildDeepParsePrompt` / `parseDeepParseResult`；
+   - 产物结构：`keyPointConditions` / `branchConditions` / `plotEdges` / `endings`；
+   - 条件对象沿用 B-3/C-4 运行时 schema（scene / entryEvidence / checkpointGroups / sanityEventIds / keyPointIds / branchChoiceIds）。
+   - `endings[].blockers`：阻断条件数组，命中任意一个即不可抵达；`endingKeywords` 供结局判定使用。
+2. 导出：`lib/core/scenario/index.js` 与 `lib/core/index.js` 已挂载。
+3. 测试：新增 `tests/unit/deep-parse.test.mjs`（8 用例）；`tests/run-tests.mjs` 已注册；全量 54 套通过；ui-check 14/14。
+
+### 备注
+- D-1 仅交付“生成/解析/校验”纯函数，尚未接入导入链路（D-2）与运行时（D-4）。
+- 下一步 D-2：`coc_import` 剧本分支在 LLM 可用时调用深度解析，产出 `flat.deepParse`（status=draft，不强制生效）；确定性草拟保留兜底。
