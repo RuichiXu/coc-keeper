@@ -1293,3 +1293,22 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - 引擎修复生效：墨渊/淡焱的 high 被覆盖，观止回归 PASS。
 - 剩余问题集中在数据侧：缺少选择权（autoChooseLabel 代选）、缺边（盲愚 br-5）、时序互斥（两面 end-4）。
 - 下一步：对剩余 high/medium 做最后一轮数据修正，能改则改；时序互斥仍留待状态机。
+
+---
+
+## Session（2026-08-31 续）：review4 数据修正轮
+
+### 结果
+- 墨渊：修 2 条 medium（kp-9 补 scene+br-1 门槛、移除 br-1/br-3 事件驱动代选；kp-13 改手工 reveal）；未修 0。
+- 两面：修 8 处（high 1、medium 2，含补边与收紧 6 条边、1 条关键点条件）；未修 0。
+- 观止：0 issue，r2 原样复制为 final。
+- 淡焱：修 2 条 medium（br-1 requires 改为 kp-4+scene；结局节点 id 与 syncFromStory 自动结局节点合并，10 结局降为 6）；未修 0。
+- 盲愚：修 6 条（high 1、medium 5，补七星旅店边等）；未修 0。
+
+### 产物
+- `artifacts/deep-parse-loop-v2/<slug>/deep-parse.final.json`：本轮数据修正稿。
+- 全部 `parseDeepParseResult` 本地校验 0 issues。
+
+### 备注
+- 数据侧 high/medium 已按 review4 修完；最终稿仍建议再做一次终审确认。
+- 两面 end-4 时序互斥问题在数据修正中已通过收紧边/条件缓解，完整时序仍待状态机。
