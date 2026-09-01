@@ -61,21 +61,25 @@ describe("Shared 导入器", () => {
     expect(deps.assetStore.list(ASSET_KINDS.SCENARIO)).toHaveLength(1);
   });
 
-  it("D-2：LLM 深度解析成功时生成 draft 并合并新关键点/分支", async () => {
+  it("D-2：LLM 深度解析成功时生成 draft 并合并补充分支与结局", async () => {
     const { dataDir, deps, defs } = fixture();
     deps.callLlmApi = async (_dataDir, messages) => {
       const prompt = messages[0]?.content?.[0]?.text ?? "";
-      if (prompt.includes("深度剧情解析")) {
+      if (prompt.includes("最终分支与结局")) {
         return {
           blocks: [{
             type: "text",
             text: JSON.stringify({
-              keyPoints: [{ id: "kp-1", title: "发现日记", scene: "书房" }],
-              branches: [{ id: "br-1", title: "是否阅读日记", options: [{ label: "阅读", leadsTo: "发现日记" }] }],
-              keyPointConditions: [{ keyPointId: "kp-1", requires: { scene: "书房" } }],
+              branches: [{ id: "br-1", title: "是否阅读日记", scene: "书房", finalChoice: true, options: [{ label: "阅读", leadsTo: "发现日记" }, { label: "不读", leadsTo: "空手而归" }] }],
               branchConditions: [{ branchId: "br-1", requires: { scene: "书房" } }],
-              plotEdges: [{ from: "br:br-1", to: "kp:kp-1", label: "阅读", requires: [], consequences: { setFlags: { "branch:br-1:chosen": "阅读" } } }],
-              endings: [{ branchId: "br-1", title: "阅读结局", requires: { branchChoiceIds: ["br-1"] }, blockers: [], endingKeywords: ["阅读结局"] }],
+              plotEdges: [
+                { from: "br:br-1", to: "end:end-1", label: "阅读", requires: [] },
+                { from: "br:br-1", to: "end:end-2", label: "不读", requires: [] },
+              ],
+              endings: [
+                { id: "end-1", branchId: "br-1", title: "阅读结局", optionLabel: "阅读", mutexGroup: "最终结局", requires: { branchChoiceIds: ["br-1"], optionLabel: "阅读" }, blockers: [], endingKeywords: ["阅读结局"] },
+                { id: "end-2", branchId: "br-1", title: "空手而归", optionLabel: "不读", mutexGroup: "最终结局", requires: { branchChoiceIds: ["br-1"], optionLabel: "不读" }, blockers: [], endingKeywords: ["空手而归"] },
+              ],
             }),
           }],
         };
@@ -83,7 +87,7 @@ describe("Shared 导入器", () => {
       return {
         blocks: [{
           type: "text",
-          text: JSON.stringify({ clueGates: [], npcKnowledge: [], ritualConditions: [], nightEvents: [], finalBranchWhitelist: [] }),
+          text: JSON.stringify({ keyPointConditions: [], branchConditions: [], plotEdges: [] }),
         }],
       };
     };
@@ -99,8 +103,8 @@ describe("Shared 导入器", () => {
     const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
     expect(flat.deepParse.status).toBe("draft");
     expect(flat.deepParse.source).toBe("llm");
-    expect(flat.keyPoints.some((kp) => kp.id === "kp-1" && kp.title === "发现日记")).toBeTrue();
     expect(flat.branches.some((branch) => branch.id === "br-1" && branch.title === "是否阅读日记")).toBeTrue();
+    expect(flat.deepParse.endings.some((ending) => ending.title === "阅读结局")).toBeTrue();
   });
 
   it("D-2：LLM 深度解析失败时保留确定性结构并标记 skipped", async () => {
