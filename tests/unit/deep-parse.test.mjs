@@ -12,6 +12,7 @@ import {
   collectDeepParseTargets,
   combineDeepParseParts,
   detectDeadEndScenes,
+  extractFinalChoiceBranches,
   mergeDeepParseDraft,
   normalizeDeepParse,
   parseDeepParseResult,
@@ -111,6 +112,18 @@ describe("deep-parse 深度剧本解析", () => {
     const parsed = parseSkeletonWiringResult(raw, FLAT);
     expect(parsed.deepParse.keyPoints).toEqual([]);
     expect(parsed.issues.some((issue) => issue.includes("不允许生成 keyPoints"))).toBeTrue();
+  });
+
+  it("extractFinalChoiceBranches：从最终抉择段落提取玩家选择分支", () => {
+    const flat = {
+      scenario: { name: "测试", text: "此时，调查员们面临最终抉择：若调查员们正序念诵，则墨渊降临；若调查员们逆序念诵，则墨渊消散。" },
+      scenarioFacts: [{ heading: "最终抉择", floor: "结局", keywords: ["最终抉择"], original: "此时，调查员们面临最终抉择：若调查员们正序念诵，则墨渊降临；若调查员们逆序念诵，则墨渊消散。" }],
+    };
+    const result = extractFinalChoiceBranches(flat);
+    expect(result.branches).toHaveLength(1);
+    expect(result.branches[0].id).toBe("br-final-1");
+    expect(result.branches[0].options.map((option) => option.label)).toEqual(["正序念诵", "逆序念诵"]);
+    expect(result.keyPoints.length).toBe(2);
   });
 
   it("collectDeepParseTargets：词表包含节点标题、结局关键词与场景名", () => {

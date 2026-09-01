@@ -125,6 +125,24 @@ describe("confirmed deepParse 结局条件", () => {
     expect(endingKeywordsFor(finalRiteFlat(), finalRiteFlat().branches[0])).toEqual(["墨渊消散"]);
   });
 
+  it("无 optionLabel 的多结局按 requires/blockers 选第一个满足者", () => {
+    const flat = finalRiteFlat({
+      keyPoints: [
+        { id: "ai-kp-7", title: "拼凑十二字咒文", revealed: true },
+        { id: "ai-kp-8", title: "最终抉择", revealed: true },
+      ],
+      deepParse: {
+        status: "confirmed",
+        endings: [
+          { id: "end-1", branchId: "ai-br-3", title: "墨渊消散的结局", requires: { keyPointIds: ["ai-kp-999"] }, blockers: [], endingKeywords: ["消散"] },
+          { id: "end-2", branchId: "ai-br-3", title: "克罗斯之死", requires: { keyPointIds: ["ai-kp-8"] }, blockers: [], endingKeywords: ["克罗斯之死"] },
+        ],
+      },
+    });
+    const picked = confirmedEndingForBranch(flat, flat.branches[0]);
+    expect(picked.id).toBe("end-2");
+  });
+
   it("requires 未满足或 blockers 命中时不创建结局事件", () => {
     const flat = finalRiteFlat({
       keyPoints: [],
