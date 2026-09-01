@@ -7,6 +7,9 @@ import {
   PlotGraph,
   applyConfirmedDeepParse,
   buildDeepParsePrompt,
+  buildDeepParseTwoStagePrompts,
+  collectDeepParseTargets,
+  combineDeepParseParts,
   detectDeadEndScenes,
   mergeDeepParseDraft,
   normalizeDeepParse,
@@ -51,6 +54,53 @@ describe("deep-parse 深度剧本解析", () => {
     expect(prompt).toContain("ai-kp-3");
     expect(prompt).toContain("ai-br-3");
     expect(prompt).toContain("blockers");
+  });
+
+  it("buildDeepParseTwoStagePrompts：第一段只生成节点，第二段有封闭词表与节点清单", () => {
+    const inventory = {
+      keyPoints: [{ id: "kp-1", title: "进入书房", scene: "三层书房" }],
+      branches: [{ id: "br-1", title: "如何进入书房", scene: "三层书房", options: [{ label: "撞门" }] }],
+      endings: [{ id: "end-1", branchId: "br-1", title: "墨渊消散的结局", optionLabel: "撞门", mutexGroup: "最终结局", endingKeywords: ["墨渊消散"] }],
+    };
+    const prompts = buildDeepParseTwoStagePrompts(FLAT, inventory);
+    expect(prompts.inventoryPrompt).toContain("节点清单");
+    expect(prompts.inventoryPrompt).toContain("不要生成 plotEdges");
+    expect(prompts.wiringPrompt).toContain("branchOptionLeadsTo");
+    expect(prompts.wiringPrompt).toContain("endingConditions");
+    expect(prompts.wiringPrompt).toContain("墨渊消散的结局");
+    expect(prompts.wiringPrompt).toContain("三层书房");
+  });
+
+  it("combineDeepParseParts：灌回 leadsTo 与结局条件并通过校验", () => {
+    const inventory = {
+      keyPoints: [{ id: "kp-1", title: "进入书房", scene: "三层书房" }],
+      branches: [{ id: "br-1", title: "如何进入书房", scene: "三层书房", options: [{ label: "撞门" }] }],
+      endings: [{ id: "end-1", branchId: "br-1", title: "进入书房", optionLabel: "撞门", mutexGroup: "最终结局", endingKeywords: ["书房"] }],
+    };
+    const wiring = {
+      branchOptionLeadsTo: [{ branchId: "br-1", optionIndex: 0, leadsTo: "进入书房" }],
+      keyPointConditions: [],
+      branchConditions: [],
+      plotEdges: [{ from: "br:br-1", to: "kp:kp-1", label: "撞门", requires: [] }],
+      endingConditions: [{ endingId: "end-1", requires: { branchChoiceIds: ["br-1"], optionLabel: "撞门" }, blockers: [] }],
+    };
+    const result = combineDeepParseParts(inventory, wiring, FLAT);
+    expect(result.issues).toEqual([]);
+    expect(result.deepParse.branches[0].options[0].leadsTo).toBe("进入书房");
+    expect(result.deepParse.endings[0].requires.optionLabel).toBe("撞门");
+  });
+
+  it("collectDeepParseTargets：词表包含节点标题、结局关键词与场景名", () => {
+    const inventory = {
+      keyPoints: [{ id: "kp-1", title: "进入书房", scene: "三层书房" }],
+      branches: [],
+      endings: [{ id: "end-1", branchId: "br-1", title: "墨渊消散", endingKeywords: ["送神"] }],
+    };
+    const targets = collectDeepParseTargets(FLAT, inventory);
+    expect(targets).toContain("进入书房");
+    expect(targets).toContain("三层书房");
+    expect(targets).toContain("墨渊消散");
+    expect(targets).toContain("送神");
   });
 
   it("parseDeepParseResult：剥离代码围栏并解析 JSON", () => {
