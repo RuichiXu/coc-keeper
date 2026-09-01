@@ -1410,3 +1410,34 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - 原 5 剧本未能在 3 轮内稳定达到 h0/m2；按任务要求，不下载/评估新 3 个模组。
 - `main` 保持不动；本分支保留工具与实验记录，不合并。
 - 回退步骤：`git checkout main`；如需继续实验 `git checkout exp/deep-parse-quality-0045`。
+
+---
+
+## Session（2026-08-31 续）：M1+M2 继续尝试（v5 两段式 + 真图可达性）
+
+### 交付
+1. **两段式生成**（`buildDeepParseTwoStagePrompts` / `collectDeepParseTargets` / `combineDeepParseParts`）：
+   - 第一段只生成节点清单；第二段生成连线与条件，`leadsTo` 必须从封闭词表选择；
+   - 脚本 `scripts/make-two-stage-prompts.mjs` 与 `scripts/combine-deep-parse-parts.mjs`。
+2. **真图可达性 preflight**：`runDeepParsePreflight` 新增 BFS 可达性，生成关键点无入边报 medium、结局不可达报 high。
+3. 全量 55/55、ui-check 14/14。
+
+### v5 实验（两段式生成 + 封闭词表 + 真图可达性 preflight，首稿第 1 轮审核）
+
+| 剧本 | 首稿 preflight | 第1轮审核 |
+|---|---|---|
+| 墨渊V1.1 | PASS | FAIL h2/m7 |
+| 两面不是人v2.1 | PASS | FAIL h5/m6 |
+| 观止-见世之蝶 | PASS | FAIL h6/m7 |
+| 淡焱无生-对流 | PASS | FAIL h6/m8 |
+| 盲愚之眼_瓦上狸奴译 | PASS | FAIL h4/m7 |
+
+### 结论
+- 结构类硬伤（悬空边、无入边、leadsTo 未命中）已被两段式 + preflight 消掉，生成稿全部 preflight pass；
+- 但 LLM 首稿的语义错误（场景门控过松、选项互斥断头、结局条件错配、自动揭示时机）仍然高（h2~h6）；
+- 说明瓶颈已不在确定性工具，而在**当前可用的 LLM 生成器本身**；在生成器质量不改善的前提下，3 轮 loop 无法稳定达到 h0/m2。
+
+### 最终回退决定
+- 多次尝试（v3 全新单段、v4 全新单段+preflight、v5 两段式+真图可达性）后，原 5 剧本仍不达标。
+- 按任务要求：不下载/评估新 3 个模组；不合并到 main。
+- `main` 保持在 `277daef` 不动；实验提交全部在 `exp/deep-parse-quality-0045`。
