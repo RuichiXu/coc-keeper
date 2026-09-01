@@ -402,8 +402,8 @@ describe("deep-parse 深度剧本解析", () => {
     const deepParse = normalizeDeepParse({
       branchConditions: [{ branchId: "br-final-1", requires: { scene: "书房" } }],
       endings: [
-        { id: "end-1", branchId: "br-final-1", title: "结局", optionLabel: "离开", endingKeywords: ["结局"] },
-        { id: "end-2", branchId: "br-final-1", title: "结局2", optionLabel: "留下", endingKeywords: ["结局2"] },
+        { id: "end-1", branchId: "br-final-1", title: "结局", optionLabel: "离开", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "离开" }, endingKeywords: ["结局"] },
+        { id: "end-2", branchId: "br-final-1", title: "结局2", optionLabel: "留下", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "留下" }, endingKeywords: ["结局2"] },
       ],
       plotEdges: [
         { from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [] },
