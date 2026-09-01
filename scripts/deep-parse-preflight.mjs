@@ -67,6 +67,10 @@ if (parsed.deepParse === null) {
   console.error(`draft 无法解析：${parsed.issues.join("；")}`);
   process.exit(2);
 }
+if (process.env.SKELETON_LOCKED === "1" && (parsed.deepParse.keyPoints ?? []).length > 0) {
+  console.error("skeleton-locked 模式不允许生成 keyPoints");
+  process.exit(2);
+}
 const report = runDeepParsePreflight(parsed.deepParse, flat);
 console.log(JSON.stringify(report, null, 2));
 process.exit(report.pass ? 0 : 1);
