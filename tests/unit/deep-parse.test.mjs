@@ -391,6 +391,31 @@ describe("deep-parse 深度剧本解析", () => {
     expect(report.issues.some((issue) => issue.problem.includes("最终分支"))).toBeTrue();
   });
 
+  it("runDeepParsePreflight：最终抉择分支带 scene branchCondition 且无 autoChooseLabel 时 pass", () => {
+    const flat = {
+      scenario: { name: "测试" },
+      keyPoints: [],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "书房", finalChoice: true, options: [{ label: "离开", leadsTo: "结局" }, { label: "留下", leadsTo: "结局2" }] },
+      ],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "书房" } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "结局", optionLabel: "离开", endingKeywords: ["结局"] },
+        { id: "end-2", branchId: "br-final-1", title: "结局2", optionLabel: "留下", endingKeywords: ["结局2"] },
+      ],
+      plotEdges: [
+        { from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [] },
+        { from: "br:br-final-1", to: "end:end-2", label: "留下", requires: [] },
+      ],
+    });
+    const report = runDeepParsePreflight(deepParse, flat);
+    expect(report.high).toBe(0);
+    expect(report.medium).toBe(0);
+    expect(report.pass).toBeTrue();
+  });
+
   it("syncPlotGraphFromDeepParse：确认稿追加边与结局节点，未确认不追加", () => {
     const plot = new PlotGraph();
     const story = {
