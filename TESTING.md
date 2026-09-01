@@ -248,6 +248,7 @@ node tests/run-tests.mjs e2e
 npm run ui-check
 ```
 
+- **只改后端内容（`lib/core/`、`lib/shared/`、脚本、测试）时不用跑 ui-check**；涉及 `lib/client.js`、前端 UI 或 DSH 适配层时才需要跑。
 - 使用 `playwright-core` + 已安装的 headless chromium（`npx playwright-core install chromium`）。
 - 真实启动 `dsh web --port 0`，检查面板挂载、调试子按钮切换、新建场次向导三步、玩家面板挂载。
 - 交付前必须 14/14 通过；新增前端按钮时同步扩充检查项。
