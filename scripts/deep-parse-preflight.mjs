@@ -11,6 +11,7 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
+  buildDeterministicSkeleton,
   compileByPattern,
   extractCheckpoints,
   extractSceneFacts,
@@ -50,6 +51,11 @@ const flat = {
   branches: legacy.branches,
   entities: legacy.entities,
 };
+if (flat.keyPoints.length === 0 && flat.branches.length === 0) {
+  const skeleton = buildDeterministicSkeleton(flat);
+  flat.keyPoints = skeleton.keyPoints;
+  flat.branches = skeleton.branches;
+}
 const parsed = parseDeepParseResult(raw, flat);
 if (parsed.deepParse === null) {
   console.error(`draft 无法解析：${parsed.issues.join("；")}`);
