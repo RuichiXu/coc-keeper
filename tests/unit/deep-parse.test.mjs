@@ -8,12 +8,14 @@ import {
   applyConfirmedDeepParse,
   buildDeepParsePrompt,
   buildDeepParseTwoStagePrompts,
+  buildSkeletonWiringPrompt,
   collectDeepParseTargets,
   combineDeepParseParts,
   detectDeadEndScenes,
   mergeDeepParseDraft,
   normalizeDeepParse,
   parseDeepParseResult,
+  parseSkeletonWiringResult,
   runDeepParsePreflight,
   syncPlotGraphFromDeepParse,
   validateConditionObject,
@@ -88,6 +90,27 @@ describe("deep-parse 深度剧本解析", () => {
     expect(result.issues).toEqual([]);
     expect(result.deepParse.branches[0].options[0].leadsTo).toBe("进入书房");
     expect(result.deepParse.endings[0].requires.optionLabel).toBe("撞门");
+  });
+
+  it("buildSkeletonWiringPrompt：禁止生成节点，只标注条件/边/结局", () => {
+    const prompt = buildSkeletonWiringPrompt(FLAT);
+    expect(prompt).toContain("不要生成任何新节点");
+    expect(prompt).toContain("确定性节点骨架");
+    expect(prompt).toContain("ai-br-3");
+    expect(prompt).toContain("keyPointConditions");
+  });
+
+  it("parseSkeletonWiringResult：生成新节点时报错并剥离节点", () => {
+    const raw = JSON.stringify({
+      keyPoints: [{ id: "kp-99", title: "新节点" }],
+      keyPointConditions: [],
+      branchConditions: [],
+      plotEdges: [],
+      endings: [],
+    });
+    const parsed = parseSkeletonWiringResult(raw, FLAT);
+    expect(parsed.deepParse.keyPoints).toEqual([]);
+    expect(parsed.issues.some((issue) => issue.includes("不允许生成 keyPoints"))).toBeTrue();
   });
 
   it("collectDeepParseTargets：词表包含节点标题、结局关键词与场景名", () => {
