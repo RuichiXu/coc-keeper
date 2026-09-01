@@ -1472,3 +1472,32 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - 多次尝试（v3/v4/v5/v6）后，原 5 剧本仍不达标，不下载/评估新 3 个模组；
 - `main` 保持 `277daef` 不动；全部实验提交保留在 `exp/deep-parse-quality-0045`；
 - 回退：`git checkout main`。
+
+---
+
+## Session（2026-08-31 续）：v6b 确定性骨架 + 骨架锁定
+
+### 交付
+- `buildDeterministicSkeleton`：场景事实 heading → keyPoints，检定点 → skill-check branches；
+- `buildSkeletonWiringPrompt` / `deep-parse-preflight` 在骨架为空时自动使用该骨架；
+- 全量 55/55、ui-check 14/14。
+
+### v6b 实验（确定性骨架锁定首稿 + 第 1 轮审核）
+
+| 剧本 | 首稿 preflight | 第1轮审核 |
+|---|---|---|
+| 墨渊V1.1 | PASS | FAIL h3/m3 |
+| 两面不是人v2.1 | PASS | FAIL h4/m5 |
+| 观止-见世之蝶 | PASS | FAIL h3/m3 |
+| 淡焱无生-对流 | PASS | FAIL h3/m5 |
+| 盲愚之眼_瓦上狸奴译 | PASS | FAIL h3/m3 |
+
+### 失败原因
+- 确定性骨架里的 branches 全部来自检定点，属于“技能检定分支”；
+- LLM 把结局挂到这些技能检定分支上（如“聆听检定→寒星降临”），而不是玩家最终抉择分支；
+- 结局语义错位、玩家选择权丧失、条件自锁/过松同时出现。
+
+### 最终回退决定（再次确认）
+- v6/v6b 骨架锁定路径失败；根因是“确定性骨架缺少玩家选择型最终分支”，不是 LLM 或 loop 能补的。
+- 不下载/评估新 3 个模组；`main` 保持 `277daef` 不动。
+- 回退：`git checkout main`。
