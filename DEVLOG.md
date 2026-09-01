@@ -1501,3 +1501,38 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - v6/v6b 骨架锁定路径失败；根因是“确定性骨架缺少玩家选择型最终分支”，不是 LLM 或 loop 能补的。
 - 不下载/评估新 3 个模组；`main` 保持 `277daef` 不动。
 - 回退：`git checkout main`。
+
+---
+
+## Session（2026-09-01 续）：分块生成 + 导入 loop
+
+### 交付
+- `lib/core/scenario/chunked-deep-parse.js`：按场景事实切块生成局部条件/边，最终分支与结局单独生成，确定性合并并 sanitize（剥离非法 optionLabel、清空空 requires/requiresAnyOf）。
+- `lib/shared/tools/deep-parse-loop.js`：导入用 3 轮 loop，分块并发 4，每轮把 preflight high/medium 回灌修复，3 轮后取最优稿，preflight 失败不阻塞导入（draft + quality）。
+- `lib/shared/tools/import.js`：D-2 深度解析改为新 loop。
+- `scripts/run-deep-parse-loop.mjs`：离线用真实 LLM 配置跑 loop 的评测脚本。
+- 后端 55/55 通过（只改后端，未跑 ui-check）。
+
+### 真实 API 冷启动评测（现有 5 剧本，preflight 口径）
+
+| 剧本 | 轮数 | preflight |
+|---|---|---|
+| 墨渊V1.1 | 1 | PASS h0/m0 |
+| 两面不是人v2.1 | 1 | PASS h0/m0 |
+| 观止-见世之蝶 | 1 | PASS h0/m0 |
+| 淡焱无生-对流 | 1 | PASS h0/m0 |
+| 盲愚之眼_瓦上狸奴译 | 1 | PASS h0/m0 |
+
+### 但 LLM 审核口径仍未达 B 级
+
+| 剧本 | 审核 high/medium |
+|---|---|
+| 墨渊V1.1 | h6/m3 |
+| 两面不是人v2.1 | h6/m3 |
+| 观止-见世之蝶 | h4/m3 |
+| 淡焱无生-对流 | h1/m3 |
+| 盲愚之眼_瓦上狸奴译 | h3/m4 |
+
+- preflight 已能把结构错误压到 0，但语义审核仍暴露最终分支场景错挂、结局漏配/误配、前置条件缺失。
+- 结论：B 级（3 轮内 h0/m≤2）在现有生成器下**仍未达成**；分块 loop 比单段生成更稳（preflight 全过），但最终分支/结局的语义质量仍是瓶颈。
+- 3 个新剧本暂不评估（未达前置条件）。
