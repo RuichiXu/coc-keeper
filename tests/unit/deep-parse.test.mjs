@@ -373,6 +373,24 @@ describe("deep-parse 深度剧本解析", () => {
     expect(report.pass).toBeTrue();
   });
 
+  it("runDeepParsePreflight：结局错挂技能分支且存在最终分支时报 high", () => {
+    const flat = {
+      scenario: { name: "测试" },
+      keyPoints: [],
+      branches: [
+        { id: "br-1", title: "技能检定", scene: "书房", options: [{ label: "聆听", leadsTo: "书房" }] },
+        { id: "br-final-1", title: "最终抉择", scene: "书房", finalChoice: true, options: [{ label: "离开", leadsTo: "结局" }] },
+      ],
+    };
+    const deepParse = normalizeDeepParse({
+      endings: [{ id: "end-1", branchId: "br-1", title: "结局", optionLabel: "聆听", endingKeywords: ["结局"] }],
+      plotEdges: [{ from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [] }],
+    });
+    const report = runDeepParsePreflight(deepParse, flat);
+    expect(report.high).toBeGreaterThan(0);
+    expect(report.issues.some((issue) => issue.problem.includes("最终分支"))).toBeTrue();
+  });
+
   it("syncPlotGraphFromDeepParse：确认稿追加边与结局节点，未确认不追加", () => {
     const plot = new PlotGraph();
     const story = {

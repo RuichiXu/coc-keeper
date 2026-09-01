@@ -14,6 +14,7 @@ import {
   buildDeterministicSkeleton,
   compileByPattern,
   extractCheckpoints,
+  extractFinalChoiceBranches,
   extractSceneFacts,
   parseDeepParseResult,
   runDeepParsePreflight,
@@ -55,6 +56,11 @@ if (flat.keyPoints.length === 0 && flat.branches.length === 0) {
   const skeleton = buildDeterministicSkeleton(flat);
   flat.keyPoints = skeleton.keyPoints;
   flat.branches = skeleton.branches;
+}
+{
+  const finalChoice = extractFinalChoiceBranches(flat);
+  for (const kp of finalChoice.keyPoints) flat.keyPoints.push(kp);
+  for (const branch of finalChoice.branches) flat.branches.push(branch);
 }
 const parsed = parseDeepParseResult(raw, flat);
 if (parsed.deepParse === null) {

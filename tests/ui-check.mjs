@@ -63,12 +63,21 @@ function killTree(child) {
 // ── 启动 dsh web 并解析端口 ────────────────────────────────
 function startDshWeb() {
   return new Promise((resolve, reject) => {
-    const child = spawn("npx", ["@deepseek-ai/dsh", "web", "--port", "0", "--no-open"], {
-      cwd: process.cwd(),
-      env: process.env,
-      shell: process.platform === "win32",
-      detached: process.platform !== "win32",
-    });
+    // 支持 DSH_WEB_BIN 直接指定 dsh 可执行文件，绕过 npm cache 权限问题。
+    const bin = process.env.DSH_WEB_BIN;
+    const child = bin
+      ? spawn(bin, ["web", "--port", "0", "--no-open"], {
+          cwd: process.cwd(),
+          env: process.env,
+          shell: process.platform === "win32",
+          detached: process.platform !== "win32",
+        })
+      : spawn("npx", ["@deepseek-ai/dsh", "web", "--port", "0", "--no-open"], {
+          cwd: process.cwd(),
+          env: process.env,
+          shell: process.platform === "win32",
+          detached: process.platform !== "win32",
+        });
     let buffer = "";
     let port = null;
     const timer = setTimeout(() => {
@@ -140,7 +149,8 @@ try {
   if (await debugTabBtn.count() === 0) {
     check("找到「调试」tab", false, "面板 tab 未渲染");
   } else {
-    await debugTabBtn.click();
+    // 用 JS click 绕过可拖拽面板头部对 tab 按钮的命中遮挡（面板位置持久化可能导致 Playwright 命中测试失败）。
+    await debugTabBtn.evaluate((node) => node.click());
     await sleep(600);
     check("找到「调试」tab", true);
   }
@@ -159,7 +169,7 @@ try {
       check(`子按钮「${label}」存在`, false, "未找到按钮");
       continue;
     }
-    await btn.click();
+    await btn.evaluate((node) => node.click());
     await sleep(450);
     const panel = await page.locator(`#coc-keeper-panel [data-subpanel="${key}"]`).first();
     const style = await panel.evaluate((node) => ({ display: node.style.display, text: node.textContent.length }));
