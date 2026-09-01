@@ -1441,3 +1441,34 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - 多次尝试（v3 全新单段、v4 全新单段+preflight、v5 两段式+真图可达性）后，原 5 剧本仍不达标。
 - 按任务要求：不下载/评估新 3 个模组；不合并到 main。
 - `main` 保持在 `277daef` 不动；实验提交全部在 `exp/deep-parse-quality-0045`。
+
+---
+
+## Session（2026-08-31 续）：v6 骨架锁定尝试与阻断
+
+### 交付
+- `buildSkeletonWiringPrompt` / `parseSkeletonWiringResult`：LLM 只标注条件/边/结局，不生成节点；
+- `runDeepParsePreflight` 增加空 endings/plotEdges 校验；
+- `scripts/make-skeleton-prompt.mjs`；
+- 全量 55/55、ui-check 14/14。
+
+### v6 实验（骨架锁定首稿 + 第 1 轮审核）
+
+| 剧本 | 首稿 preflight | 第1轮审核 |
+|---|---|---|
+| 墨渊V1.1 | PASS | FAIL h2/m2 |
+| 两面不是人v2.1 | PASS | FAIL h4/m2 |
+| 观止-见世之蝶 | PASS | FAIL h3/m2 |
+| 淡焱无生-对流 | PASS | FAIL h3/m5 |
+| 盲愚之眼_瓦上狸奴译 | PASS | FAIL h3/m4 |
+
+### 阻断原因
+- 实测 `compileByPattern` 对这 5 个原始文本产出的 `keyPoints/branches` 为 **空**，`deterministic.json` 里也为空；
+- 骨架锁定 prompt 拿到的是空骨架，LLM 只能自己编 id（如 `br-1`、`end:end-1` 自环），preflight 之所以 PASS 是因为骨架为空、没有节点可校验入边；
+- 结论：**当前没有可用的确定性节点骨架**，骨架锁定方案必须等“确定性关键点/分支提取器”完成后才有意义。
+
+### 最终回退决定（更新）
+- v6 骨架锁定因缺少确定性骨架而阻断；
+- 多次尝试（v3/v4/v5/v6）后，原 5 剧本仍不达标，不下载/评估新 3 个模组；
+- `main` 保持 `277daef` 不动；全部实验提交保留在 `exp/deep-parse-quality-0045`；
+- 回退：`git checkout main`。
