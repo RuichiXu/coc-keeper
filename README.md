@@ -44,6 +44,29 @@
 - 向会话系统提示词注入 **KP 人设段**；每轮自动注入 **实时游戏状态上下文**（场景 / 时间 / 分支 / 提醒 / 最近检定）。
 - 宿主端暴露 **`/coc-api` HTTP 接口**：`GET status|state`；`POST roll|branch|remind|kp|status|read|tool|import|chat`。
 
+### 深度剧本解析（LLM）
+
+导入剧本时，插件会运行一个 **3 轮深度解析 loop**（模型与轮数可配置）：
+
+1. **确定性骨架**：场景事实 → 关键点，检定点 → 技能分支，并提取玩家选择型最终分支。
+2. **分块生成**：按场景切块生成 `keyPointConditions / branchConditions / plotEdges`；最终分支与结局单独生成。
+3. **模型无关归一化 + 修复**：`extractJsonObject` 提取 JSON，`canonicalizeDeepParse` 折叠不同模型的字段形态变体，`repairSkeletonWiringDeepParse` 补齐最终分支 scene 门控与结局 requires/入边。
+4. **双层门禁**：`runDeepParsePreflight` 结构校验（h0 才可用）+ LLM 语义审校（h0/m≤2 为 B 级）。
+5. **修复式修订**：第 2/3 轮把审校意见与 preflight 问题回灌给模型，只修最终分支/结局，不推倒重写。
+
+生成结果存为 `flat.deepParse`（draft），可通过 `coc_status` 查看；确认后由 `syncPlotGraphFromDeepParse` 汇入剧情图。
+
+模型配置示例（`~/.dsh/coc/config.json`）：
+
+```json
+{
+  "llmModel": "deepseek-v4-flash-202605",
+  "deepParse": { "finalModel": "kimi-k3", "finalTemperature": 1 }
+}
+```
+
+默认审校/修订走 `llmModel`（廉价模型）；`deepParse` 块还支持 `chunkModel / reviewModel / revisionModel / maxRounds` 等。
+
 ## 安装
 
 ```sh
@@ -96,13 +119,14 @@ AI：→ coc_kp(action=human)
 - **实体**（entities）：`type` 为 npc/location/item/org/other；剧本导入按 `【NPC】`/`【地点】`/`【物品】` 标记草拟。
 - **任务**（tasks）：`status` open/done；**时间**（time）为自由文本（支持「1925年10月1日 下午3点」式解析以便快捷推进）。
 
-剧本导入时的结构提取是**草稿**，请用面板「剧情/实体」页或 `coc_branch`/`coc_entity` 校对；PDF 需为文字版（扫描件暂不支持 OCR）；DOC 为尽力提取，建议优先用 DOCX。
+剧本导入时的结构提取是**草稿**，请用面板「剧情/实体」页或 `coc_branch`/`coc_entity` 校对；PDF 需为文字版（扫描件暂不支持 OCR）；DOC 为尽力提取，建议优先用 DOCX。LLM 深度解析（`flat.deepParse`）同样以 draft 落库，结构 preflight 与语义审校结果记录在 `quality` 中。
 
 ## 开发说明
 
 - 双面插件：`lib/index.js` 为宿主端（13 个工具 + 提示词/上下文 + `/coc-api` 路由 + KP 聊天桥）；`lib/client.js` 为浏览器端自包含 bundle（`window.__ModuleLoader__.load` 注册，纯 DOM + fetch，无裸导入，无需前端构建管线）。
 - 依赖：`pdf-parse`（PDF 文本提取）；peer 依赖 `@deepseek-ai/dsh-tools`、`@deepseek-ai/dsh-llm`、`@deepseek-ai/schemastery`、`@deepseek-ai/cordis` 由运行环境提供。
-- `tests/selftest.mjs` 用模拟 ctx 自测全部工具逻辑；`/coc-api`（含聊天桥与真实 LLM 调用、暗骰纪律、骰点持久化）已在真实启动的 web profile 上端到端验证。
+- 后端全量测试：`node tests/run-tests.mjs`（含 unit / integration / scenarios / e2e / replay）。只改后端内容时不用跑 ui-check；动了 client/DSH adapter 再跑 `npm run ui-check`。
+- `/coc-api`（含聊天桥与真实 LLM 调用、暗骰纪律、骰点持久化）已在真实启动的 web profile 上端到端验证。
 
 ## 独立网页版 + Cloudflare Tunnel
 

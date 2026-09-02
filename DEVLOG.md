@@ -9,8 +9,8 @@
 - 当前版本：`v0.2.0`
 - 包名：`@dsh-external/dsh-coc-keeper`
 - 类型：DSH 双面插件（宿主端 + 浏览器端）
-- 状态：已装配到 web profile，正在运行
-- 最近里程碑：ScenarioContract 第二阶段已落地（LLM 生成契约 + 主持页校对/确认生效）
+- 状态：`main` 已合并并推送远端（`f6eaf86`）
+- 最近里程碑：D 阶段深度解析 loop B 级通过——现有 5 剧本 + 隐藏门禁 3 剧本全部 h0/m≤2；星孩v1.0 未达 B 级（h2/m0）
 
 ---
 
@@ -27,10 +27,11 @@
 
 ### LLM 配置
 
-- **Provider**: `tencent-cloud`（tokenhub.tencentmaas.com）
-- **模型**: `deepseek-v4-flash`
+- **Provider**: `tencent cloud`（tokenhub.tencentmaas.com）
+- **默认模型**: `deepseek-v4-flash-202605`（`~/.dsh/coc/config.json` 的 `llmModel`）
+- **深度解析初始生成**: 本机 config 配置 `deepParse.finalModel = "kimi-k3"`、`finalTemperature = 1`；审校/修订走默认廉价模型
 - **上下文窗口**: 131072（已覆盖 catalog 的 1M，见 `settings.yaml`）
-- **API Key 环境变量**: `TENCENT_CLOUD_API_KEY`
+- **API Key**: `~/.dsh/coc/config.json` 中配置
 
 ---
 
@@ -1606,3 +1607,13 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - 失败点：两个最终分支（br-final-1 / br-final-2）未建立互斥（not.kp-39 缺失），
   分支可达但结局不可选。该剧本多最终分支互斥比单最终抉择更难，留作后续
   多分支互斥建模的测试用例。
+
+---
+
+## Session（2026-09-02 收尾）：合并 main 并推送远端
+
+- 合并：`git checkout main && git merge exp/deep-parse-quality-0045`（Fast-forward，`277daef..f6eaf86`）。
+- 推送：`git push origin main`（`0289590..f6eaf86`）。
+- 当前 `main` = `origin/main` = `f6eaf86`；`exp/deep-parse-quality-0045` 保留同提交。
+- 最终结果：现有 5 剧本 + 隐藏门禁 3 剧本全部 B 级（审校 h0/m≤2）；可选长剧本星孩v1.0 h2/m0 未达 B 级。
+- 下一步待办见 `PLAN.md`「当前待办」。
