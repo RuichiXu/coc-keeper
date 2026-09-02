@@ -552,6 +552,71 @@ describe("deep-parse 深度剧本解析", () => {
     expect(repaired.deepParse.plotEdges.some((edge) => edge.from === "br:br-final-1" && edge.to === "end:end-1")).toBeTrue();
   });
 
+  it("repairSkeletonWiringDeepParse：多最终分支自动补互斥 not.keyPointIds", () => {
+    const flatWithTwoFinal = {
+      keyPoints: [],
+      scenarioFacts: [{ heading: "结局" }, { heading: "逃亡" }],
+      branches: [],
+    };
+    const deepParse = {
+      version: "1.0",
+      keyPoints: [],
+      branches: [
+        { id: "br-final-1", title: "革命抉择", scene: "结局", finalChoice: true, options: [{ label: "人之城", leadsTo: "人之城" }, { label: "亘古黑暗", leadsTo: "亘古黑暗" }] },
+        { id: "br-final-2", title: "逃亡", scene: "逃亡", finalChoice: true, options: [{ label: "远方讯息", leadsTo: "远方讯息" }] },
+      ],
+      keyPointConditions: [],
+      branchConditions: [
+        { branchId: "br-final-1", requires: { scene: "结局" } },
+        { branchId: "br-final-2", requires: { scene: "逃亡" } },
+      ],
+      plotEdges: [],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "人之城", optionLabel: "人之城", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "人之城", keyPointIds: ["kp-39"] } },
+        { id: "end-2", branchId: "br-final-1", title: "亘古黑暗", optionLabel: "亘古黑暗", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "亘古黑暗", keyPointIds: ["kp-38", "kp-39"] } },
+        { id: "end-3", branchId: "br-final-2", title: "远方讯息", optionLabel: "远方讯息", requires: { branchChoiceIds: ["br-final-2"], optionLabel: "远方讯息", keyPointIds: ["kp-38"], not: { keyPointIds: ["kp-39"] } } },
+      ],
+    };
+    const repaired = repairSkeletonWiringDeepParse(deepParse, flatWithTwoFinal);
+    const cond1 = repaired.deepParse.branchConditions.find((entry) => entry.branchId === "br-final-1");
+    const cond2 = repaired.deepParse.branchConditions.find((entry) => entry.branchId === "br-final-2");
+    expect(cond1.requires.not).toBeUndefined();
+    expect(cond2.requires.not.keyPointIds).toEqual(["kp-39"]);
+    expect(repaired.repairs.some((item) => item.includes("互斥 not.keyPointIds"))).toBeTrue();
+  });
+
+  it("repairSkeletonWiringDeepParse：多最终分支已排除时不再重复补", () => {
+    const flatWithTwoFinal = {
+      keyPoints: [],
+      scenarioFacts: [{ heading: "结局" }, { heading: "逃亡" }],
+      branches: [],
+    };
+    const deepParse = {
+      version: "1.0",
+      keyPoints: [],
+      branches: [
+        { id: "br-final-1", title: "革命抉择", scene: "结局", finalChoice: true, options: [{ label: "人之城", leadsTo: "人之城" }] },
+        { id: "br-final-2", title: "逃亡", scene: "逃亡", finalChoice: true, options: [{ label: "远方讯息", leadsTo: "远方讯息" }] },
+      ],
+      keyPointConditions: [],
+      branchConditions: [
+        { branchId: "br-final-1", requires: { scene: "结局" } },
+        { branchId: "br-final-2", requires: { scene: "逃亡", not: { keyPointIds: ["kp-39"] } } },
+      ],
+      plotEdges: [],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "人之城", optionLabel: "人之城", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "人之城", keyPointIds: ["kp-39"] } },
+        { id: "end-2", branchId: "br-final-2", title: "远方讯息", optionLabel: "远方讯息", requires: { branchChoiceIds: ["br-final-2"], optionLabel: "远方讯息", keyPointIds: ["kp-38"], not: { keyPointIds: ["kp-39"] } } },
+      ],
+    };
+    const repaired = repairSkeletonWiringDeepParse(deepParse, flatWithTwoFinal);
+    const cond1 = repaired.deepParse.branchConditions.find((entry) => entry.branchId === "br-final-1");
+    const cond2 = repaired.deepParse.branchConditions.find((entry) => entry.branchId === "br-final-2");
+    // br-final-2 已排除 kp-39，不再补；br-final-1 还需排除 br-final-2 的共同前置 kp-38。
+    expect(cond2.requires.not.keyPointIds).toEqual(["kp-39"]);
+    expect(cond1.requires.not.keyPointIds).toEqual(["kp-38"]);
+  });
+
   it("parseSkeletonWiringResult：Kimi 式形态漂移被折叠且 preflight 归零", () => {
     const raw = `{
       "branches": [{"id":"br-final-1","title":"最终抉择","scene":"结局","finalChoice":true,"options":[{"label":"正序念诵","leadsTo":"夏拉卡拉布降临的结局"},{"label":"逆序念诵","leadsTo":"墨渊消散的结局"}]}],
