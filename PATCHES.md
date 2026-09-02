@@ -41,3 +41,30 @@
 | 26 | `lib/core/scenario/deterministic-skeleton.js` 场景事实 heading→keyPoints、检定点→branches | 原始文本经 compileByPattern 无 keyPoints/branches 时，为骨架锁定生成提供确定性节点骨架 | 检定点分支是“技能检定分支”，不是玩家选择型最终分支（v6b 实验失败主因） | 场景结构解析器输出真正的玩家选择节点；检定点只作为 checkpoint 门禁，不冒充分支 |
 | 27 | `lib/core/scenario/final-branch-extractor.js` 用“若/如果”句式 + 结局章节词表提取最终抉择分支与选项 | 为骨架锁定生成提供玩家选择型最终分支，避免 LLM 把结局挂到技能检定分支 | 句式词表启发式，长句/反问/隐喻式抉择可能漏提或误提 | 结构化场景解析 + 结局段条件句语法解析；LLM 仅在兜底时辅助 |
 | 28 | `lib/core/scenario/deep-parse.js` `extractJsonObject` / `canonicalizeDeepParse` / `repairSkeletonWiringDeepParse`；`chunked-deep-parse.js` 结局段落提取 + 最终分支出边所有权；`deep-parse-loop.js` 修复式审校回灌 | 模型无关 JSON 提取（围栏/尾逗号/平衡扫描/外壳解包）；条件对象形态折叠（not/checkpointGroups/conditions 别名/孤儿 optionLabel）；最终分支 scene 门控与结局 requires/入边确定性补齐；第 2/3 轮只修订最终分支/结局并与第 1 轮分块结果合并；`reasoning_effort` 透传避免 flash 长 prompt 空输出 | 仍是“生成后清洗+规则修复”范式：审校是 LLM 且只覆盖最终分支/结局；分块局部条件的语义质量未纳入审校回灌 | 最终分支/结局由结构化场景解析器直接生成；审校由规则/图可达性分析替代；分块条件语义由 D 阶段全量结构化后逐步移除 |
+
+
+## 补丁现状审计（2026-09-02）
+
+**结论**：行 1–28（除已划线的行 11）对应的实现**都仍然保留并被调用**，不是文档滞后；行 11 的旧实现已删除，仅剩表内划线存档。
+
+### 可以直接删除的实现
+
+- **无**。行 11 旧实现（《墨渊》硬编码映射）已删除；其余每个符号都能在 `lib/` 中找到定义与调用点，删除会破坏现有兜底路径。
+
+### 下一步代办中会被替代（对应 `PLAN.md`「当前待办」）
+
+| 行 | 补丁 | 替代来源 |
+|---|---|---|
+| 19 | `expireSceneGates` 前缀边界规则 | 待办 #3 场景实体化（sceneId 邻接失效） |
+| 21 | `inferSceneTransition` 动作词表 | 待办 #3 场景实体化（移动事件） |
+| 23 | `confirmedEndingForBranch` optionLabel 文本匹配、`kp:auto:*` 自动补点、轮次快照 | 待办 #1 多最终分支互斥 + #3 场景实体化 |
+| 24 | `applyEventDrivenLanding` 多选项不代选、`applyConfirmedDeepParse` scene 门控、`detectDeadEndScenes` | 待办 #3 场景实体化 + 剧情图引擎 |
+| 25 | `runDeepParsePreflight` 标题/关键词包含匹配 | 待办 #3 节点/场景实体 id 化 |
+| 27 | `final-branch-extractor` 若/如果句式 + 词表 | 待办 #3 结构化场景解析 |
+| 28 | 深度解析 loop 的生成后清洗 + LLM 审校 | 待办 #1/#2/#4 规则化审校、分块语义审校、结构化生成 |
+
+### 暂时无法替代（保留兜底）
+
+- 行 1–10、12–18、20、22、26。
+- 这些补丁在等更底层能力落地：结构化事件全覆盖（行 1/5/9/13/14）、WorldState 单一事实源（行 20）、Checkpoint 引擎 retryPolicy（行 22）、场景实体化（行 19/21 已列入下一步，其余依赖它但还有墨渊特化逻辑需一并迁移）。
+- 其中行 10/14 的部分正则兜底会随场景实体化逐步降级为“无结构数据时的最后兜底”，但暂时不能直接删除。
