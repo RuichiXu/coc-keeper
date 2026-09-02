@@ -15,7 +15,7 @@ import {
   extractSceneFacts,
 } from "../lib/core/index.js";
 import { runDeepParseGenerationLoop } from "../lib/shared/tools/deep-parse-loop.js";
-import { callLlmApi } from "../lib/shared/llm.js";
+import { callLlmApi, loadLlmConfig } from "../lib/shared/llm.js";
 
 const dir = resolve(process.argv[2] ?? ".");
 const dataDir = resolve(process.argv[3] ?? join(homedir(), ".dsh", "coc"));
@@ -31,10 +31,17 @@ const flat = {
 };
 
 const startedAt = Date.now();
+let loopOptions = {};
+try {
+  loopOptions = loadLlmConfig(dataDir)?.deepParse ?? {};
+} catch {
+  loopOptions = {};
+}
 const loop = await runDeepParseGenerationLoop(
   flat,
   { callLlmApi, dataDir },
-  (_phase, message, _pct) => console.error(`[loop] ${message}`)
+  (_phase, message, _pct) => console.error(`[loop] ${message}`),
+  loopOptions
 );
 const elapsed = Math.round((Date.now() - startedAt) / 1000);
 

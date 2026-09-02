@@ -9,14 +9,18 @@ import {
   buildDeepParsePrompt,
   buildDeepParseTwoStagePrompts,
   buildSkeletonWiringPrompt,
+  canonicalizeDeepParse,
   collectDeepParseTargets,
   combineDeepParseParts,
   detectDeadEndScenes,
   extractFinalChoiceBranches,
+  extractJsonObject,
+  mergeChunkedDeepParseParts,
   mergeDeepParseDraft,
   normalizeDeepParse,
   parseDeepParseResult,
   parseSkeletonWiringResult,
+  repairSkeletonWiringDeepParse,
   runDeepParsePreflight,
   syncPlotGraphFromDeepParse,
   validateConditionObject,
@@ -472,6 +476,137 @@ describe("deep-parse 深度剧本解析", () => {
     expect(validatePrerequisitePair({}, "test").length).toBeGreaterThan(0);
     expect(validatePrerequisitePair({ requires: { scene: "三层书房" } }, "test")).toEqual([]);
     expect(validatePrerequisitePair({ requiresAnyOf: [{ scene: "三层书房" }] }, "test")).toEqual([]);
+  });
+
+  it("extractJsonObject：围栏/尾逗号/deepParse 外壳都能解出", () => {
+    expect(extractJsonObject('```json\n{"keyPoints":[],"endings":[],}\n```').endings).toEqual([]);
+    const wrapped = extractJsonObject('结果如下：{"deepParse":{"keyPoints":[],"plotEdges":[{"from":"br:br-1","to":"kp:kp-1","requires":[],}]}}');
+    expect(wrapped.plotEdges).toHaveLength(1);
+    expect(extractJsonObject("没有 JSON")).toBeNull();
+  });
+
+  it("canonicalizeDeepParse：折叠各模型形态变体并剥离未知字段", () => {
+    const canonical = canonicalizeDeepParse({
+      deepParse: {
+        keyPointConditions: [{ keyPointId: "kp-1", requires: { checkpointGroups: "chk-1", not: "禁止入内" }, conditions: undefined }],
+        branchConditions: [{ branchId: "br-1", conditions: [{ scene: "书房" }, { keyPointIds: ["kp-1"] }] }],
+        plotEdges: [{ from: "br:br-1", to: "end:end-1", label: "进", requires: { keyPointIds: ["kp-1"] }, extra: "drop" }],
+        endings: [{ id: "end-1", branchId: "br-1", title: "结局", conditions: [{ branchChoiceIds: ["br-1"] }], blockers: "不能带火" }],
+        unknownTop: true,
+      },
+    }).deepParse;
+    expect(canonical.keyPointConditions[0].requires.checkpointGroups).toEqual([["chk-1"]]);
+    expect(canonical.keyPointConditions[0].requires.not).toEqual({ entryEvidence: ["禁止入内"] });
+    expect(canonical.branchConditions[0].requiresAnyOf).toEqual([{ scene: "书房" }, { keyPointIds: ["kp-1"] }]);
+    expect(canonical.plotEdges[0].requires).toEqual([{ keyPointIds: ["kp-1"] }]);
+    expect(canonical.endings[0].blockers).toEqual([{ entryEvidence: ["不能带火"] }]);
+    expect(canonical.unknownTop).toBeUndefined();
+    expect(canonical.plotEdges[0].extra).toBeUndefined();
+  });
+
+  it("canonicalizeDeepParse：skeletonLocked 剥离 keyPoints", () => {
+    const canonical = canonicalizeDeepParse({ keyPoints: [{ id: "kp-x", title: "新" }], endings: [] }, { skeletonLocked: true });
+    expect(canonical.deepParse.keyPoints).toEqual([]);
+    expect(canonical.issues.some((issue) => issue.includes("不允许生成 keyPoints"))).toBeTrue();
+  });
+
+  it("repairSkeletonWiringDeepParse：补最终分支 scene 门控并去掉代选", () => {
+    const flatWithFinal = {
+      keyPoints: [],
+      branches: [{ id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "离开" }] }],
+    };
+    const deepParse = {
+      version: "1.0",
+      keyPoints: [],
+      branches: [],
+      keyPointConditions: [],
+      branchConditions: [{ branchId: "br-final-1", requires: {}, autoChooseLabel: "离开" }],
+      plotEdges: [],
+      endings: [],
+    };
+    const repaired = repairSkeletonWiringDeepParse(deepParse, flatWithFinal);
+    expect(repaired.repairs.some((item) => item.includes("scene 门控"))).toBeTrue();
+    const cond = repaired.deepParse.branchConditions.find((entry) => entry.branchId === "br-final-1");
+    expect(cond.requires.scene).toBe("结局");
+    expect(cond.autoChooseLabel).toBeUndefined();
+  });
+
+  it("repairSkeletonWiringDeepParse：为结局补 requires 与直接入边", () => {
+    const flatWithFinal = {
+      keyPoints: [],
+      branches: [{ id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "离开" }, { label: "留下", leadsTo: "留下" }] }],
+    };
+    const deepParse = {
+      version: "1.0",
+      keyPoints: [],
+      branches: [],
+      keyPointConditions: [],
+      branchConditions: [],
+      plotEdges: [],
+      endings: [{ id: "end-1", branchId: "br-final-1", title: "离开结局", optionLabel: "离开", requires: {}, endingKeywords: ["离开"] }],
+    };
+    const repaired = repairSkeletonWiringDeepParse(deepParse, flatWithFinal);
+    const ending = repaired.deepParse.endings[0];
+    expect(ending.requires.branchChoiceIds).toEqual(["br-final-1"]);
+    expect(ending.requires.optionLabel).toBe("离开");
+    expect(repaired.deepParse.plotEdges.some((edge) => edge.from === "br:br-final-1" && edge.to === "end:end-1")).toBeTrue();
+  });
+
+  it("parseSkeletonWiringResult：Kimi 式形态漂移被折叠且 preflight 归零", () => {
+    const raw = `{
+      "branches": [{"id":"br-final-1","title":"最终抉择","scene":"结局","finalChoice":true,"options":[{"label":"正序念诵","leadsTo":"夏拉卡拉布降临的结局"},{"label":"逆序念诵","leadsTo":"墨渊消散的结局"}]}],
+      "branchConditions": [{"branchId":"br-final-1","requires":{"scene":"结局"}}],
+      "plotEdges": [
+        {"from":"br:br-final-1","to":"end:end-1","label":"正序念诵","requires":[]},
+        {"from":"br:br-final-1","to":"end:end-2","label":"逆序念诵","requires":[]}
+      ],
+      "endings": [
+        {"id":"end-1","branchId":"br-final-1","title":"夏拉卡拉布降临的结局","optionLabel":"正序念诵","mutexGroup":"最终结局","requires":{"branchChoiceIds":["br-final-1"],"optionLabel":"正序念诵"},"blockers":[],"endingKeywords":["降临"]},
+        {"id":"end-2","branchId":"br-final-1","title":"墨渊消散的结局","optionLabel":"逆序念诵","mutexGroup":"最终结局","requires":{"branchChoiceIds":["br-final-1"],"optionLabel":"逆序念诵"},"blockers":[],"endingKeywords":["消散"]}
+      ]
+    }`;
+    const flat = {
+      keyPoints: [],
+      branches: [{ id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "正序念诵", leadsTo: "夏拉卡拉布降临的结局" }, { label: "逆序念诵", leadsTo: "墨渊消散的结局" }] }],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+    };
+    const parsed = parseSkeletonWiringResult(raw, flat);
+    const report = runDeepParsePreflight(parsed.deepParse, flat);
+    expect(report.high).toBe(0);
+    expect(parsed.deepParse.endings).toHaveLength(2);
+  });
+
+  it("canonicalizeDeepParse：丢弃归一后既无条件又无 autoChooseLabel 的空条目", () => {
+    const canonical = canonicalizeDeepParse({
+      keyPointConditions: [{ keyPointId: "kp-1", requires: {} }],
+      branchConditions: [{ branchId: "br-1", requires: { unknownField: true } }, { branchId: "br-2", requires: { scene: "书房" } }],
+    }).deepParse;
+    expect(canonical.keyPointConditions).toEqual([]);
+    expect(canonical.branchConditions).toEqual([{ branchId: "br-2", requires: { scene: "书房" } }]);
+  });
+
+  it("mergeChunkedDeepParseParts：最终抉择分支的边与条件由最终生成器独占", () => {
+    const flat = {
+      keyPoints: [],
+      branches: [{ id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "离开" }] }],
+    };
+    const chunkPart = {
+      keyPointConditions: [{ keyPointId: "kp-1", requires: { scene: "书房" } }],
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "错误场景" } }],
+      plotEdges: [{ from: "br:br-final-1", to: "kp:kp-final-1", label: "离开", requires: [] }],
+    };
+    const finalPart = {
+      keyPoints: [],
+      branches: [],
+      keyPointConditions: [],
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      plotEdges: [{ from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [] }],
+      endings: [{ id: "end-1", branchId: "br-final-1", title: "离开结局", optionLabel: "离开", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "离开" }, endingKeywords: ["离开"] }],
+    };
+    const merged = mergeChunkedDeepParseParts(flat, [chunkPart], finalPart);
+    expect(merged.deepParse.branchConditions.some((entry) => entry.requires.scene === "错误场景")).toBeFalse();
+    expect(merged.deepParse.plotEdges.some((edge) => edge.to === "kp:kp-final-1")).toBeFalse();
+    expect(merged.deepParse.plotEdges.some((edge) => edge.to === "end:end-1")).toBeTrue();
   });
 });
 

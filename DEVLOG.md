@@ -1536,3 +1536,39 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - preflight 已能把结构错误压到 0，但语义审核仍暴露最终分支场景错挂、结局漏配/误配、前置条件缺失。
 - 结论：B 级（3 轮内 h0/m≤2）在现有生成器下**仍未达成**；分块 loop 比单段生成更稳（preflight 全过），但最终分支/结局的语义质量仍是瓶颈。
 - 3 个新剧本暂不评估（未达前置条件）。
+
+---
+
+## Session（2026-09-02 续）：模型无关的归一化 + 修复式审校回灌 loop
+
+### 目标修正
+- 目的不是适配某个特定模型（Kimi K3 或 flash），而是让任何模型输出都先经过
+  确定性清洗/修复，再进入 preflight 与审校；第 2/3 轮对同一份最终分支/结局
+  草稿做修复式修订，不再推倒重写。
+
+### 交付
+- `deep-parse.js`：
+  - `extractJsonObject`：围栏剥离、尾逗号修复、平衡花括号扫描、`{"deepParse":{...}}` 外壳解包。
+  - `canonicalizeCondition / canonicalizeDeepParse`：模型无关归一（not/checkpointGroups/string list/optionLabel 折叠、`conditions` 别名、未知字段剥离、空条件条目丢弃、孤儿 optionLabel 剥离）。
+  - `repairSkeletonWiringDeepParse`：最终分支 scene 门控补全、去 autoChooseLabel、结局 requires 补齐 branchChoiceIds/optionLabel、补直接入边。
+  - `parseDeepParseResult / parseSkeletonWiringResult` 改为 提取→归一→修复→校验。
+  - `normalizeDeepParse` 保留 `finalChoice / checkpointBranch` 标志。
+- `chunked-deep-parse.js`：
+  - `extractEndingParagraphs` 改为“按行定位结局标记 + 重叠窗口合并”，避免整篇原文被当成一个结局段落。
+  - `mergeChunkedDeepParseParts` 所有权规则：最终抉择分支的 branchCondition 与出边由最终生成器独占，分块结果里的 `br:br-final-*` 边/条件被丢弃。
+- `deep-parse-loop.js`：
+  - loop 第 1 轮分块+最终生成；第 2/3 轮只修订最终分支/结局（同一草稿修复式），再与第 1 轮分块结果合并。
+  - 审校/修订默认走配置廉价模型；`reasoningEffort` 默认 `low`，解决 flash 在长 prompt 下只烧 reasoning token 不出内容的问题。
+  - `buildReviewPrompt / buildRevisionPrompt` 聚焦最终分支与结局，给最终分支骨架、关键点 id:标题速查表、场景标题清单（含出现次数）。
+  - 各阶段模型/温度/token 上限均可通过 loopOptions 配置。
+- `llm.js`：`loadLlmConfig` 导出；`callLlmApi` 透传 `reasoning_effort`（调用方显式传入才发送）。
+- `import.js / run-deep-parse-loop.mjs`：从 config.json 的 `deepParse` 块读取 loopOptions。
+- `scripts/review-deep-parse.mjs`：单独审校 final-wiring.json / deep-parse.gen.json。
+
+### 墨渊真实 API 复测
+- Kimi K3 最终生成（首稿）preflight 可在归一化+修复后归零；审校 h1/m0 左右，主要剩余问题：
+  - 最终分支 scene 与某个关键点同名，`not` 排除该关键点的结局在审校看来不可达；
+  - 逆序三结局的互斥/覆盖仍偶有漏洞。
+- 3 轮 loop 最佳记录：preflight h0/m0，审校 h1/m1（未达 h0/m≤2，但已从 h6/m3 收敛）。
+- 结论：模型无关管线已稳定（preflight 全过、不再有 JSON 漂移导致的结构失败），语义审校仍是瓶颈；
+  墨渊为 5 个剧本中最难，继续打磨审校/修订 prompt 或允许审校发现的问题进入下一轮修订。
