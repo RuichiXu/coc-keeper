@@ -42,7 +42,7 @@
 ## 当前待办（下一步）
 
 1. **多最终分支互斥建模** 🔄 进行中：已交付确定性互斥机制（缺口检测 + 自动补 `not.keyPointIds` + 同 scene 去重 + 分支标题场景保留 + 边/结局 requires 同步）。星孩v1.0 的结构性互斥问题已修复，但审校仍会挑出结局条件语义过严等新问题（最新 h1/m1），需与 #2/#4（分块语义审校、规则化审校）配合继续收敛。
-2. **分块局部条件语义审校**：当前审校只覆盖最终分支/结局；分块生成的 `keyPointConditions / branchConditions` 只过 preflight 结构校验。
+2. **分块局部条件语义审校** ✅ 已完成：新增 `buildChunkReviewPrompt / buildChunkRevisionPrompt`，loop 第 1 轮对全部有内容的分块跑语义审校（廉价模型、并发、低 reasoning），第 2/3 轮只复审并修复有 high/medium 问题的分块（其余分块保持第 1 轮定稿），分块审校计入 pass 门禁（chunkHigh=0 且 chunkMedium≤2）。
 3. **场景实体化**：`currentScene` 是字符串匹配，同名场景标题无法区分；`final-branch-extractor` 与 `inferSceneTransition` 仍是启发式，替换方向见 `PATCHES.md` 行 21/26/27。
 4. **审校稳定性** ✅ 已完成：新增 `runDeepParseRuleReview`（`lib/core/scenario/deep-parse-review.js`）确定性规则化审校——条件引用存在性、条件自相矛盾、结局互斥完备性（optionLabel/requires 重复、选项覆盖）、`not.keyPointIds` 过度限制、分支门控与本分支结局冲突、结局 scene 与最终分支 scene 一致性、结局前置关键点循环依赖（只能在抉择后到达的 kp 不能作前置）、入边 requires 与结局 requires 一致性、结局关键词缺失。loop 现为「preflight + 规则化审校 + LLM 审校」三层门禁：规则审校 h0/m≤2 且 LLM 审校 h0/m≤2 才 pass；LLM 审校 prompt 被告知不重复报告规则审校已判问题，修订 prompt 回灌规则审校问题。
 5. **收尾清理**：`artifacts/`、`scenarios/` 加入 `.gitignore`；决定 `tests/fixtures/hidden_scenarios/` 是否入库；清理 `exp/deep-parse-quality-0045` 分支；把 `deepParse` 推荐配置写入 README/示例。

@@ -1633,3 +1633,18 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - `scripts/review-deep-parse.mjs` 同步输出 `preflight / rule / review` 三组计数与合并结论。
 - 单元测试新增 10 个规则审校用例（`tests/unit/deep-parse.test.mjs`）；全套 55/55 通过。
 - 待办 #1/#4 完成后，星孩v1.0 收敛依赖 #2（分块局部条件语义审校）。
+
+---
+
+## Session（2026-09-02 后续）：待办 #2 分块局部条件语义审校
+
+- `chunked-deep-parse.js` 新增：
+  - `buildChunkReviewPrompt`：逐块审校 keyPointConditions / branchConditions / plotEdges，只输出 issues JSON，明确 high/medium/low 判据（引用不存在、检定成功唯一前置、scene 写错 → high；条件空泛、缺少前置、把后续节点当前置 → medium）。
+  - `buildChunkRevisionPrompt`：在生成 Prompt 基础上回灌该块审校意见，只输出局部三字段。
+- `deep-parse-loop.js`：
+  - 第 1 轮：全部有内容的分块跑语义审校（廉价模型、`chunkConcurrency` 并发、`chunkReviewMaxTokens` 默认 4000、低 reasoning）。
+  - 第 2/3 轮：只重生成有 high/medium 问题的分块（`chunkRevisionMaxTokens` 默认 8000），其余分块保持第 1 轮定稿；复审只覆盖本轮重生成的分块，未重生成分块沿用上一轮审校结论。
+  - `makeScore` 增加 chunk 计数；pass 需 preflight h0、规则审校 h0/m≤2、最终审校 h0/m≤2、分块审校 h0/m≤2。
+  - `quality` 新增 `chunkHigh / chunkMedium / chunkLow`；issues 合并最终审校 + 分块审校 + 规则 + preflight。
+  - 新增 loopOptions：`runChunkReview`（默认随 `runReview`）、`chunkReviewMaxTokens`、`chunkRevisionMaxTokens`。
+- 单元测试新增 `buildChunkReviewPrompt / buildChunkRevisionPrompt` 用例；全套 55/55 通过。

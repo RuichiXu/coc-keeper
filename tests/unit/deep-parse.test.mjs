@@ -8,6 +8,8 @@ import {
   applyConfirmedDeepParse,
   buildDeepParsePrompt,
   buildDeepParseTwoStagePrompts,
+  buildChunkReviewPrompt,
+  buildChunkRevisionPrompt,
   buildSkeletonWiringPrompt,
   canonicalizeDeepParse,
   collectDeepParseTargets,
@@ -922,6 +924,47 @@ describe("deep-parse 深度剧本解析", () => {
     expect(a).toBe(b);
     const c = conditionSignature({ keyPointIds: ["kp-1"], scene: "书房" });
     expect(a === c).toBeFalse();
+  });
+
+  it("buildChunkReviewPrompt：包含场景、草稿与审校约束", () => {
+    const flat = {
+      scenario: { name: "测试" },
+      scenarioCheckpoints: [{ id: "chk-1", skill: "侦查", trigger: "发现日记", scene: "书房" }],
+    };
+    const chunk = {
+      scene: "书房",
+      keyPoints: [{ id: "kp-1", title: "进入书房", scene: "书房" }],
+      branches: [],
+      text: "书房里有一本日记。",
+    };
+    const chunkPart = {
+      keyPointConditions: [{ keyPointId: "kp-1", requires: { checkpointGroups: [["chk-1"]] } }],
+      branchConditions: [],
+      plotEdges: [],
+    };
+    const prompt = buildChunkReviewPrompt(flat, chunk, chunkPart);
+    expect(prompt.includes("书房")).toBeTrue();
+    expect(prompt.includes("chk-1")).toBeTrue();
+    expect(prompt.includes("书房里有一本日记。")).toBeTrue();
+    expect(prompt.includes("high")).toBeTrue();
+  });
+
+  it("buildChunkRevisionPrompt：在生成 Prompt 基础上回灌审校意见", () => {
+    const flat = {
+      scenario: { name: "测试" },
+      scenarioCheckpoints: [{ id: "chk-1", skill: "侦查", trigger: "发现日记", scene: "书房" }],
+    };
+    const chunk = {
+      scene: "书房",
+      keyPoints: [{ id: "kp-1", title: "进入书房", scene: "书房" }],
+      branches: [],
+      text: "书房里有一本日记。",
+    };
+    const chunkPart = { keyPointConditions: [], branchConditions: [], plotEdges: [] };
+    const prompt = buildChunkRevisionPrompt(flat, chunk, chunkPart, "- [high] keyPointConditions[0]: 引用不存在");
+    expect(prompt.includes("只允许 keyPointConditions / branchConditions / plotEdges 字段")).toBeTrue();
+    expect(prompt.includes("引用不存在")).toBeTrue();
+    expect(prompt.includes("本场景原文：")).toBeTrue();
   });
 });
 
