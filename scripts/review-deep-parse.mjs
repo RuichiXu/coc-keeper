@@ -15,6 +15,7 @@ import {
   extractFinalChoiceBranches,
   extractSceneFacts,
   runDeepParsePreflight,
+  runDeepParseRuleReview,
   splitDeepParseChunks,
 } from "../lib/core/index.js";
 import { buildReviewPrompt, parseReviewResult } from "../lib/shared/tools/deep-parse-loop.js";
@@ -52,8 +53,11 @@ if (deepParseFile === null) {
 const canonical = canonicalizeDeepParse(deepParseFile);
 const deepParse = canonical.deepParse;
 const preflight = runDeepParsePreflight(deepParse, flat);
-const prompt = buildReviewPrompt(flat, deepParse, preflight.issues);
-console.error(`[review] prompt=${prompt.length} chars preflight h${preflight.high}/m${preflight.medium}/l${preflight.low}`);
+const ruleReview = runDeepParseRuleReview(deepParse, flat);
+const prompt = buildReviewPrompt(flat, deepParse, preflight.issues, ruleReview.issues);
+console.error(
+  `[review] prompt=${prompt.length} chars preflight h${preflight.high}/m${preflight.medium}/l${preflight.low} rule h${ruleReview.high}/m${ruleReview.medium}/l${ruleReview.low}`
+);
 
 const llmResult = await callLlmApi(
   dataDir,
@@ -63,11 +67,35 @@ const llmResult = await callLlmApi(
 const raw = (llmResult.blocks ?? []).filter((block) => block?.type === "text").map((block) => block.text ?? "").join("");
 console.error(`[review] raw=${raw.length} chars`);
 const review = parseReviewResult(raw);
+const countSeverity = (issues, severity) => issues.filter((issue) => issue.severity === severity).length;
+const reviewCounts = {
+  high: countSeverity(review.issues, "high"),
+  medium: countSeverity(review.issues, "medium"),
+  low: countSeverity(review.issues, "low"),
+};
 const summary = {
-  high: review.issues.filter((issue) => issue.severity === "high").length,
-  medium: review.issues.filter((issue) => issue.severity === "medium").length,
-  low: review.issues.filter((issue) => issue.severity === "low").length,
-  issues: review.issues,
+  preflight: { high: preflight.high, medium: preflight.medium, low: preflight.low },
+  rule: { high: ruleReview.high, medium: ruleReview.medium, low: ruleReview.low, issues: ruleReview.issues },
+  review: { ...reviewCounts, issues: review.issues },
+  high: preflight.high + ruleReview.high + reviewCounts.high,
+  medium: preflight.medium + ruleReview.medium + reviewCounts.medium,
+  low: preflight.low + ruleReview.low + reviewCounts.low,
+  issues: [...review.issues, ...ruleReview.issues, ...preflight.issues],
 };
 writeFileSync(join(dir, "final-wiring-review2.json"), JSON.stringify(summary, null, 2));
-console.log(JSON.stringify({ name, ...summary, pass: summary.high === 0 && summary.medium <= 2 }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      name,
+      ...summary,
+      pass:
+        preflight.high === 0 &&
+        ruleReview.high === 0 &&
+        ruleReview.medium <= 2 &&
+        reviewCounts.high === 0 &&
+        reviewCounts.medium <= 2,
+    },
+    null,
+    2
+  )
+);

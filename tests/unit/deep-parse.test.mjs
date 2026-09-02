@@ -22,6 +22,8 @@ import {
   parseSkeletonWiringResult,
   repairSkeletonWiringDeepParse,
   runDeepParsePreflight,
+  runDeepParseRuleReview,
+  conditionSignature,
   syncPlotGraphFromDeepParse,
   validateConditionObject,
   validateDeepParse,
@@ -672,6 +674,254 @@ describe("deep-parse 深度剧本解析", () => {
     expect(merged.deepParse.branchConditions.some((entry) => entry.requires.scene === "错误场景")).toBeFalse();
     expect(merged.deepParse.plotEdges.some((edge) => edge.to === "kp:kp-final-1")).toBeFalse();
     expect(merged.deepParse.plotEdges.some((edge) => edge.to === "end:end-1")).toBeTrue();
+  });
+
+  it("runDeepParseRuleReview：干净的最终分支/结局草稿通过（只报关键词低危项）", () => {
+    const flat = {
+      keyPoints: [],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "离开结局" }, { label: "留下", leadsTo: "留下结局" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "离开结局", optionLabel: "离开", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "离开" } },
+        { id: "end-2", branchId: "br-final-1", title: "留下结局", optionLabel: "留下", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "留下" } },
+      ],
+      plotEdges: [
+        { from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [] },
+        { from: "br:br-final-1", to: "end:end-2", label: "留下", requires: [] },
+      ],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBe(0);
+    expect(report.medium).toBe(0);
+    expect(report.low).toBeGreaterThanOrEqual(2);
+    expect(report.pass).toBeTrue();
+  });
+
+  it("runDeepParseRuleReview：条件引用不存在的关键点/分支 id 时报 high", () => {
+    const flat = {
+      keyPoints: [],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "离开" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "离开结局", optionLabel: "离开", requires: { keyPointIds: ["kp-999"], branchChoiceIds: ["br-final-1"], optionLabel: "离开" } },
+      ],
+      plotEdges: [{ from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [{ keyPointIds: ["kp-999"] }] }],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBeGreaterThanOrEqual(1);
+    expect(report.issues.some((issue) => issue.problem.includes("不存在的关键点 id"))).toBeTrue();
+  });
+
+  it("runDeepParseRuleReview：同一最终分支两条结局 optionLabel 相同报 high", () => {
+    const flat = {
+      keyPoints: [],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "结局A" }, { label: "留下", leadsTo: "结局B" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "结局A", optionLabel: "离开", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "离开" } },
+        { id: "end-2", branchId: "br-final-1", title: "结局B", optionLabel: "离开", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "离开" } },
+      ],
+      plotEdges: [
+        { from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [] },
+        { from: "br:br-final-1", to: "end:end-2", label: "离开", requires: [] },
+      ],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBeGreaterThanOrEqual(1);
+    expect(report.issues.some((issue) => issue.problem.includes("optionLabel 相同"))).toBeTrue();
+  });
+
+  it("runDeepParseRuleReview：条件自相矛盾（keyPointIds 同时被 not 排除）报 high", () => {
+    const flat = {
+      keyPoints: [{ id: "kp-1", title: "关键点", scene: "结局" }],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "离开" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      endings: [
+        {
+          id: "end-1",
+          branchId: "br-final-1",
+          title: "离开结局",
+          optionLabel: "离开",
+          requires: { keyPointIds: ["kp-1"], branchChoiceIds: ["br-final-1"], optionLabel: "离开", not: { keyPointIds: ["kp-1"] } },
+        },
+      ],
+      plotEdges: [{ from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [{ keyPointIds: ["kp-1"], not: { keyPointIds: ["kp-1"] } }] }],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBeGreaterThanOrEqual(1);
+    expect(report.issues.some((issue) => issue.problem.includes("自相矛盾"))).toBeTrue();
+  });
+
+  it("runDeepParseRuleReview：not.keyPointIds 未被其它最终分支正向引用时报 medium", () => {
+    const flat = {
+      keyPoints: [{ id: "kp-1", title: "关键点", scene: "结局" }],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "离开" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      endings: [
+        {
+          id: "end-1",
+          branchId: "br-final-1",
+          title: "离开结局",
+          optionLabel: "离开",
+          requires: { branchChoiceIds: ["br-final-1"], optionLabel: "离开", not: { keyPointIds: ["kp-1"] } },
+        },
+      ],
+      plotEdges: [{ from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [{ not: { keyPointIds: ["kp-1"] } }] }],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBe(0);
+    expect(report.medium).toBeGreaterThanOrEqual(1);
+    expect(report.issues.some((issue) => issue.problem.includes("过度限制"))).toBeTrue();
+  });
+
+  it("runDeepParseRuleReview：同分支兄弟结局正向引用该 key 时，not.keyPointIds 不报过度限制", () => {
+    const flat = {
+      keyPoints: [{ id: "kp-1", title: "克罗斯已死", scene: "结局" }],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "救", leadsTo: "救赎" }, { label: "杀", leadsTo: "毁灭" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "救赎", optionLabel: "救", requires: { keyPointIds: ["kp-1"], branchChoiceIds: ["br-final-1"], optionLabel: "救" } },
+        { id: "end-2", branchId: "br-final-1", title: "毁灭", optionLabel: "杀", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "杀", not: { keyPointIds: ["kp-1"] } } },
+      ],
+      plotEdges: [
+        { from: "br:br-final-1", to: "end:end-1", label: "救", requires: [{ keyPointIds: ["kp-1"] }] },
+        { from: "br:br-final-1", to: "end:end-2", label: "杀", requires: [{ not: { keyPointIds: ["kp-1"] } }] },
+      ],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBe(0);
+    expect(report.issues.some((issue) => issue.problem.includes("过度限制"))).toBeFalse();
+  });
+
+  it("runDeepParseRuleReview：分支门控 not 排除本分支结局正向要求的关键点时报 high", () => {
+    const flat = {
+      keyPoints: [{ id: "kp-1", title: "克罗斯已死", scene: "结局" }],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "救", leadsTo: "救赎" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局", not: { keyPointIds: ["kp-1"] } } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "救赎", optionLabel: "救", requires: { keyPointIds: ["kp-1"], branchChoiceIds: ["br-final-1"], optionLabel: "救" } },
+      ],
+      plotEdges: [{ from: "br:br-final-1", to: "end:end-1", label: "救", requires: [{ keyPointIds: ["kp-1"] }] }],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBeGreaterThanOrEqual(1);
+    expect(report.issues.some((issue) => issue.problem.includes("本分支结局永远不可达"))).toBeTrue();
+  });
+
+  it("runDeepParseRuleReview：结局 scene 与最终分支 scene 不一致报 high", () => {
+    const flat = {
+      keyPoints: [{ id: "kp-1", title: "书房关键点", scene: "书房" }],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "离开" }] },
+      ],
+      scenarioFacts: [
+        { heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" },
+        { heading: "书房", floor: "书房", keywords: ["书房"], original: "书房" },
+      ],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "离开结局", optionLabel: "离开", requires: { scene: "书房", branchChoiceIds: ["br-final-1"], optionLabel: "离开" } },
+      ],
+      plotEdges: [{ from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [{ scene: "书房" }] }],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBeGreaterThanOrEqual(1);
+    expect(report.issues.some((issue) => issue.problem.includes("scene") && issue.problem.includes("不一致"))).toBeTrue();
+  });
+
+  it("runDeepParseRuleReview：结局前置关键点只能在最终分支选择后到达时报 high", () => {
+    const flat = {
+      keyPoints: [{ id: "kp-9", title: "结局后节点", scene: "结局" }],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "结局后节点" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "离开结局", optionLabel: "离开", requires: { keyPointIds: ["kp-9"], branchChoiceIds: ["br-final-1"], optionLabel: "离开" } },
+      ],
+      plotEdges: [{ from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [{ keyPointIds: ["kp-9"] }] }],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBeGreaterThanOrEqual(1);
+    expect(report.issues.some((issue) => issue.problem.includes("循环依赖"))).toBeTrue();
+  });
+
+  it("runDeepParseRuleReview：结局直接入边 requires 与结局 requires 不一致报 high", () => {
+    const flat = {
+      keyPoints: [{ id: "kp-1", title: "关键点", scene: "结局" }],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "离开" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局" } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "离开结局", optionLabel: "离开", requires: { keyPointIds: ["kp-1"], branchChoiceIds: ["br-final-1"], optionLabel: "离开" } },
+      ],
+      plotEdges: [{ from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [] }],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBeGreaterThanOrEqual(1);
+    expect(report.issues.some((issue) => issue.problem.includes("不一致"))).toBeTrue();
+  });
+
+  it("conditionSignature：列表顺序无关的等价条件签名相同", () => {
+    const a = conditionSignature({ keyPointIds: ["kp-2", "kp-1"], scene: "书房" });
+    const b = conditionSignature({ scene: "书房", keyPointIds: ["kp-1", "kp-2"] });
+    expect(a).toBe(b);
+    const c = conditionSignature({ keyPointIds: ["kp-1"], scene: "书房" });
+    expect(a === c).toBeFalse();
   });
 });
 

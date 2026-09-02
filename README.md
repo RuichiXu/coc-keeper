@@ -51,7 +51,7 @@
 1. **确定性骨架**：场景事实 → 关键点，检定点 → 技能分支，并提取玩家选择型最终分支。
 2. **分块生成**：按场景切块生成 `keyPointConditions / branchConditions / plotEdges`；最终分支与结局单独生成。
 3. **模型无关归一化 + 修复**：`extractJsonObject` 提取 JSON，`canonicalizeDeepParse` 折叠不同模型的字段形态变体，`repairSkeletonWiringDeepParse` 补齐最终分支 scene 门控与结局 requires/入边。
-4. **双层门禁**：`runDeepParsePreflight` 结构校验（h0 才可用）+ LLM 语义审校（h0/m≤2 为 B 级）。
+4. **三层门禁**：`runDeepParsePreflight` 结构校验 + `runDeepParseRuleReview` 规则化审校（结局互斥完备性、条件引用/矛盾、排除条件过度限制、前置循环依赖等，确定性 h0/m≤2）+ LLM 语义审校（只报告规则判定不了的新问题，h0/m≤2 为 B 级）。
 5. **修复式修订**：第 2/3 轮把审校意见与 preflight 问题回灌给模型，只修最终分支/结局，不推倒重写。
 
 生成结果存为 `flat.deepParse`（draft），可通过 `coc_status` 查看；确认后由 `syncPlotGraphFromDeepParse` 汇入剧情图。

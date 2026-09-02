@@ -1617,3 +1617,19 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - 当前 `main` = `origin/main` = `f6eaf86`；`exp/deep-parse-quality-0045` 保留同提交。
 - 最终结果：现有 5 剧本 + 隐藏门禁 3 剧本全部 B 级（审校 h0/m≤2）；可选长剧本星孩v1.0 h2/m0 未达 B 级。
 - 下一步待办见 `PLAN.md`「当前待办」。
+
+---
+
+## Session（2026-09-02 后续）：待办 #4 规则化审校
+
+- 新增 `lib/core/scenario/deep-parse-review.js`：
+  - `runDeepParseRuleReview(deepParse, flat)` 输出与 preflight/审校同构的 `{issues, high, medium, low, pass}`。
+  - 规则清单：条件引用存在性（keyPointIds/branchChoiceIds/sanityEventIds 必须真实存在）、条件自相矛盾（同一条件内要求并排除同一目标）、结局互斥完备性（多结局缺 optionLabel / optionLabel 相同 / requires 完全一致 / 最终选项无对应结局或去向）、`not.keyPointIds` 过度限制（只允许被其它结局/其它最终分支正向引用的 key 出现在 not 中）、分支门控 not 与本分支结局正向前置冲突、结局 scene 与最终分支 scene 不一致、结局前置关键点循环依赖（去掉该最终分支出边后 key 不可达）、入边 requires 与结局 requires 一致性、结局关键词缺失。
+  - 循环依赖判定用“完整图起点 + 排除最终分支出边”的 BFS，避免被排除边指向的节点变成起点而漏判。
+- `deep-parse-loop.js` 三层门禁：preflight + 规则化审校 + LLM 审校。
+  - pass = preflight h0、规则审校 h0/m≤2、LLM 审校 h0/m≤2（`runReview:false` 时只看前两层）。
+  - LLM 审校 prompt 加入“规则化审校问题，不要重复报告”；修订 prompt 回灌规则审校 high/medium 问题。
+  - `quality` 新增 `ruleHigh / ruleMedium / ruleLow`，`issues` 合并审校 + 规则 + preflight 三份。
+- `scripts/review-deep-parse.mjs` 同步输出 `preflight / rule / review` 三组计数与合并结论。
+- 单元测试新增 10 个规则审校用例（`tests/unit/deep-parse.test.mjs`）；全套 55/55 通过。
+- 待办 #1/#4 完成后，星孩v1.0 收敛依赖 #2（分块局部条件语义审校）。
