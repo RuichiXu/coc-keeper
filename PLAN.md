@@ -46,7 +46,7 @@
 3. **场景实体化**：`currentScene` 是字符串匹配，同名场景标题无法区分；`final-branch-extractor` 与 `inferSceneTransition` 仍是启发式，替换方向见 `PATCHES.md` 行 21/26/27。
 4. **审校稳定性** ✅ 已完成：新增 `runDeepParseRuleReview`（`lib/core/scenario/deep-parse-review.js`）确定性规则化审校——条件引用存在性、条件自相矛盾、结局互斥完备性（optionLabel/requires 重复、选项覆盖）、`not.keyPointIds` 过度限制、分支门控与本分支结局冲突、结局 scene 与最终分支 scene 一致性、结局前置关键点循环依赖（只能在抉择后到达的 kp 不能作前置）、入边 requires 与结局 requires 一致性、结局关键词缺失。loop 现为「preflight + 规则化审校 + LLM 审校」三层门禁：规则审校 h0/m≤2 且 LLM 审校 h0/m≤2 才 pass；LLM 审校 prompt 被告知不重复报告规则审校已判问题，修订 prompt 回灌规则审校问题。
 5. **收尾清理** ✅ 已完成：`.gitignore` 加入 `/artifacts/`、`/scenarios/`、`/tests/fixtures/hidden_scenarios/`；决定隐藏门禁 PDF 不入库（体积 0.6–11MB、不参与自动化测试，`tests/fixtures/README.md` 说明本地目录结构与复跑方式）；删除本地 `exp/deep-parse-quality-0045` 分支（远端本就不存在）；README 补充 `deepParse` 推荐配置与全部 loopOptions 说明。
-6. **KP 校对面板** 🔄 进行中：6a 已交付——新增「解析」Tab：SVG 网络拓扑（按场景条带布局、折叠检定分支、聚焦最终结局、搜索/筛选）+ DOM 节点/边详情卡（条件 chips 化、结局卡片）+ 质量门禁计数。解析页自动隐藏聊天/快速掷骰区以腾出空间。另修复 `canonicalizeDeepParse` 边端点归一化（`br-final-x→br:br-final-x`、`end-1→end:end-1`）与重复边去重，`POST /coc-api/deep-parse` 改走 canonicalize。待办 6b（条件格式化增强/问题面板）、6c（编辑模式 + 确认生效）仍待做。
+6. **KP 校对面板** 🔄 进行中：6a/6b 已交付——「解析」Tab 含 SVG 网络拓扑（场景条带布局、折叠检定分支、聚焦最终结局、搜索/筛选）+ DOM 节点/边详情卡（条件 chips 化、keyPointConditions/branchConditions 挂载条件展示、结局卡片）+ 可折叠审校/门禁问题面板（severity 筛选、通道标注、problem→suggestion）。解析页自动隐藏聊天/快速掷骰区。另修复 `canonicalizeDeepParse` 边端点归一化去重、`POST /coc-api/deep-parse` 改走 canonicalize 并支持保存 quality。待办 6c（编辑模式 + 确认生效闭环）仍待做。
 
 ---
 

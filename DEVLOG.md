@@ -1698,3 +1698,14 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - UI 验证：ui-check 15/15 通过；用星孩v1.0 本地解析结果注入游戏后截图，调 kimi-k3 视觉评估多轮迭代（空画布→条带布局→聚焦视图→结局网格），最终结论通过（6 节点/5 边、图例形状一致、标签完整无遮挡）。
 - 临时脚本 `tests/tmp/net-visual-check.mjs`、`tests/tmp/kimi-vision-eval.mjs`（不入库）。
 - 下一步：6b（条件格式化增强 + 审校问题面板）、6c（编辑模式 + 确认生效闭环）。
+
+---
+
+## Session（2026-09-03 后续）：待办 #6b 条件格式化 + 审校问题面板
+
+- 解析页新增：
+  - 节点详情卡补充 `keyPointConditions / branchConditions` 挂载条件展示（requires / requiresAnyOf / autoChooseLabel 分别渲染）。
+  - 可折叠「审校 / 门禁问题」面板：默认折叠显示 high/medium/low 摘要；展开后按 severity 筛选，展示 where / problem / suggestion；优先读取 quality 的分通道 issue 数组，旧数据回退到合并 issues 并按 `chunk-N/` 前缀标注分块通道。
+- `deep-parse-loop.js`：quality 额外保存 `reviewIssues / chunkIssues / ruleIssues / preflightIssues` 分通道数组。
+- `coc-api.js`：`POST /coc-api/deep-parse` 支持保存 `quality`（供面板展示与测试注入）。
+- UI 验证：ui-check 15/15；星孩v1.0 注入后截图给 kimi-k3 视觉评估——网络图完整、折叠摘要可读、展开列表可读、详情卡字段完整，结论通过。
