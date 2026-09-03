@@ -476,6 +476,25 @@ describe("deep-parse 深度剧本解析", () => {
     expect(badNot.some((issue) => issue.includes("not 必须是条件对象"))).toBeTrue();
   });
 
+  it("validateConditionObject：not 内无 branchChoiceIds 的 optionLabel 是冗余条件，不判 high（归一化时剥掉）", () => {
+    const nested = validateConditionObject({ not: { optionLabel: ["撞门", "砸门"] } }, "test");
+    expect(nested.some((issue) => issue.includes("必须与 branchChoiceIds 搭配"))).toBeFalse();
+    const topLevel = validateConditionObject({ optionLabel: "撞门" }, "test");
+    expect(topLevel.some((issue) => issue.includes("必须与 branchChoiceIds 搭配"))).toBeTrue();
+    const normalized = canonicalizeDeepParse({
+      endings: [{
+        id: "end-1",
+        branchId: "br-1",
+        title: "结局",
+        optionLabel: "撞门",
+        requires: { branchChoiceIds: ["br-1"], optionLabel: "撞门", not: { optionLabel: ["砸门"] } },
+        endingKeywords: ["结局"],
+      }],
+    }).deepParse;
+    expect(normalized.endings[0].requires.not).toBeUndefined();
+    expect(normalized.endings[0].requires.optionLabel).toBe("撞门");
+  });
+
   it("validatePrerequisitePair：requires 与 requiresAnyOf 至少要有一个", () => {
     expect(validatePrerequisitePair({}, "test").length).toBeGreaterThan(0);
     expect(validatePrerequisitePair({ requires: { scene: "三层书房" } }, "test")).toEqual([]);
