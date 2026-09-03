@@ -1671,3 +1671,17 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - 删除本地 `exp/deep-parse-quality-0045` 分支（已合并进 main，远端无此分支）。
 - README「深度剧本解析」补充 `deepParse` 推荐配置块与全部 loopOptions 说明。
 - 剩余待办：#1 星孩v1.0 语义收敛（需重跑验证）、#6 KP 校对面板。
+
+---
+
+## Session（2026-09-03 后续）：待办 #1 星孩v1.0 复跑验证
+
+- 前置：#2 分块语义审校 + #4 规则化审校已合入；本次用当前管线复跑星孩v1.0（117 页，43 块）。
+- 结果（`artifacts/validation-xinghai/quality.json`，1040s，3 轮，pass=true）：
+  - preflight h0/m30（leadsTo 指向 `end-1..5`、部分检定点分支/关键点不可达——体验项，不阻塞）
+  - 规则审校 h0/m0（互斥、引用、矛盾、循环依赖、边一致性全部干净）
+  - 最终审校 h0/m0（之前 h1/m1 的边/结局 mismatch 与 `not kp-41` 语义问题未再出现）
+  - 分块审校 h0/m0
+- B 级达成：最终审校口径 h0/m≤2 且各确定性门禁全绿。
+- 遗留体验项（不阻塞）：最终分支选项 leadsTo 写的是 ending id 而非结局标题，preflight 会报 medium；可在 #6 校对面板或后续确定性修复中把 leadsTo 同步为结局标题。
+- `scripts/run-deep-parse-loop.mjs` 输出改为分通道计数（preflight/rule/review/chunk），避免只看总数误读。

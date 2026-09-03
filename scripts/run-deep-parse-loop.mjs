@@ -49,7 +49,20 @@ writeFileSync(join(dir, "deep-parse.gen.json"), JSON.stringify(loop.deepParse ??
 writeFileSync(join(dir, "quality.json"), JSON.stringify(loop.quality, null, 2));
 console.log(
   JSON.stringify(
-    { name, status: loop.status, rounds: loop.quality.rounds, high: loop.quality.high, medium: loop.quality.medium, low: loop.quality.low, pass: loop.quality.pass, elapsedSec: elapsed },
+    {
+      name,
+      status: loop.status,
+      rounds: loop.quality.rounds,
+      preflight: { high: loop.quality.preflightHigh, medium: loop.quality.preflightMedium, low: loop.quality.preflightLow },
+      rule: { high: loop.quality.ruleHigh, medium: loop.quality.ruleMedium, low: loop.quality.ruleLow },
+      review: { high: loop.quality.reviewHigh, medium: loop.quality.reviewMedium, low: loop.quality.reviewLow },
+      chunk: { high: loop.quality.chunkHigh, medium: loop.quality.chunkMedium, low: loop.quality.chunkLow },
+      high: loop.quality.high,
+      medium: loop.quality.medium,
+      low: loop.quality.low,
+      pass: loop.quality.pass,
+      elapsedSec: elapsed,
+    },
     null,
     2
   )
