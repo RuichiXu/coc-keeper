@@ -10,6 +10,7 @@ import {
   buildDeepParseTwoStagePrompts,
   buildChunkReviewPrompt,
   buildChunkRevisionPrompt,
+  buildDeterministicSkeleton,
   buildSkeletonWiringPrompt,
   canonicalizeDeepParse,
   collectDeepParseTargets,
@@ -499,6 +500,25 @@ describe("deep-parse 深度剧本解析", () => {
     expect(validatePrerequisitePair({}, "test").length).toBeGreaterThan(0);
     expect(validatePrerequisitePair({ requires: { scene: "三层书房" } }, "test")).toEqual([]);
     expect(validatePrerequisitePair({ requiresAnyOf: [{ scene: "三层书房" }] }, "test")).toEqual([]);
+  });
+
+  it("buildDeterministicSkeleton：desc 不再截断，空事实回退到标题", () => {
+    const flat = {
+      scenarioFacts: [
+        { heading: "长场景", facts: ["这是一段超过一百二十个字符的场景事实描述".repeat(10)] },
+        { heading: "空场景", facts: [] },
+      ],
+      scenarioCheckpoints: [{ scene: "长场景", skill: "侦查", trigger: "触发".repeat(80) }],
+    };
+    const skeleton = buildDeterministicSkeleton(flat);
+    const longKp = skeleton.keyPoints.find((kp) => kp.title === "长场景");
+    expect(longKp.desc.length).toBeGreaterThan(120);
+    expect(longKp.desc.endsWith("…")).toBeFalse();
+    const emptyKp = skeleton.keyPoints.find((kp) => kp.title === "空场景");
+    expect(emptyKp.desc).toBe("空场景");
+    const br = skeleton.branches[0];
+    expect(br.desc.length).toBeGreaterThan(120);
+    expect(br.desc.endsWith("…")).toBeFalse();
   });
 
   it("extractJsonObject：围栏/尾逗号/deepParse 外壳都能解出", () => {
