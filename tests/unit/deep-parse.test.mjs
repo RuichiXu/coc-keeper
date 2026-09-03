@@ -852,6 +852,30 @@ describe("deep-parse 深度剧本解析", () => {
     expect(report.issues.some((issue) => issue.problem.includes("本分支结局永远不可达"))).toBeTrue();
   });
 
+  it("runDeepParseRuleReview：分支门控 not 排除本分支出边所需关键点时报 high", () => {
+    const flat = {
+      keyPoints: [{ id: "kp-1", title: "克罗斯已死", scene: "结局" }, { id: "kp-2", title: "下一阶段", scene: "结局" }],
+      branches: [
+        { id: "br-final-1", title: "最终抉择", scene: "结局", finalChoice: true, options: [{ label: "离开", leadsTo: "下一阶段" }] },
+      ],
+      scenarioFacts: [{ heading: "结局", floor: "结局", keywords: ["结局"], original: "结局" }],
+      scenarioCheckpoints: [],
+    };
+    const deepParse = normalizeDeepParse({
+      branchConditions: [{ branchId: "br-final-1", requires: { scene: "结局", not: { keyPointIds: ["kp-1"] } } }],
+      endings: [
+        { id: "end-1", branchId: "br-final-1", title: "离开结局", optionLabel: "离开", requires: { branchChoiceIds: ["br-final-1"], optionLabel: "离开" } },
+      ],
+      plotEdges: [
+        { from: "br:br-final-1", to: "end:end-1", label: "离开", requires: [] },
+        { from: "br:br-final-1", to: "kp:kp-2", label: "下一阶段", requires: [{ keyPointIds: ["kp-1"] }] },
+      ],
+    });
+    const report = runDeepParseRuleReview(deepParse, flat);
+    expect(report.high).toBeGreaterThanOrEqual(1);
+    expect(report.issues.some((issue) => issue.problem.includes("出边永远无法满足"))).toBeTrue();
+  });
+
   it("runDeepParseRuleReview：结局 scene 与最终分支 scene 不一致报 high", () => {
     const flat = {
       keyPoints: [{ id: "kp-1", title: "书房关键点", scene: "书房" }],
