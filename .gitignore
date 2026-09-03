@@ -20,3 +20,10 @@ tests/伊芙琳·默瑟_CoC角色卡_1926.docx
 # 独立网页版运行数据
 standalone/data/
 standalone/.env
+
+# 深度解析本地产物与本地剧本（不入库）
+/artifacts/
+/scenarios/
+
+# 隐藏门禁剧本：本地评测用大型 PDF，不入库（说明见 tests/fixtures/README.md）
+/tests/fixtures/hidden_scenarios/

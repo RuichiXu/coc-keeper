@@ -1661,3 +1661,13 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   - 最终审校 h0/m0；分块审校 h0/m0
   - **pass=true**，B 级可用（审校口径 h0/m≤2）
 - 结论：#2 分块语义审校已生效且可通过修订收敛；分块审校口径需与确定性骨架能力边界对齐，否则会把不可修复的结构约束当语义问题报出。
+
+---
+
+## Session（2026-09-03 后续）：待办 #5 收尾清理
+
+- `.gitignore` 新增 `/artifacts/`、`/scenarios/`、`/tests/fixtures/hidden_scenarios/`。
+- 决定：`tests/fixtures/hidden_scenarios/` 的隐藏门禁 PDF 不入库——体积 0.6–11MB，且不参与自动化测试；新增 `tests/fixtures/README.md` 说明本地目录结构与复跑方式。
+- 删除本地 `exp/deep-parse-quality-0045` 分支（已合并进 main，远端无此分支）。
+- README「深度剧本解析」补充 `deepParse` 推荐配置块与全部 loopOptions 说明。
+- 剩余待办：#1 星孩v1.0 语义收敛（需重跑验证）、#6 KP 校对面板。

@@ -61,11 +61,23 @@
 ```json
 {
   "llmModel": "deepseek-v4-flash-202605",
-  "deepParse": { "finalModel": "kimi-k3", "finalTemperature": 1 }
+  "deepParse": {
+    "finalModel": "kimi-k3",
+    "finalTemperature": 1,
+    "chunkConcurrency": 4,
+    "maxRounds": 3,
+    "reviewGate": { "high": 0, "medium": 2 },
+    "runReview": true,
+    "runChunkReview": true,
+    "chunkReviewMaxTokens": 4000,
+    "chunkRevisionMaxTokens": 8000
+  }
 }
 ```
 
-默认审校/修订走 `llmModel`（廉价模型）；`deepParse` 块还支持 `chunkModel / reviewModel / revisionModel / maxRounds` 等。
+- `llmModel` 是默认模型：分块生成、审校、修订都会用它（`finalModel` 不设时最终生成也用它）。
+- `deepParse.finalModel` 只用于第 1 轮“最终分支与结局”的初始生成，之后修订仍走 `llmModel`；可换用其它强模型（如 `kimi-k3`）。
+- `deepParse` 块还支持 `chunkModel / reviewModel / revisionModel` 单独指定各阶段模型，以及 `maxRounds / chunkConcurrency / chunkMaxTokens / finalMaxTokens / reviewMaxTokens / revisionMaxTokens / chunkReasoningEffort / finalReasoningEffort / reviewReasoningEffort / revisionReasoningEffort / runReview / runChunkReview / reviewGate`。
 
 ## 安装
 
