@@ -43,6 +43,25 @@ describe("Scene Facts", () => {
     expect(sections[4].heading).toContain("三层");
   });
 
+  it("splitScenarioSections 识别编号标题，不把换行残句当标题", () => {
+    const text = `玩家在创建或启用调查员时，需要与守密人讨论确定以
+下内容：
+与约翰的关系。
+5.6 约翰的书斋
+这间套房中陈设着书桌。
+1892 年夏，调查员受旅居伦敦的希德留斯侯爵邀请。
+18 祭司之主 轩 辕 十 四
+文字：
+`;
+    const sections = splitScenarioSections(text);
+    const headings = sections.map((s) => s.heading);
+    expect(headings).toContain("5.6 约翰的书斋");
+    expect(headings.some((h) => h === "下内容")).toBeFalse();
+    expect(headings.some((h) => h === "文字")).toBeFalse();
+    expect(headings.some((h) => h.includes("1892 年夏"))).toBeFalse();
+    expect(headings.some((h) => h.includes("18 祭司之主"))).toBeFalse();
+  });
+
   it("classifyFloor 正确识别楼层", () => {
     expect(classifyFloor("一层：客厅与餐厅", "客厅内弥漫着气味")).toBe("一层");
     expect(classifyFloor("二层：家族肖像与卧室之门", "二层有多个卧室")).toBe("二层");
