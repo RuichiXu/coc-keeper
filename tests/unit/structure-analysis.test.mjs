@@ -7,6 +7,7 @@ import {
   parseStructureAnalysisResult,
   computeSectionTexts,
   applyStructureAnalysis,
+  applyStructureEdits,
   buildStructureAnalysisPrompt,
   splitScenarioSections,
 } from "../../lib/core/index.js";
@@ -105,6 +106,22 @@ describe("Structure Analysis", () => {
     const big = cleanScenarioText("标题一\n" + "这是一段很长的正文内容。".repeat(3500));
     const bigPrompt = buildStructureAnalysisPrompt(big, "大剧本");
     expect(bigPrompt).toContain("候选");
+  });
+
+  it("applyStructureEdits 同步编辑后的 section 层级到 keyPoints/scenarioFacts", () => {
+    const flat = { scenario: { text: SAMPLE, name: "测试" } };
+    const doc = cleanScenarioText(SAMPLE);
+    const result = parseStructureAnalysisResult(JSON.stringify(descriptor()), doc);
+    applyStructureAnalysis(flat, doc, result);
+    const sections = JSON.parse(JSON.stringify(flat.scenarioStructure.sections));
+    sections[0].kind = "chapter";
+    sections[0].flowRole = null;
+    sections[0].displayName = "约翰章节";
+    const stats = applyStructureEdits(flat, sections);
+    expect(stats.keyPoints).toBe(1);
+    expect(flat.keyPoints[0].displayName).toBe("二层走廊");
+    expect(flat.scenarioStructure.sections[0].kind).toBe("chapter");
+    expect(flat.sceneRelations.length).toBeGreaterThanOrEqual(0);
   });
 });
 
