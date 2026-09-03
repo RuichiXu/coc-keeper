@@ -42,6 +42,7 @@ const TESTS = {
     "unit/clue-graph.test.mjs",
     "unit/scenario-compiler.test.mjs",
     "unit/scene-facts.test.mjs",
+    "unit/structure-analysis.test.mjs",
     "unit/knowledge-layers.test.mjs",
     "unit/context-builder.test.mjs",
     "unit/trigger-engine.test.mjs",
