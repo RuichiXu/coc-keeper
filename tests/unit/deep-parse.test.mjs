@@ -654,6 +654,20 @@ describe("deep-parse 深度剧本解析", () => {
     expect(canonical.branchConditions).toEqual([{ branchId: "br-2", requires: { scene: "书房" } }]);
   });
 
+  it("canonicalizeDeepParse：边端点归一化为 br:/kp:/end: 前缀并去重", () => {
+    const canonical = canonicalizeDeepParse({
+      plotEdges: [
+        { from: "br-final-x", to: "end-1", label: "人之城" },
+        { from: "br:br-final-x", to: "end:end-1", label: "人之城" },
+        { from: "br-final-x", to: "end-2", label: "星星之国" },
+      ],
+    }).deepParse;
+    expect(canonical.plotEdges).toEqual([
+      { from: "br:br-final-x", to: "end:end-1", label: "人之城" },
+      { from: "br:br-final-x", to: "end:end-2", label: "星星之国" },
+    ]);
+  });
+
   it("mergeChunkedDeepParseParts：最终抉择分支的边与条件由最终生成器独占", () => {
     const flat = {
       keyPoints: [],

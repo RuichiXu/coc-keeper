@@ -1685,3 +1685,16 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - B 级达成：最终审校口径 h0/m≤2 且各确定性门禁全绿。
 - 遗留体验项（不阻塞）：最终分支选项 leadsTo 写的是 ending id 而非结局标题，preflight 会报 medium；可在 #6 校对面板或后续确定性修复中把 leadsTo 同步为结局标题。
 - `scripts/run-deep-parse-loop.mjs` 输出改为分通道计数（preflight/rule/review/chunk），避免只看总数误读。
+
+---
+
+## Session（2026-09-03 后续）：待办 #6a 解析页网络结构 UI
+
+- `lib/client.js` 新增「解析」Tab（主持/剧情/解析/调试）：
+  - SVG 拓扑：关键点=圆、分支=菱形、结局=星形；剧情边实线、选项 leadsTo 虚线、带条件边琥珀色；节点标题悬停提示。
+  - 布局：按场景分横向条带、条带内换行；「聚焦最终结局」默认开启，最终分支左列、结局网格右列，首屏完整可见；解析页自动隐藏聊天/快速掷骰区（`.net-mode`）。
+  - 交互：搜索、类型筛选、场景筛选、折叠检定分支（默认折叠）、点击节点/边显示 DOM 详情卡；条件对象渲染为中文 chips（场景/检定通过/需已揭示/排除/选项）。
+- 后端确定性修复：`canonicalizeDeepParse` 把边端点归一化为 `br:/kp:/end:` 前缀并去重（Kimi 输出 `br-final-x->end-1` 与 `br:br-final-x->end:end-1` 两种形态导致重边）；`POST /coc-api/deep-parse` 保存/确认改走 `canonicalizeDeepParse`。
+- UI 验证：ui-check 15/15 通过；用星孩v1.0 本地解析结果注入游戏后截图，调 kimi-k3 视觉评估多轮迭代（空画布→条带布局→聚焦视图→结局网格），最终结论通过（6 节点/5 边、图例形状一致、标签完整无遮挡）。
+- 临时脚本 `tests/tmp/net-visual-check.mjs`、`tests/tmp/kimi-vision-eval.mjs`（不入库）。
+- 下一步：6b（条件格式化增强 + 审校问题面板）、6c（编辑模式 + 确认生效闭环）。

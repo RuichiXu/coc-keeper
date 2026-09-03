@@ -155,6 +155,29 @@ try {
     check("找到「调试」tab", true);
   }
 
+  // 2b. 解析 tab（新增：深度剧情解析网络结构）
+  {
+    const netTab = page.locator("#coc-keeper-panel .coc-tabs button", { hasText: "解析" }).first();
+    if (await netTab.count() === 0) {
+      check("找到「解析」tab", false, "面板 tab 未渲染");
+    } else {
+      await netTab.evaluate((node) => node.click());
+      await sleep(700);
+      const panel = await page.locator("#coc-keeper-panel [data-panel=\"net\"]").first();
+      const style = await panel.evaluate((node) => ({ display: node.style.display, text: node.textContent.length }));
+      check("「解析」tab 有反应", style.display === "flex" && style.text > 0, `display=${style.display}, 文本长度=${style.text}`);
+    }
+  }
+
+  // 回到调试 tab 再检查子按钮（解析 tab 检查会切走当前 tab）
+  {
+    const debugAgain = page.locator("#coc-keeper-panel .coc-tabs button", { hasText: "调试" }).first();
+    if (await debugAgain.count() > 0) {
+      await debugAgain.evaluate((node) => node.click());
+      await sleep(500);
+    }
+  }
+
   // 3. 调试子按钮逐个点击
   const subtabChecks = [
     ["导入", "import"],
