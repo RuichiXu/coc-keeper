@@ -1648,3 +1648,16 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   - `quality` 新增 `chunkHigh / chunkMedium / chunkLow`；issues 合并最终审校 + 分块审校 + 规则 + preflight。
   - 新增 loopOptions：`runChunkReview`（默认随 `runReview`）、`chunkReviewMaxTokens`、`chunkRevisionMaxTokens`。
 - 单元测试新增 `buildChunkReviewPrompt / buildChunkRevisionPrompt` 用例；全套 55/55 通过。
+
+---
+
+## Session（2026-09-03）：#2 真实剧本验证（2001：太空漫游）
+
+- 第一次验证：分块审校初版把“线索型关键点用 checkpointGroups 表示检定成功才能获得”误判为 high（玩家检定失败会卡死），并对 `plotEdges` 的 from/to 指向内容提出不可修复的 medium/high；3 轮未收敛（chunkHigh 3 / chunkMedium 5）。
+- 修复：`buildChunkReviewPrompt` 明确“线索型关键点用 checkpointGroups 建模是正确建模，不要判为 high/medium；不审校 plotEdges 的 from/to 与分支 leadsTo 指向内容（由确定性骨架约束，本审校无法修改）”；规则审校新增 R5b（最终分支门控 not.keyPointIds 不得与本分支出边 requires 冲突）。
+- 第二次验证（`artifacts/validation-2001`，37 块，950s，3 轮）：
+  - preflight h0/m10（leadsTo 命中模糊、不可达关键点等体验问题，不阻塞）
+  - 规则审校 h0/m1（最终分支选项无对应结局，阶段型最终分支的正常结构）
+  - 最终审校 h0/m0；分块审校 h0/m0
+  - **pass=true**，B 级可用（审校口径 h0/m≤2）
+- 结论：#2 分块语义审校已生效且可通过修订收敛；分块审校口径需与确定性骨架能力边界对齐，否则会把不可修复的结构约束当语义问题报出。
