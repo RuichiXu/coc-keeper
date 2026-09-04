@@ -10,6 +10,7 @@ import {
   applyStructureEdits,
   buildStructureAnalysisPrompt,
   buildStructureWindowPlan,
+  buildStructureWindowPrompt,
   mergeStructureWindowResults,
   splitScenarioSections,
 } from "../../lib/core/index.js";
@@ -171,6 +172,15 @@ describe("Structure Analysis", () => {
     expect(sceneB.parentId).toBe(chapter.id);
     expect(result.sections[0].startLine).toBe(doc.firstLineNo);
     expect(result.sections[result.sections.length - 1].endLine).toBe(doc.lastLineNo);
+  });
+
+  it("buildStructureWindowPrompt 约束 level 只表标题层级，scene 不互为父子", () => {
+    const text = "第一章\n5.1 场景甲\n5.2 场景乙\n";
+    const doc = cleanScenarioText(text);
+    const windows = buildStructureWindowPlan(doc, { maxLines: 60, minLines: 30 });
+    const prompt = buildStructureWindowPrompt(doc, windows[0], "测试剧本");
+    expect(prompt.includes("level 只表示标题层级")).toBeTrue();
+    expect(prompt.includes("连续多个 sc 应并列")).toBeTrue();
   });
 });
 

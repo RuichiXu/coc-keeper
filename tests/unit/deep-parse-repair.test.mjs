@@ -15,13 +15,34 @@ import {
   repairDeepParseFinalWiring,
   runDeepParseRuleReview,
 } from "../../lib/core/index.js";
+import { shouldRetryLlmError } from "../../lib/shared/tools/deep-parse-loop.js";
 
 const fixturePath = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "convection-import.json");
-const fixture = JSON.parse(readFileSync(fixturePath, "utf8"));
-const flat = fixture.flat;
+
+function loadFixture() {
+  return JSON.parse(readFileSync(fixturePath, "utf8")).flat;
+}
 
 describe("Deep Parse 修复（对流 fixture）", () => {
+  it("修复前 R0 能捕获最终接线硬伤，修复后 R0 高危归零", () => {
+    const before = loadFixture();
+    const beforeReview = runDeepParseRuleReview(before.deepParse, before, { severityGate: { high: 0, medium: 2 } });
+    const r0HighBefore = beforeReview.issues.filter(
+      (issue) => issue.severity === "high" && /branchId|options|plotEdges\[\d+\]/.test(issue.where ?? "")
+    );
+    expect(r0HighBefore.length).toBeGreaterThan(0);
+
+    repairDeepParseFinalWiring(before, before.deepParse);
+    repairDeepParseConnectivity(before, before.deepParse);
+    const afterReview = runDeepParseRuleReview(before.deepParse, before, { severityGate: { high: 0, medium: 2 } });
+    const r0HighAfter = afterReview.issues.filter(
+      (issue) => issue.severity === "high" && /branchId|options|plotEdges\[\d+\]/.test(issue.where ?? "")
+    );
+    expect(r0HighAfter.length).toBe(0);
+  });
+
   it("最终接线修复：失败/成功最终分支有选项、endings.branchId 非空、br→end 边有 label", () => {
+    const flat = loadFixture();
     const repaired = repairDeepParseFinalWiring(flat, flat.deepParse);
     expect(repaired).toBeGreaterThan(0);
 
@@ -43,6 +64,8 @@ describe("Deep Parse 修复（对流 fixture）", () => {
   });
 
   it("连通性修复：结局场景点不再孤立", () => {
+    const flat = loadFixture();
+    repairDeepParseFinalWiring(flat, flat.deepParse);
     repairDeepParseConnectivity(flat, flat.deepParse);
     const edges = flat.deepParse.plotEdges;
     const hasIn = new Set(edges.map((edge) => String(edge.to ?? "")));
@@ -51,12 +74,26 @@ describe("Deep Parse 修复（对流 fixture）", () => {
     expect(isolated.length).toBe(0);
   });
 
-  it("规则审校硬门禁：修复后 R0 级别的高危不再出现", () => {
-    const review = runDeepParseRuleReview(flat.deepParse, flat, { severityGate: { high: 0, medium: 2 } });
-    const r0High = review.issues.filter(
-      (issue) => issue.severity === "high" && /branchId|options|plotEdges\[\d+\]/.test(issue.where ?? "")
-    );
-    expect(r0High.length).toBe(0);
+  it("连通性修复：主线缺出边补下一条主线，支线缺入边从前一主线补 hook", () => {
+    const flat = {
+      keyPoints: [
+        { id: "kp-1", title: "场景A", scene: "场景A", kind: "scene", flowRole: "main", order: 1 },
+        { id: "kp-2", title: "场景B", scene: "场景B", kind: "scene", flowRole: "main", order: 2 },
+        { id: "kp-3", title: "支线C", scene: "支线C", kind: "scene", flowRole: "side", order: 3 },
+      ],
+      branches: [],
+      deepParse: { plotEdges: [], endings: [], keyPoints: [], branches: [] },
+    };
+    repairDeepParseConnectivity(flat, flat.deepParse);
+    const keys = new Set(flat.deepParse.plotEdges.map((edge) => `${edge.from}->${edge.to}`));
+    expect(keys.has("kp:kp-1->kp:kp-2")).toBeTrue();
+    expect(keys.has("kp:kp-2->kp:kp-3")).toBeTrue();
+  });
+
+  it("超时错误不再重试（避免超时翻倍）", () => {
+    expect(shouldRetryLlmError(new Error("LLM 调用超时（90s）"), 1)).toBe(false);
+    expect(shouldRetryLlmError(new Error("fetch failed"), 1)).toBe(true);
+    expect(shouldRetryLlmError(new Error("fetch failed"), 2)).toBe(false);
   });
 });
 
