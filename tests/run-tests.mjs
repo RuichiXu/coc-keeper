@@ -58,6 +58,7 @@ const TESTS = {
     "unit/story-presets.test.mjs",
     "unit/deep-parse.test.mjs",
     "unit/deep-parse-fixtures.test.mjs",
+    "unit/deep-parse-repair.test.mjs",
   ],
   integration: [
     "integration/rule-event-state.test.mjs",
