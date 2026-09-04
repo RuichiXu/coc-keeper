@@ -62,11 +62,6 @@ check(
 console.log("\n[2] adapter/tools 文件");
 const toolFiles = [
   "index.js",
-  "helpers.js",
-  "roll.js",
-  "rules.js",
-  "state-tools.js",
-  "plot-tools.js",
   "import.js",
 ];
 for (const file of toolFiles) {

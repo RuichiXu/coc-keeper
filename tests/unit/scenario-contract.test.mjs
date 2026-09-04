@@ -9,8 +9,6 @@ import {
   validateScenarioContract,
   draftScenarioContract,
   ensureScenarioContract,
-  buildContractAiPrompt,
-  parseContractAiResult,
 } from "../../lib/core/scenario/index.js";
 import {
   evaluateNightEvents,
@@ -273,40 +271,6 @@ describe("最终分支白名单前置条件", () => {
       branches: [{ id: "ai-br-3", title: "最终咒文念诵方式", reached: true }],
     });
     expect(result.passed).toBe(true);
-  });
-});
-
-describe("契约 AI 生成", () => {
-  it("prompt 包含五类字段与夜晚事件入睡约定", () => {
-    const prompt = buildContractAiPrompt({
-      scenario: { name: "墨渊", text: "三层：书房\n子夜梦游。" },
-      scenarioCheckpoints: [],
-      entities: [],
-      branches: [],
-      keyPoints: [],
-    });
-    expect(prompt).toContain("clueGates");
-    expect(prompt).toContain("npcKnowledge");
-    expect(prompt).toContain("ritualConditions");
-    expect(prompt).toContain("nightEvents");
-    expect(prompt).toContain("finalBranchWhitelist");
-    expect(prompt).toContain("onSleep");
-    expect(prompt).toContain("调查员入睡后触发");
-  });
-
-  it("parse 解析 LLM JSON（含 Markdown 代码块）并归一化", () => {
-    const raw = '```json\n{"clueGates":[{"clueWords":["墨渊"]}],"nightEvents":[{"title":"梦游","trigger":"onSleep"}]}\n```';
-    const result = parseContractAiResult(raw);
-    expect(result.contract).notToBeNull();
-    expect(result.contract.clueGates[0].clueWords).toContain("墨渊");
-    expect(result.contract.nightEvents[0].trigger).toBe("onSleep");
-    expect(result.issues).toHaveLength(0);
-  });
-
-  it("parse 失败返回 issues", () => {
-    const result = parseContractAiResult("不是 JSON");
-    expect(result.contract).toBeNull();
-    expect(result.issues.length > 0).toBe(true);
   });
 });
 

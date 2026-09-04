@@ -5,8 +5,6 @@ import { describe, it, expect } from "../runner.js";
 import {
   compileByPattern,
   extractStoryIntro,
-  buildAiParsePrompt,
-  parseAiResult,
   toLegacyFormat,
 } from "../../lib/core/scenario/compiler.js";
 
@@ -43,40 +41,6 @@ describe("Scenario Compiler", () => {
     it("NPC 关联当前场景", () => {
       const model = compileByPattern("【场景】书房\n【NPC】老管家", "测试");
       expect(model.npcs[0].scenes).toContain("书房");
-    });
-  });
-
-  describe("buildAiParsePrompt", () => {
-    it("生成 prompt 包含剧本内容", () => {
-      const prompt = buildAiParsePrompt("【场景】测试");
-      expect(prompt).toMatch(/测试/);
-      expect(prompt).toMatch(/JSON/);
-    });
-  });
-
-  describe("parseAiResult", () => {
-    it("解析 AI 返回的 JSON", () => {
-      const aiResult = {
-        scenes: [{ name: "废弃宅邸", description: "旧宅" }],
-        npcs: [{ name: "老管家", role: "major", description: "管家" }],
-        clues: [{ description: "暗格中的古书", acquisitionMethods: ["侦查"], isCritical: true }],
-        plotNodes: [{ title: "发现暗格", type: "event", description: "" }],
-        branches: [{ title: "选择", options: [{ label: "继续", leadsTo: "地下室" }] }],
-        endings: [{ title: "好结局", type: "good", description: "" }],
-        hiddenFacts: [{ fact: "管家是邪教徒", category: "secret" }],
-        items: [],
-        locations: [],
-        triggers: [],
-      };
-      const model = parseAiResult(aiResult, "测试");
-      expect(model.scenes).toHaveLength(1);
-      expect(model.npcs).toHaveLength(1);
-      expect(model.clues).toHaveLength(1);
-      expect(model.clues[0].isCritical).toBeTrue();
-      expect(model.plotNodes).toHaveLength(1);
-      expect(model.branches).toHaveLength(1);
-      expect(model.endings).toHaveLength(1);
-      expect(model.hiddenFacts).toHaveLength(1);
     });
   });
 

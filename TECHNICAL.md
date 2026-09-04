@@ -389,7 +389,7 @@ interface Reminder {
 ### 6.1 文件
 
 - **源文件**：`lib/rules-content.json`（5968 字符，342 行）
-- **旧文件**：`lib/rules-content.js`（ESM 导出，已弃用，直接 import 会失败）
+- 历史：曾存在 `lib/rules-content.js`（ESM 导出），因运行时统一读取 JSON 已删除
 
 ### 6.2 加载方式
 
@@ -716,8 +716,7 @@ KP 人设 + 硬性规则（6 条）+ 3 行规则概要 + 工具列表 + 工具�
 │   ├── index.js          # 宿主端（2780 行）
 │   ├── index.js.bak      # 备份
 │   ├── client.js         # 浏览器端（1491 行）
-│   ├── rules-content.json # 内置规则（5968 字符）
-│   └── rules-content.js  # 旧 ESM 导出（已弃用）
+│   └── rules-content.json # 内置规则（5968 字符）
 └── tests/
     ├── selftest.mjs      # 自测（178 行）
     └── 墨渊V1.1.docx     # 测试剧本
