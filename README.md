@@ -56,7 +56,7 @@
    - **语义门禁（B 级）**：LLM 最终分支/结局语义审校 `review ≤ h0/m2`、分块语义审校 `chunk ≤ h0/m2`（`buildChunkReviewPrompt`，逐块审校局部条件）。
 5. **修复式修订**：第 2/3 轮把审校意见与 preflight 问题回灌给模型；有 high/medium 问题的分块只重生成对应块，最终分支/结局整体修订，不推倒重写。
 
-生成结果存为 `flat.deepParse`（draft），可通过 `coc_status` 查看；确认后由 `syncPlotGraphFromDeepParse` 汇入剧情图。
+生成结果存为 `flat.deepParse`（draft），可通过 `coc_status` 查看；确认后由 `syncPlotGraphFromDeepParse` 汇入剧情图。前端「解析」页的网络结构图支持**滚轮缩放、拖拽平移、重置缩放**；当前网络图仍偏单线，拓扑保真改造方案见 `NETWORK-TOPOLOGY.md`。
 
 **4 剧本后端验证基线（2026-09-05，`scripts/import-verify-4scenarios.mjs`）**：
 
