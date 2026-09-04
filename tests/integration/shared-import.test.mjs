@@ -8,6 +8,7 @@ import { describe, it, expect } from "../runner.js";
 import {
   ASSET_KINDS,
   AssetStore,
+  cleanScenarioText,
   GameSession,
   JsonFilePersistence,
 } from "../../lib/core/index.js";
@@ -27,8 +28,34 @@ function fixture() {
   return { dataDir, deps, defs: createSharedToolDefs(deps) };
 }
 
+
+function validStructure(text) {
+  const doc = cleanScenarioText(text);
+  const first = doc.firstLineNo;
+  const last = doc.lastLineNo;
+  return {
+    format: "labeled",
+    sections: [
+      {
+        id: "s1",
+        title: "书房",
+        displayName: "书房",
+        kind: "scene",
+        flowRole: "main",
+        desc: "书房场景。",
+        level: 1,
+        parentId: null,
+        startLine: first,
+        endLine: last,
+        page: 1,
+        order: 1,
+      },
+    ],
+  };
+}
+
 describe("Shared 导入器", () => {
-  it("剧本文本重建 flat 结构、PlotGraph 与剧本资产", async () => {
+  it("剧本文本重建 flat 结构、PlotGraph 与剧本资产（结构分析路径）", async () => {
     const { dataDir, deps, defs } = fixture();
     const text = [
       "【剧本】雾中宅邸",
@@ -39,6 +66,9 @@ describe("Shared 导入器", () => {
       "【地点】荒废宅邸",
       "【物品】黄铜钥匙",
     ].join("\n");
+    deps.callLlmApi = async () => ({
+      blocks: [{ type: "text", text: JSON.stringify(validStructure(text)) }],
+    });
     const result = await defs.get("coc_import").execute({
       kind: "scenario",
       source: "text",
@@ -48,12 +78,12 @@ describe("Shared 导入器", () => {
     });
 
     expect(result.keyPoints).toBe(1);
-    expect(result.branches).toBe(1);
     expect(result.entities).toBe(3);
     const flat = JSON.parse(
       readFileSync(join(dataDir, "games", "g1.json"), "utf8")
     );
-    expect(flat.keyPoints[0].title).toBe("发现暗门");
+    expect(flat.keyPoints[0].title).toBe("书房");
+    expect(flat.keyPoints[0].kind).toBe("scene");
     expect(flat.entities.every((entity) => entity.revealed === false)).toBeTrue();
     expect(flat.entities.every((entity) => entity.playerDesc === "")).toBeTrue();
     expect(flat.core.plot.nodes).toHaveLength(1);
@@ -63,8 +93,12 @@ describe("Shared 导入器", () => {
 
   it("D-2：LLM 深度解析成功时生成 draft 并合并补充分支与结局", async () => {
     const { dataDir, deps, defs } = fixture();
+    const text = "这是一个剧本。调查员在书房发现一本日记。";
     deps.callLlmApi = async (_dataDir, messages) => {
       const prompt = messages[0]?.content?.[0]?.text ?? "";
+      if (prompt.includes("结构分析师")) {
+        return { blocks: [{ type: "text", text: JSON.stringify(validStructure(text)) }] };
+      }
       if (prompt.includes("最终分支与结局")) {
         return {
           blocks: [{
@@ -96,7 +130,7 @@ describe("Shared 导入器", () => {
       kind: "scenario",
       source: "text",
       game: "g1",
-      text: "这是一个剧本。调查员在书房发现一本日记。",
+      text,
     });
 
     expect(result.deepParseStatus).toBe("draft");
@@ -104,12 +138,13 @@ describe("Shared 导入器", () => {
     expect(flat.deepParse.status).toBe("draft");
     expect(flat.deepParse.source).toBe("llm");
     expect(flat.branches.some((branch) => branch.id === "br-1" && branch.title === "是否阅读日记")).toBeTrue();
+    const finalBranch = flat.branches.find((branch) => branch.id === "br-1");
+    expect(finalBranch.options.map((option) => option.label)).toEqual(["阅读", "不读"]);
     expect(flat.deepParse.endings.some((ending) => ending.title === "阅读结局")).toBeTrue();
   });
 
-  it("D-2：LLM 深度解析失败时保留确定性结构并标记 skipped", async () => {
+  it("D-2：LLM 深度解析失败时保留结构关键点并标记 skipped", async () => {
     const { dataDir, deps, defs } = fixture();
-    deps.callLlmApi = async () => ({ blocks: [{ type: "text", text: "这不是 JSON" }] });
     const text = [
       "【剧本】雾中宅邸",
       "【场景】书房",
@@ -117,6 +152,13 @@ describe("Shared 导入器", () => {
       "【分支】是否进入暗门",
       "【NPC】老管家",
     ].join("\n");
+    deps.callLlmApi = async (_dataDir, messages) => {
+      const prompt = messages[0]?.content?.[0]?.text ?? "";
+      if (prompt.includes("结构分析师")) {
+        return { blocks: [{ type: "text", text: JSON.stringify(validStructure(text)) }] };
+      }
+      return { blocks: [{ type: "text", text: "这不是 JSON" }] };
+    };
 
     const result = await defs.get("coc_import").execute({
       kind: "scenario",
@@ -131,7 +173,26 @@ describe("Shared 导入器", () => {
     const flat = JSON.parse(readFileSync(join(dataDir, "games", "g1.json"), "utf8"));
     expect(flat.deepParse.status).toBe("skipped");
     expect(flat.keyPoints).toHaveLength(1);
-    expect(flat.keyPoints[0].title).toBe("发现暗门");
+    expect(flat.keyPoints[0].title).toBe("书房");
+  });
+
+  it("结构分析失败时直接报错，不落确定性切分", async () => {
+    const { dataDir, deps, defs } = fixture();
+    deps.callLlmApi = async () => ({ blocks: [{ type: "text", text: "这不是 JSON" }] });
+    const text = "【剧本】雾中宅邸\n【场景】书房\n【关键剧情点】发现暗门\n【分支】是否进入暗门\n【NPC】老管家";
+    let threw = false;
+    try {
+      await defs.get("coc_import").execute({
+        kind: "scenario",
+        source: "text",
+        game: "g1",
+        text,
+        overwrite: true,
+      });
+    } catch (error) {
+      threw = /结构分析失败/.test(error.message);
+    }
+    expect(threw).toBeTrue();
   });
 
   it("JSON 人物数组写入场次与调查员资产库", async () => {

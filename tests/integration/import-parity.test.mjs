@@ -368,6 +368,7 @@ describe("导入器影子对比", () => {
           source: "file",
           name: "PDF 剧本",
           overwrite: true,
+          parseStructure: false,
         },
       },
       {
@@ -378,6 +379,7 @@ describe("导入器影子对比", () => {
           source: "file",
           name: "TXT 剧本",
           overwrite: true,
+          parseStructure: false,
         },
       },
       {
@@ -387,6 +389,7 @@ describe("导入器影子对比", () => {
           source: "text",
           name: "粘贴剧本",
           overwrite: true,
+          parseStructure: false,
           text: "【场景】书房\n【NPC】老管家\n【关键剧情点】暗门\n【分支】进入或离开\n【物品】黄铜钥匙",
         },
       },

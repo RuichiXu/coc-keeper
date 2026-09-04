@@ -123,16 +123,40 @@ describe("deep-parse 深度剧本解析", () => {
     expect(parsed.issues.some((issue) => issue.includes("不允许生成 keyPoints"))).toBeTrue();
   });
 
-  it("extractFinalChoiceBranches：从最终抉择段落提取玩家选择分支", () => {
+  it("extractFinalChoiceBranches：只从结构最终 section 的 bullet 完整选项提取", () => {
     const flat = {
-      scenario: { name: "测试", text: "此时，调查员们面临最终抉择：若调查员们正序念诵，则墨渊降临；若调查员们逆序念诵，则墨渊消散。" },
-      scenarioFacts: [{ heading: "最终抉择", floor: "结局", keywords: ["最终抉择"], original: "此时，调查员们面临最终抉择：若调查员们正序念诵，则墨渊降临；若调查员们逆序念诵，则墨渊消散。" }],
+      scenario: { name: "测试", text: "最终抉择：\n- 毁灭：调查员可以轻易地给予最后一击，彻底消灭埃华斯。\n- 封印：停止攻击，与虚弱的埃华斯订立契约。" },
+      scenarioStructure: {
+        sections: [
+          { id: "s1", title: "最终抉择", displayName: "最终抉择", kind: "scene_event", flowRole: "main", desc: "", level: 1, parentId: null, startLine: 1, endLine: 3, order: 1 },
+        ],
+      },
+      scenarioFacts: [
+        { heading: "最终抉择", sectionId: "s1", kind: "scene_event", flowRole: "main", original: "- 毁灭：调查员可以轻易地给予最后一击，彻底消灭埃华斯。\n- 封印：停止攻击，与虚弱的埃华斯订立契约。" },
+      ],
     };
     const result = extractFinalChoiceBranches(flat);
     expect(result.branches).toHaveLength(1);
     expect(result.branches[0].id).toBe("br-final-1");
-    expect(result.branches[0].options.map((option) => option.label)).toEqual(["正序念诵", "逆序念诵"]);
+    expect(result.branches[0].options[0].label).toBe("毁灭：调查员可以轻易地给予最后一击，彻底消灭埃华斯。");
     expect(result.keyPoints.length).toBe(2);
+  });
+
+  it("extractFinalChoiceBranches：非 bullet 或不在最终 section 内返回空", () => {
+    const flat = {
+      scenario: { name: "测试", text: "此时，调查员们面临最终抉择：若调查员们正序念诵，则墨渊降临。" },
+      scenarioStructure: {
+        sections: [
+          { id: "s1", title: "最终抉择", displayName: "最终抉择", kind: "scene_event", flowRole: "main", desc: "", level: 1, parentId: null, startLine: 1, endLine: 1, order: 1 },
+        ],
+      },
+      scenarioFacts: [
+        { heading: "最终抉择", sectionId: "s1", kind: "scene_event", flowRole: "main", original: "此时，调查员们面临最终抉择：若调查员们正序念诵，则墨渊降临。" },
+      ],
+    };
+    const result = extractFinalChoiceBranches(flat);
+    expect(result.branches).toHaveLength(0);
+    expect(result.keyPoints).toHaveLength(0);
   });
 
   it("collectDeepParseTargets：词表包含节点标题、结局关键词与场景名", () => {
