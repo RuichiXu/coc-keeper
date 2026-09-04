@@ -9,6 +9,8 @@ import {
   applyStructureAnalysis,
   applyStructureEdits,
   buildStructureAnalysisPrompt,
+  buildStructureWindowPlan,
+  mergeStructureWindowResults,
   splitScenarioSections,
 } from "../../lib/core/index.js";
 
@@ -122,6 +124,53 @@ describe("Structure Analysis", () => {
     expect(flat.keyPoints[0].displayName).toBe("二层走廊");
     expect(flat.scenarioStructure.sections[0].kind).toBe("chapter");
     expect(flat.sceneRelations.length).toBeGreaterThanOrEqual(0);
+  });
+  it("buildStructureWindowPlan 把长文本切分为按标题对齐的窗口", () => {
+    const lines = [];
+    lines.push("5.1 第一章");
+    for (let i = 0; i < 200; i += 1) lines.push("这是正文内容行" + i);
+    lines.push("5.2 第二章");
+    for (let i = 0; i < 200; i += 1) lines.push("这是正文内容行" + i);
+    const doc = cleanScenarioText(lines.join("\n"));
+    const windows = buildStructureWindowPlan(doc, { maxLines: 60, minLines: 30 });
+    expect(windows.length).toBeGreaterThan(1);
+    expect(windows[0].startLine).toBe(doc.firstLineNo);
+    expect(windows[windows.length - 1].endLine).toBe(doc.lastLineNo);
+  });
+
+  it("mergeStructureWindowResults 合并跨窗同名 section 并按 level 建树", () => {
+    const lines = [];
+    lines.push("5.1 第一章");
+    lines.push("5.1.1 场景甲");
+    lines.push("场景甲正文");
+    lines.push("5.1.2 场景乙");
+    lines.push("场景乙正文");
+    const doc = cleanScenarioText(lines.join("\n"));
+    const windowResults = [
+      {
+        format: "numbered",
+        _windowIndex: 0,
+        sections: [
+          { id: "s1", title: "第一章", displayName: "第一章", kind: "chapter", level: 1, flowRole: null, desc: "", startLine: 1, endLine: 3, order: 1 },
+          { id: "s2", title: "场景甲", displayName: "场景甲", kind: "scene", level: 2, flowRole: "main", desc: "场景甲", startLine: 2, endLine: 3, order: 2 },
+        ],
+      },
+      {
+        format: "numbered",
+        _windowIndex: 1,
+        sections: [
+          { id: "s3", title: "场景乙", displayName: "场景乙", kind: "scene", level: 2, flowRole: "main", desc: "场景乙", startLine: 4, endLine: 5, order: 1 },
+        ],
+      },
+    ];
+    const result = mergeStructureWindowResults(doc, windowResults);
+    expect(result.sections.length).toBe(3);
+    const chapter = result.sections.find((section) => section.title === "第一章");
+    const sceneB = result.sections.find((section) => section.title === "场景乙");
+    expect(chapter.endLine).toBeGreaterThanOrEqual(5);
+    expect(sceneB.parentId).toBe(chapter.id);
+    expect(result.sections[0].startLine).toBe(doc.firstLineNo);
+    expect(result.sections[result.sections.length - 1].endLine).toBe(doc.lastLineNo);
   });
 });
 
