@@ -52,6 +52,13 @@ reachability: "strict" | "conditional" | "optional"
 | `conditional` | 支线/固定场景触发的可选遭遇：条件闭包可达即可 | `flowRole=side/clue` |
 | `optional` | 长期悬空可选内容：完全豁免连通性门禁 | 可选遭遇/附录类 section |
 
+**默认档位兜底（开放点 2 已定案）**：无 `flowRole` 或旧数据/LLM 生成节点按以下顺序兜底，统一在 `canonicalizeDeepParse` 或 preflight 入口完成，不要散落各处：
+
+- 有 `parentId` 且父节点是 `flowRole=main` 的场景类 `scene_event` → `strict`；
+- 其余无 `flowRole` 的场景类节点 → `conditional`；
+- 无 `flowRole` 且非场景类节点（纯事件/线索关键点）→ `conditional`；
+- 明确标记为附录/可选遭遇/长期悬空的 section 派生的节点 → `optional`。
+
 实施顺序：先实现统一的条件可达闭包，`strict` 与 `conditional` 先用同一判定；如果主线被条件边放水，再把 `strict` 收紧为“只允许无条件路径”。算法参数化，不硬编码。
 
 ---
@@ -64,10 +71,10 @@ reachability: "strict" | "conditional" | "optional"
 2. 反复扫描所有入边：如果某条边 `requires` 只引用“已在可达集中的节点/检定点”，或无 `requires`，则把目标加入可达集。
 3. 直到不动。
 
-判定结果：
+判定结果（开放点 1 已定案）：
 
 - `strict` 节点不在可达集 → high/medium（按门禁口径）。
-- `conditional` 节点不在可达集 → 按支线口径处理。
+- `conditional` 节点不在可达集 → 仍报 medium（问题文案明确为“支线条件闭包不可达，需要 hook 边”），但**不要求**“非自环入边/出边”，也不要求“主线场景缺少推进边”；这样硬门禁 preflight m0 不会放水，同时不会把支线当主线要求推进边。
 - `optional` 节点不参与判定。
 
 这套判定同时能拦掉“A 依赖 B、B 依赖 A”的循环依赖。

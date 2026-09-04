@@ -41,13 +41,14 @@
 | 26 | `lib/core/scenario/deterministic-skeleton.js` 场景事实 heading→keyPoints、检定点→branches | 原始文本经 compileByPattern 无 keyPoints/branches 时，为骨架锁定生成提供确定性节点骨架 | 检定点分支是“技能检定分支”，不是玩家选择型最终分支（v6b 实验失败主因） | 场景结构解析器输出真正的玩家选择节点；检定点只作为 checkpoint 门禁，不冒充分支 |
 | 27 | `lib/core/scenario/final-branch-extractor.js` 用“若/如果”句式 + 结局章节词表提取最终抉择分支与选项 | 为骨架锁定生成提供玩家选择型最终分支，避免 LLM 把结局挂到技能检定分支 | 句式词表启发式，长句/反问/隐喻式抉择可能漏提或误提 | 结构化场景解析 + 结局段条件句语法解析；LLM 仅在兜底时辅助 |
 | 28 | `lib/core/scenario/deep-parse.js` `extractJsonObject` / `canonicalizeDeepParse` / `repairSkeletonWiringDeepParse`；`chunked-deep-parse.js` 结局段落提取 + 最终分支出边所有权；`deep-parse-loop.js` 修复式审校回灌 | 模型无关 JSON 提取（围栏/尾逗号/平衡扫描/外壳解包）；条件对象形态折叠（not/checkpointGroups/conditions 别名/孤儿 optionLabel）；最终分支 scene 门控与结局 requires/入边确定性补齐；第 2/3 轮只修订最终分支/结局并与第 1 轮分块结果合并；`reasoning_effort` 透传避免 flash 长 prompt 空输出 | 仍是“生成后清洗+规则修复”范式：审校是 LLM 且只覆盖最终分支/结局；分块局部条件的语义质量未纳入审校回灌 | 最终分支/结局由结构化场景解析器直接生成；审校由规则/图可达性分析替代；分块条件语义由 D 阶段全量结构化后逐步移除 |
-| 29 | `lib/core/scenario/deep-parse.js` `repairDeepParseConnectivity` 主线按扁平 `order` 串链（缺出边补“继续调查”到下个主场景、缺入边从前一个主场景补入边）+ 支线/线索从最后主场景拉 hook | 为通过 preflight“未连线/缺推进边”门禁的无条件兜底边，不读结构树，会把并行幕/可选遭遇/支线拉成单链（2026-09-05 已确认是网络图单线化的主因之一） | 按 `NETWORK-TOPOLOGY.md` 实施结构树 hub-and-spoke 后处理与 `reachability` 分级门禁后，删除本串链逻辑（保留结局场景点归位等无争议部分） |
-| 30 | `lib/core/scenario/deep-parse.js` `repairDeepParseFinalWiring` 结局除 branchChoiceIds/optionLabel 外无区分条件时，用 endingKeywords/title 生成 `entryEvidence` 兜底并同步到 br→end 边 requires | 最终接线 LLM 会给条件结局生成空前置（如《两面不是人》），用叙述命中词兜底只是缓解，不是真实结构化前置 | 最终接线 prompt/模型保证每条结局有真实独有前置，或结局条件草拟确定性化（见 `PLAN.md` 待办 0 两面最终接线强化） |
+| 29 | ~~`lib/core/scenario/deep-parse.js` `repairDeepParseConnectivity` 主线按扁平 `order` 串链 + 支线/线索从最后主场景拉 hook~~ | 已删除。旧逻辑不读结构树，会把并行幕/可选遭遇/支线拉成单链 | 已由 `lib/core/scenario/topology-skeleton.js` 的结构树 hub-and-spoke/编号顺序/幕级并行后处理替代；`repairDeepParseConnectivity` 现仅保留结局场景点归位 |
+| 30 | `lib/core/scenario/deep-parse.js` `repairDeepParseFinalWiring` 结局 `requires` 没有任何区分条件（不含 branchChoiceIds/optionLabel 等）时，用 endingKeywords/title 生成 `entryEvidence` 兜底并同步到 br→end 边 requires | 最终接线 LLM 会给条件结局生成空前置（如《两面不是人》），用叙述命中词兜底只是缓解，不是真实结构化前置 | 最终接线 prompt/模型保证每条结局有真实独有前置，或结局条件草拟确定性化（见 `PLAN.md` 待办 0 两面最终接线强化）。本轮已收窄：已有 branchChoiceIds+optionLabel 的结局不再加 entryEvidence（这些词是结局发生后文本，不应作前置） |
+| 31 | `lib/core/scenario/topology-skeleton.js` `sequenceRank` / `hasSequentialTitles` 用“房间1/地点一/第一幕”等标题正则判断同级 main 子节点是否按编号顺序补边 | 结构树没有显式顺序关系字段，标题编号是仅有的确定性顺序信号；否则默认 hub-and-spoke | 结构分析输出显式 `sequence`/`actOrder` 字段后，直接读结构化顺序，删除标题正则 |
 
 
 ## 补丁现状审计（2026-09-05）
 
-**结论**：行 1–30（除已划线的行 11）对应的实现**都仍然保留并被调用**，不是文档滞后；行 11 的旧实现已删除，仅剩表内划线存档。行 29/30 为本轮 4 剧本验证后新增，行 29 已列入 `NETWORK-TOPOLOGY.md` 的退役计划。
+**结论**：行 1–31（除已划线的行 11、29）对应的实现**都仍然保留并被调用**，不是文档滞后；行 11 的旧实现已删除，行 29 的扁平串链已删除、仅存表内划线存档。行 30 本轮已收窄（已有 branchChoiceIds+optionLabel 的结局不再加 entryEvidence）；行 31 为网络拓扑保真新增。
 
 ### 可以直接删除的实现
 
@@ -64,8 +65,9 @@
 | 25 | `runDeepParsePreflight` 标题/关键词包含匹配 | 待办 #3 节点/场景实体 id 化 |
 | 27 | `final-branch-extractor` 若/如果句式 + 词表 | 待办 #3 结构化场景解析 |
 | 28 | 深度解析 loop 的生成后清洗 + LLM 审校 | 待办 0 规则化审校、分块语义审校、结构化生成 |
-| 29 | `repairDeepParseConnectivity` 扁平 order 串链 + hook | 待办 0 网络拓扑保真（`NETWORK-TOPOLOGY.md`） |
+| 29 | ~~`repairDeepParseConnectivity` 扁平 order 串链 + hook~~ | 已由 `topology-skeleton.js` 替代（网络拓扑保真） |
 | 30 | 结局 entryEvidence 兜底 | 待办 0 两面最终接线强化 |
+| 31 | `topology-skeleton.js` 标题编号顺序正则 | 待办 #3 结构分析输出显式 sequence/actOrder |
 
 ### 暂时无法替代（保留兜底）
 

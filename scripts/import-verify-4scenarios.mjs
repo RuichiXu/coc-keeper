@@ -3,11 +3,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { createHash } from "node:crypto";
-import { GameSession, AssetStore } from "../../lib/core/index.js";
-import { callLlmApi } from "../../lib/shared/llm.js";
-import { createImportToolDefs } from "../../lib/shared/tools/import.js";
-import { runDeepParsePreflight } from "../../lib/core/scenario/deep-parse.js";
-import { runDeepParseRuleReview } from "../../lib/core/scenario/deep-parse-review.js";
+import { GameSession, AssetStore } from "../lib/core/index.js";
+import { callLlmApi } from "../lib/shared/llm.js";
+import { createImportToolDefs } from "../lib/shared/tools/import.js";
+import { runDeepParsePreflight } from "../lib/core/scenario/deep-parse.js";
+import { runDeepParseRuleReview } from "../lib/core/scenario/deep-parse-review.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = join(root, "artifacts", "import-verify", "4scenarios");

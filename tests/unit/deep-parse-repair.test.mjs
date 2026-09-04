@@ -79,7 +79,7 @@ describe("Deep Parse 修复（对流 fixture）", () => {
     expect(isolated.length).toBe(0);
   });
 
-  it("连通性修复：主线缺出边补下一条主线，支线缺入边从前一主线补 hook", () => {
+  it("旧扁平串链已退役：connectivity 修复不再为主线和支线串链", () => {
     const flat = {
       keyPoints: [
         { id: "kp-1", title: "场景A", scene: "场景A", kind: "scene", flowRole: "main", order: 1 },
@@ -89,10 +89,9 @@ describe("Deep Parse 修复（对流 fixture）", () => {
       branches: [],
       deepParse: { plotEdges: [], endings: [], keyPoints: [], branches: [] },
     };
-    repairDeepParseConnectivity(flat, flat.deepParse);
-    const keys = new Set(flat.deepParse.plotEdges.map((edge) => `${edge.from}->${edge.to}`));
-    expect(keys.has("kp:kp-1->kp:kp-2")).toBeTrue();
-    expect(keys.has("kp:kp-2->kp:kp-3")).toBeTrue();
+    const repaired = repairDeepParseConnectivity(flat, flat.deepParse);
+    expect(repaired).toBe(0);
+    expect(flat.deepParse.plotEdges.length).toBe(0);
   });
 
   it("超时错误不再重试（避免超时翻倍）", () => {
