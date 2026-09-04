@@ -46,15 +46,28 @@
 
 ### 深度剧本解析（LLM）
 
-导入剧本时，插件会运行一个 **3 轮深度解析 loop**（模型与轮数可配置）：
+导入剧本时，插件会运行一个 **深度解析 loop**（≤24 块 2 轮，更长剧本 3 轮；模型与轮数可配置）：
 
 1. **确定性骨架**：场景事实 → 关键点，检定点 → 技能分支，并提取玩家选择型最终分支。
 2. **分块生成**：按场景切块生成 `keyPointConditions / branchConditions / plotEdges`；最终分支与结局单独生成。
-3. **模型无关归一化 + 修复**：`extractJsonObject` 提取 JSON，`canonicalizeDeepParse` 折叠不同模型的字段形态变体，`repairSkeletonWiringDeepParse` 补齐最终分支 scene 门控与结局 requires/入边。
-4. **四层门禁**：`runDeepParsePreflight` 结构校验 + `runDeepParseRuleReview` 规则化审校（结局互斥完备性、条件引用/矛盾、排除条件过度限制、前置循环依赖等，确定性 h0/m≤2）+ 分块语义审校（`buildChunkReviewPrompt`，逐块审校局部条件，h0/m≤2）+ LLM 最终分支/结局语义审校（只报告规则判定不了的新问题，h0/m≤2 为 B 级）。
+3. **模型无关归一化 + 修复**：`extractJsonObject` 提取 JSON，`canonicalizeDeepParse` 折叠不同模型的字段形态变体（`label/name→title`、`condition→requires` 等），`repairSkeletonWiringDeepParse` + `repairDeepParseFinalWiring` + `repairDeepParseConnectivity` 补齐最终分支/结局标题、branchCondition、选项 leadsTo、主线/支线连通边。
+4. **两档门禁**：
+   - **硬门禁（必须全绿）**：`runDeepParsePreflight` 结构校验 h0/m0、`runDeepParseRuleReview` 规则化审校 h0/m0、未连线场景点 = 0。
+   - **语义门禁（B 级）**：LLM 最终分支/结局语义审校 `review ≤ h0/m2`、分块语义审校 `chunk ≤ h0/m2`（`buildChunkReviewPrompt`，逐块审校局部条件）。
 5. **修复式修订**：第 2/3 轮把审校意见与 preflight 问题回灌给模型；有 high/medium 问题的分块只重生成对应块，最终分支/结局整体修订，不推倒重写。
 
 生成结果存为 `flat.deepParse`（draft），可通过 `coc_status` 查看；确认后由 `syncPlotGraphFromDeepParse` 汇入剧情图。
+
+**4 剧本后端验证基线（2026-09-05，`scripts/import-verify-4scenarios.mjs`）**：
+
+| 剧本 | preflight | rule | review | chunk | 未连线 | 硬门禁 |
+|---|---|---|---|---|---|---|
+| 对流（短） | 0h/0m | 0h/0m | 0h/2m | 0h/0m | 0 | ✅ |
+| 两面不是人（中） | 0h/0m | 0h/0m | 3h/0m | 0h/2m | 0 | ✅（语义门禁待最终接线强化） |
+| 盲愚之眼（中） | 0h/0m | 0h/0m | 0h/0m | 0h/1m | 0 | ✅ |
+| 星孩（长） | 0h/0m | 0h/0m | 0h/0m | 0h/1m | 0 | ✅ |
+
+> 两面不是人的语义门禁未过：复杂多结局剧本的最终接线 LLM 仍会给条件结局生成空前置，已在 `PLAN.md` 记录为下一步重点。
 
 模型配置示例（`~/.dsh/coc/config.json`）：
 
@@ -62,8 +75,9 @@
 {
   "llmModel": "deepseek-v4-flash-202605",
   "deepParse": {
-    "finalModel": "kimi-k3",
-    "finalTemperature": 1,
+    "finalModel": "deepseek-v4-flash-202605",
+    "finalTemperature": 0,
+    "finalTimeoutMs": 180000,
     "chunkConcurrency": 4,
     "maxRounds": 3,
     "reviewGate": { "high": 0, "medium": 2 },
@@ -76,8 +90,8 @@
 ```
 
 - `llmModel` 是默认模型：分块生成、审校、修订都会用它（`finalModel` 不设时最终生成也用它）。
-- `deepParse.finalModel` 只用于第 1 轮“最终分支与结局”的初始生成，之后修订仍走 `llmModel`；可换用其它强模型（如 `kimi-k3`）。
-- `deepParse` 块还支持 `chunkModel / reviewModel / revisionModel` 单独指定各阶段模型，以及 `maxRounds / chunkConcurrency / chunkMaxTokens / finalMaxTokens / reviewMaxTokens / revisionMaxTokens / chunkReasoningEffort / finalReasoningEffort / reviewReasoningEffort / revisionReasoningEffort / runReview / runChunkReview / reviewGate`。
+- `deepParse.finalModel` 只用于第 1 轮“最终分支与结局”的初始生成，之后修订仍走 `llmModel`；建议与 `llmModel` 一致并保持 `finalTemperature: 0`（温度 1 会导致最终接线输出方差过大）。
+- `deepParse` 块还支持 `chunkModel / reviewModel / revisionModel` 单独指定各阶段模型，以及 `maxRounds / chunkConcurrency / chunkMaxTokens / finalMaxTokens / finalTimeoutMs / reviewMaxTokens / revisionMaxTokens / chunkReasoningEffort / finalReasoningEffort / reviewReasoningEffort / revisionReasoningEffort / runReview / runChunkReview / reviewGate`。
 
 ## 安装
 

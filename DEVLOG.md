@@ -1709,3 +1709,24 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - `deep-parse-loop.js`：quality 额外保存 `reviewIssues / chunkIssues / ruleIssues / preflightIssues` 分通道数组。
 - `coc-api.js`：`POST /coc-api/deep-parse` 支持保存 `quality`（供面板展示与测试注入）。
 - UI 验证：ui-check 15/15；星孩v1.0 注入后截图给 kimi-k3 视觉评估——网络图完整、折叠摘要可读、展开列表可读、详情卡字段完整，结论通过。
+
+---
+
+## Session（2026-09-05）：E 阶段——4 剧本后端完整导入验证
+
+- 目标：选 4 个剧本（短《对流》+ 长《星孩》+ 中《两面不是人》《盲愚之眼》，标题结构各异）跑后端完整导入，验证通过条件 `preflight h0/m0、rule h0/m0、review ≤h0/m2、chunk h0/m0、未连线=0` 是否合理。
+- 首轮结果：preflight/未连线大量失败（对流 20h/7m、两面 7m、盲愚 5m、星孩 8m）；chunk/review 也有残留。判断 chunk h0/m0 与 review h0 过严，与用户确认后采用两档门禁（硬门禁必须全绿，语义门禁 B 级 h0/m≤2）。
+- 本轮修复（提交 `e7ff165`）：
+  - `canonicalizeDeepParse` 字段别名（`label/name→title`、`condition→requires`），保留 `autoChoose/kind`。
+  - `repairDeepParseFinalWiring` 回填最终分支/结局标题、补 branchCondition scene 门控、选项 leadsTo 指向结局标题。
+  - `repairDeepParseConnectivity` 主线纳入 `scene_event`、补非首主场景入边、排序与 preflight 开场判定对齐；preflight BFS 始终从开场主场景出发，主线缺出边排序与开场判定一致。
+  - `enrichStoryPrerequisites` 场景节点不再引用同场景检定点作前置（死锁）。
+  - 最终接线 prompt 增加结局穷尽约束；审校 prompt 澄清 `br→end` 的 `keyPointIds` 是合法推进条件；场景清单始终包含最终分支 scene；接线超时默认 180s。
+  - 配置 `deepParse.finalTemperature` 1→0（温度 1 导致最终接线方差大）。
+- 最终基线（`scripts/import-verify-4scenarios.mjs`，本地缓存 `artifacts/import-verify/4scenarios/cache`）：
+  - 对流：preflight 0h/0m、rule 0h/0m、review 0h/2m、chunk 0h/0m、未连线 0 → 两档全过。
+  - 两面不是人：preflight 0h/0m、rule 0h/0m、review 3h/0m、chunk 0h/2m、未连线 0 → 硬门禁过，语义门禁未过（最终接线空前置，审校抓对）。
+  - 盲愚之眼：preflight 0h/0m、rule 0h/0m、review 0h/0m、chunk 0h/1m、未连线 0 → 硬门禁过，语义门禁过。
+  - 星孩：preflight 0h/0m、rule 0h/0m、review 0h/0m、chunk 0h/1m、未连线 0 → 硬门禁过，语义门禁过。
+- 冷启动耗时基线：对流 493s、两面 1175s、盲愚 2178s、星孩 3982s；热缓存重跑：0/174/0/146s。
+- 结论：硬门禁 4/4 全绿；语义门禁 3/4（两面待最终接线强化）。下一步：两面最终接线强化、导入耗时优化、运行时自动裁定、KP 校对面板 6c。

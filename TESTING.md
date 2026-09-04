@@ -272,3 +272,21 @@ npm run ui-check
    不启动浏览器、不依赖真实 LLM。
 4. **新增预设时**：同时更新 `STORY_PRESET_NAMES`、`lib/client.js` 的 `DEBUG_PRESETS`，
    并补 `tests/unit/story-presets.test.mjs`。
+
+---
+
+## 十、LLM 导入验证（非自动化，真实模型）
+
+真实 LLM 深度解析不进入常规自动化测试（见第三节）。批量验证导入质量时使用：
+
+```bash
+node scripts/import-verify-4scenarios.mjs          # 全部 4 个验证剧本
+node scripts/import-verify-4scenarios.mjs 对流     # 只跑指定剧本（按 gameId/label 子串过滤）
+```
+
+- 脚本跑完整导入流程（结构窗口分析 → 深度解析 loop → 保存），保存状态与基线 JSON 到 `artifacts/import-verify/4scenarios/`。
+- LLM 调用按 `{messages, options}` 做 SHA256 缓存（`artifacts/import-verify/4scenarios/cache/`），重跑自动命中缓存。
+- 通过条件（两档）：
+  - **硬门禁（必须全绿）**：`preflight h0/m0`、`rule h0/m0`、未连线场景点 = 0。
+  - **语义门禁（B 级）**：`review ≤ h0/m2`、`chunk ≤ h0/m2`。
+- 基线数据与当前已知限制见 `PLAN.md` E 阶段与 `TECHNICAL.md` 7.5。

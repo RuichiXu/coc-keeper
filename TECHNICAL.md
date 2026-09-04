@@ -460,6 +460,35 @@ const baseUrl = cfg.apiBaseUrl || process.env.COC_API_BASE_URL || "";
 - 直接 HTTP 调用不支持流式响应（`stream: false`）
 - 需要在设置面板中手动配置 API Key（无自动检测）
 
+### 7.5 深度剧本解析（deepParse）与质量门禁
+
+**流水线**（`lib/shared/tools/import.js` → `deep-parse-loop.js` → `lib/core/scenario/*`）：
+
+```
+提取文本 → 窗口结构分析(LLM, 200行/窗, 预算24000/32000) → 确定性合并/建树
+→ enrichStoryPrerequisites（确定性草拟条件）
+→ 深度解析 loop：分块生成(并发) + 最终分支/结局生成(finalModel)
+→ canonicalizeDeepParse（字段别名折叠）→ repairDeepParseFinalWiring → repairDeepParseConnectivity
+→ runDeepParsePreflight + runDeepParseRuleReview + LLM review + chunk review
+→ 第 2/3 轮修复式修订（只修订有问题的分块 + 最终分支/结局）
+```
+
+**两档门禁**：
+
+- **硬门禁（必须全绿）**：`preflight h0/m0`、`rule h0/m0`、未连线场景点 = 0。
+- **语义门禁（B 级）**：`review ≤ h0/m2`、`chunk ≤ h0/m2`。
+
+**4 剧本后端验证基线（2026-09-05）**：
+
+| 剧本 | 字符 | preflight | rule | review | chunk | 未连线 | 硬门禁 |
+|---|---|---|---|---|---|---|---|
+| 对流（短） | 16,298 | 0h/0m | 0h/0m | 0h/2m | 0h/0m | 0 | ✅ |
+| 两面不是人（中） | 63,873 | 0h/0m | 0h/0m | 3h/0m | 0h/2m | 0 | ✅ |
+| 盲愚之眼（中） | 63,629 | 0h/0m | 0h/0m | 0h/0m | 0h/1m | 0 | ✅ |
+| 星孩（长） | 166,486 | 0h/0m | 0h/0m | 0h/0m | 0h/1m | 0 | ✅ |
+
+复跑脚本：`scripts/import-verify-4scenarios.mjs`（本地缓存目录：`artifacts/import-verify/4scenarios/cache`）。
+
 ---
 
 ## 8. 渐进式规则披露（Tools + Skills）
@@ -616,6 +645,8 @@ KP 人设 + 硬性规则（6 条）+ 3 行规则概要 + 工具列表 + 工具�
 
 | 局限 | 说明 | 建议改进方向 |
 |---|---|---|
+| **复杂多结局最终接线** | 两面不是人这类“多个条件结局 + 兜底结局”的剧本，最终接线 LLM 仍可能给条件结局生成空前置（review 3h） | 最终接线 prompt 约束 + 结局条件确定性草拟（见 `PLAN.md` 待办 0） |
+| **分块审校 medium 残留** | 分块审校的 m 级问题（补 requires/补边建议）经 3 轮修订仍可能残留，修订模型无法稳定消除 | 分块审校口径对齐确定性能力边界，或引入更强的修订模型 |
 | **文件存储** | 使用 `JSON.stringify` 写整个文件，大状态时性能差 | 改用 SQLite 或增量存储 |
 | **无用户认证** | 所有操作基于 `gameId` 字符串，无权限控制 | 添加用户/权限系统 |
 | **无 OCR** | PDF 扫描件无法提取文本 | 集成 OCR 库（如 Tesseract） |
