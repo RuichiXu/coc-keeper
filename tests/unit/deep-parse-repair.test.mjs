@@ -46,13 +46,18 @@ describe("Deep Parse 修复（对流 fixture）", () => {
     const repaired = repairDeepParseFinalWiring(flat, flat.deepParse);
     expect(repaired).toBeGreaterThan(0);
 
-    for (const id of ["br-failure-final", "br-success-final"]) {
-      const branch = flat.branches.find((candidate) => candidate.id === id);
-      expect(branch !== undefined && branch.options.length > 0).toBeTrue();
-      expect(branch.finalChoice === true).toBeTrue();
-      const dpBranch = flat.deepParse.branches.find((candidate) => candidate.id === id);
-      expect(dpBranch !== undefined && dpBranch.options.length > 0).toBeTrue();
-    }
+    const failure = flat.branches.find((candidate) => candidate.id === "br-failure-final");
+    expect(failure !== undefined && failure.autoChoose === true).toBeTrue();
+    expect(failure.options.length === 0).toBeTrue();
+    expect(failure.finalChoice !== true).toBeTrue();
+
+    const success = flat.branches.find((candidate) => candidate.id === "br-success-final");
+    expect(success !== undefined && success.options.length > 0).toBeTrue();
+    expect(success.finalChoice === true).toBeTrue();
+    const dpSuccess = flat.deepParse.branches.find((candidate) => candidate.id === "br-success-final");
+    expect(dpSuccess !== undefined && dpSuccess.options.length > 0).toBeTrue();
+    const dpFailure = flat.deepParse.branches.find((candidate) => candidate.id === "br-failure-final");
+    expect(dpFailure !== undefined && dpFailure.autoChoose === true).toBeTrue();
     for (const ending of flat.deepParse.endings) {
       expect(String(ending.branchId ?? "").length > 0).toBeTrue();
     }
