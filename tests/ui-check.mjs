@@ -80,28 +80,34 @@ function startDshWeb() {
         });
     let buffer = "";
     let port = null;
+    let url = null;
+    const finish = () => {
+      clearTimeout(timer);
+      resolve({ child, port, url: url ?? `http://127.0.0.1:${port}/` });
+    };
     const timer = setTimeout(() => {
       killTree(child);
       reject(new Error("dsh web 启动超时"));
     }, 30000);
-    child.stdout.on("data", (chunk) => {
+    const scan = (chunk) => {
       buffer += String(chunk);
-      const m = /http:\/\/127\.0\.0\.1:(\d+)/.exec(buffer);
-      if (m !== null && port === null) {
-        port = Number(m[1]);
-        clearTimeout(timer);
-        resolve({ child, port });
+      if (port === null) {
+        // 优先捕获带 token 的完整 URL（dsh web 新版要求 token 鉴权）。
+        const tokenMatch = /http:\/\/127\.0\.0\.1:(\d+)(\/[^\s"']*token=[^\s"']*)/.exec(buffer);
+        if (tokenMatch !== null) {
+          port = Number(tokenMatch[1]);
+          url = `http://127.0.0.1:${tokenMatch[1]}${tokenMatch[2]}`;
+          finish();
+          return;
+        }
+        const portMatch = /http:\/\/127\.0\.0\.1:(\d+)/.exec(buffer);
+        if (portMatch !== null) {
+          port = Number(portMatch[1]);
+        }
       }
-    });
-    child.stderr.on("data", (chunk) => {
-      buffer += String(chunk);
-      const m = /http:\/\/127\.0\.0\.1:(\d+)/.exec(buffer);
-      if (m !== null && port === null) {
-        port = Number(m[1]);
-        clearTimeout(timer);
-        resolve({ child, port });
-      }
-    });
+    };
+    child.stdout.on("data", scan);
+    child.stderr.on("data", scan);
     child.on("exit", (code) => {
       if (port === null) {
         clearTimeout(timer);
@@ -123,8 +129,8 @@ if (executablePath === null) {
 }
 console.log("chromium:", executablePath);
 
-const { child, port } = await startDshWeb();
-console.log("dsh web: http://127.0.0.1:" + port);
+const { child, port, url } = await startDshWeb();
+console.log("dsh web: " + url);
 
 const browser = await chromium.launch({ executablePath, headless: true });
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -137,7 +143,7 @@ const check = (name, ok, extra = "") => {
 try {
   page.on("dialog", async (dialog) => { await dialog.accept(); });
   page.on("pageerror", (error) => console.log("pageerror:", error.message));
-  await page.goto("http://127.0.0.1:" + port + "/", { waitUntil: "domcontentloaded", timeout: 30000 });
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
   await sleep(2500);
 
   // 1. Keeper 面板挂载
