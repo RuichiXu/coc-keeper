@@ -1,6 +1,6 @@
 # dsh-coc-keeper — 克苏鲁的呼唤（CoC）跑团插件
 
-一个 DeepSeek Harness 插件：让 AI 担任 KP（守秘人）主持克苏鲁的呼唤跑团，支持导入规则书 / 剧本（模组）/ 人物卡（含 PDF）、明骰与暗骰、随时切换 KP、关键剧情点与分支跟踪、分支提醒，并附带一个**酒馆（SillyTavern）式完整前端面板**。
+一个 DeepSeek Harness 插件：让 AI 担任 KP（守秘人）主持克苏鲁的呼唤跑团，支持导入规则书 / 剧本（模组）/ 人物卡（含 PDF）、明骰与暗骰、随时切换 KP、关键剧情点与分支跟踪、分支提醒，前端提供**主持、剧情、解析、调试四个工作区和独立玩家视图**。
 
 ## 功能
 
@@ -21,20 +21,20 @@
 | 可交互实体 | `coc_entity` | 管理 NPC / 地点 / 物品 / 组织实体（含当前状态），剧本导入可草拟 |
 | 人物状态 | `coc_pc` | 按姓名更新 HP/SAN/MP/LUCK、增减物品栏、追加备注 |
 
-### 前端面板（酒馆式，浏览器右下角）
+### 前端面板
 
-| 标签页 | 内容 |
+| 一级 Tab | 内容 |
 |---|---|
-| **聊天** | 玩家与 KP 的对话流（用户气泡 / KP 叙述 / 系统提示），输入框推进剧情（回车发送），快捷明骰/暗骰 |
-| **状态** | 剧情概述（可编辑）、KP 模式切换、当前场景、游戏内时间（+1小时/+1天/到夜晚）、玩家状态栏（HP/SAN/MP/LUCK 进度条 + 增减按钮）、物品栏（增删）、任务栏（勾选完成/删除/新增） |
-| **剧情** | 关键剧情点（一键揭示）、剧情分支（选择选项推进场景、标记抵达）、提醒（登记/触发） |
-| **人物** | 人物卡查看与编辑（职业/属性/技能/备注）、添加人物、粘贴导入人物 |
-| **实体** | 按类型分组的 NPC/地点/物品实体，编辑状态、增删 |
-| **导入** | 文件上传（PDF/DOC/DOCX/TXT/MD/JSON）或粘贴文本，自动识别类型，剧本自动草拟结构；已导入内容 + 分段阅读全文 |
+| **主持** | 对话、行动输入、快捷明骰/暗骰、待处理检定、KP 指令预览与执行 |
+| **剧情** | 状态总览（概述、场景、时间、人物数值、物品、任务）；剧情结构（关键点、分支、提醒） |
+| **解析** | 骨架总览与场景总览；搜索/筛选、缩放/平移、迷你导航；节点/边详情、质量报告、JSON 校对与确认生效 |
+| **调试** | 导入、实体、人物、卡库、运行诊断、契约、设置 |
 
-面板通过宿主 `/coc-api` 与对话工具**读写同一份游戏状态**，完全同步。
+面板通过 `/coc-api` 与对话工具读写同一份游戏状态，定时轮询更新。独立的「玩家视图」显示服务端返回的公开信息并支持输入行动；同一浏览器中的两个面板共用当前场次。
 
-**面板坞（右下角 🧩）**：所有带面板的插件统一注册到右下角的常驻面板坞，点击 🧩 弹出面板列表（名称 + 开/关状态），点击行即可打开/隐藏对应面板——面板最小化后也能从这里找回。面板支持**拖动标题栏移动**、**右下角手柄缩放**，位置与尺寸自动记忆（localStorage）。其他插件可用 `window.__dshPanelDock__.register({id, title, icon, isVisible, toggle})` 注册自己的面板。
+Keeper 支持标题栏拖动、边缘/右下角缩放、最大化及位置/尺寸记忆。右下角 **🧩 面板坞** 用于恢复最小化的面板，也可打开/隐藏玩家视图。更多菜单 **···** 集中放置重置位置与大小、删除当前场次。
+
+完整操作路径见 **[用户手册](USER_GUIDE.md)**；开发者与 agent 请读 **[前端维护指南](FRONTEND.md)**。
 
 ### 面板聊天桥（AI-KP 独立主持）
 
@@ -56,9 +56,9 @@
    - **语义门禁（B 级）**：LLM 最终分支/结局语义审校 `review ≤ h0/m2`、分块语义审校 `chunk ≤ h0/m2`（`buildChunkReviewPrompt`，逐块审校局部条件）。
 5. **修复式修订**：第 2/3 轮把审校意见与 preflight 问题回灌给模型；有 high/medium 问题的分块只重生成对应块，最终分支/结局整体修订，不推倒重写。
 
-生成结果存为 `flat.deepParse`（draft），可通过 `coc_status` 查看；确认后由 `syncPlotGraphFromDeepParse` 汇入剧情图。前端「解析」页的网络结构图支持**滚轮缩放、拖拽平移、重置缩放**；当前网络图仍偏单线，拓扑保真改造方案见 `NETWORK-TOPOLOGY.md`。
+生成结果存为 `flat.deepParse`（draft），可通过 `coc_status` 查看；确认后由 `syncPlotGraphFromDeepParse` 汇入剧情图。前端「解析」提供**骨架总览与场景总览**，保留左向右推进、金色主线、分支/汇聚、悬停线路高亮及返回角标；在检查栏中可读质量报告、编辑 JSON、保存草稿并确认生效。
 
-**4 剧本后端验证基线（2026-09-05，`scripts/import-verify-4scenarios.mjs`）**：
+**4 剧本后端历史验证基线（语义审校跳过优化之前，2026-09-05，`scripts/import-verify-4scenarios.mjs`）**：
 
 | 剧本 | preflight | rule | review | chunk | 未连线 | 硬门禁 |
 |---|---|---|---|---|---|---|
@@ -68,6 +68,8 @@
 | 星孩（长） | 0h/0m | 0h/0m | 0h/0m | 0h/1m | 0 | ✅ |
 
 > 两面不是人的语义门禁未过：复杂多结局剧本的最终接线 LLM 仍会给条件结局生成空前置，已在 `PLAN.md` 记录为下一步重点。
+
+> 当前策略：结构 preflight 与规则审校均无高/中问题时，可以跳过 LLM 语义审校和分块审校；`runReview: true` 不保证实际执行。前端计数来自保存的报告，0 条问题记录不能证明已执行审校，“确认生效”也不代表质量通过。
 
 模型配置示例（`~/.dsh/coc/config.json`）：
 
@@ -96,22 +98,24 @@
 ## 安装
 
 ```sh
-# 在插件仓库目录执行（把 coc-keeper 装进 web profile）
+# 在 coc-keeper 的父目录执行（把插件装进 web profile）
 dsh plugin --profile web add ./coc-keeper
 ```
 
-然后重启 `dsh web`（宿主与客户端插件变更都需要重启生效）。重启后：
+然后重启 `dsh web`，并刷新浏览器加载新前端。重启后：
+
 - 新会话中模型获得 `coc_*` 工具与 KP 人设；
-- 页面右下角出现「🎲 CoC 面板」（约 460×86vh，可折叠）。
+- 页面右下角出现「🎲 CoC Keeper」（默认宽度不超过 1080px / 96vw，高度不超过 900px / 90vh，可缩放与最小化）。
 
 确认生效：
 
 ```sh
-dsh --profile web --dump-config | grep coc-keeper
-curl http://127.0.0.1:3080/coc-api/status   # 应返回 JSON（未建游戏时为 data:null 提示）
+dsh --profile web --dump-config | rg coc-keeper
 ```
 
-游戏数据默认保存在 `$DSH_HOME/coc/<game-id>.json`（可在 profile 的 `cordis.patch.yml` 中通过 `coc-keeper` 行的 `config.dataDir` 覆盖）。
+浏览器使用服务启动时输出的完整 URL 访问（可能包含访问令牌）；确认 Keeper、玩家视图和四个 Tab 出现。不必假设固定端口或使用未认证的 API URL。
+
+游戏数据默认保存在 `$DSH_HOME/coc/games/<game-id>.json`（可在 profile 的 `cordis.patch.yml` 中通过 `coc-keeper` 行的 `config.dataDir` 覆盖）。
 
 ## 使用示例
 
@@ -130,12 +134,14 @@ AI：请做一次「侦查」检定。→ coc_roll(expression=d100, target=60, s
 AI：→ coc_kp(action=human)
 ```
 
-**方式二：面板**（酒馆式，适合直接开跑）
+**方式二：面板**
 
-1. 「导入」页上传剧本 PDF / DOCX / DOC / 粘贴文本 / 导入人物卡；
-2. 「状态」页设置游戏内时间与概述，确认玩家状态栏与任务栏；
-3. 「聊天」页输入行动，AI-KP 自动主持（检定自动暗骰/明骰，状态自动落地）；
-4. 「剧情」「实体」页跟进分支选择与 NPC 状态。
+1. 「调试 → 设置」检查模型连接；「调试 → 导入」准备剧本和人物卡。
+2. 标题栏「＋」打开新建场次向导：选择剧本 → 调查员 → 确认；创建后点击「进入场次」。
+3. 「剧情 → 状态总览」核对场景、人物与任务；「主持」输入行动并处理检定。
+4. 「解析」阅读网络、条件与质量报告；「调试 → 实体」管理 NPC 等公开信息。
+
+详见 [从第一次开团到日常主持的用户手册](USER_GUIDE.md)。
 
 ## 剧情结构约定
 
@@ -145,12 +151,13 @@ AI：→ coc_kp(action=human)
 - **实体**（entities）：`type` 为 npc/location/item/org/other；剧本导入按 `【NPC】`/`【地点】`/`【物品】` 标记草拟。
 - **任务**（tasks）：`status` open/done；**时间**（time）为自由文本（支持「1925年10月1日 下午3点」式解析以便快捷推进）。
 
-剧本导入时的结构提取是**草稿**，请用面板「剧情/实体」页或 `coc_branch`/`coc_entity` 校对；PDF 需为文字版（扫描件暂不支持 OCR）；DOC 为尽力提取，建议优先用 DOCX。LLM 深度解析（`flat.deepParse`）同样以 draft 落库，结构 preflight 与语义审校结果记录在 `quality` 中。
+剧本导入时的结构提取是**草稿**，请用面板「剧情 → 剧情结构」「调试 → 实体」或 `coc_branch`/`coc_entity` 校对；PDF 需为文字版（扫描件暂不支持 OCR）；DOC 为尽力提取，建议优先用 DOCX。LLM 深度解析（`flat.deepParse`）同样以 draft 落库，结构 preflight 与语义审校结果记录在 `quality` 中。
 
 ## 开发说明
 
-- 双面插件：`lib/index.js` 为宿主端（13 个工具 + 提示词/上下文 + `/coc-api` 路由 + KP 聊天桥）；`lib/client.js` 为浏览器端自包含 bundle（`window.__ModuleLoader__.load` 注册，纯 DOM + fetch，无裸导入，无需前端构建管线）。
+- 共享业务位于 `lib/shared/`，DSH/Cordis 适配位于 `lib/adapter/`，`lib/index.js` 保持宿主入口兼容；`lib/client.js` 为浏览器端自包含 bundle（`window.__ModuleLoader__.load` 注册，纯 DOM + fetch，无裸导入，无需前端构建管线）。
 - 依赖：`pdf-parse`（PDF 文本提取）；peer 依赖 `@deepseek-ai/dsh-tools`、`@deepseek-ai/dsh-llm`、`@deepseek-ai/schemastery`、`@deepseek-ai/cordis` 由运行环境提供。
+- 文档入口：[开发约定](AGENTS.md)、[前端维护指南](FRONTEND.md)、[测试规范](TESTING.md)、[用户手册](USER_GUIDE.md)。
 - 后端全量测试：`node tests/run-tests.mjs`（含 unit / integration / scenarios / e2e / replay）。只改后端内容时不用跑 ui-check；动了 client/DSH adapter 再跑 `npm run ui-check`。
 - `/coc-api`（含聊天桥与真实 LLM 调用、暗骰纪律、骰点持久化）已在真实启动的 web profile 上端到端验证。
 

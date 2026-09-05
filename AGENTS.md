@@ -13,7 +13,8 @@
 | 功能开发、重构、架构调整 | `PLAN.md`（当前开发计划） |
 | 编写测试、测试策略调整、Bug 修复后的回归测试 | `TESTING.md`（测试要求文档） |
 | 理解技术细节、数据流、已知问题 | `TECHNICAL.md`（技术文档） |
-| 了解项目功能与使用方式 | `README.md` |
+| 前端功能、布局、网络图、交互维护 | `FRONTEND.md`（当前实现与约束） |
+| 了解项目功能与使用方式、更新用户说明 | `README.md`、`USER_GUIDE.md` |
 
 **阅读顺序建议**：
 
@@ -21,6 +22,7 @@
 2. `PLAN.md` — 了解当前在做什么、下一步做什么
 3. `TECHNICAL.md` — 了解技术细节
 4. `TESTING.md` — 了解如何测试
+5. 涉及前端时，读 `FRONTEND.md` 与 `USER_GUIDE.md` — 核对实现边界与实际操作路径
 
 ---
 
@@ -82,4 +84,6 @@
 - `TESTING.md` — 测试规范与要求
 - `PLAN.md` — 开发计划
 - `TECHNICAL.md` — 技术文档
+- [FRONTEND.md](FRONTEND.md) — 当前前端架构、网络图语义、性能与生命周期
+- [USER_GUIDE.md](USER_GUIDE.md) — 用户操作手册
 - `DEVLOG.md` — 开发日志

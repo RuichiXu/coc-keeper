@@ -1,7 +1,7 @@
 # dsh-coc-keeper 开发计划
 
 > 当前版本：0.2.0（package.json）
-> 最后更新：2026-09-05（E 阶段导入解析 4 剧本验证完成，已合并 `main` 并推送远端）
+> 最后更新：2026-09-05（前端重构已合并 main，前端文档按 `228e32f` 同步）
 
 ---
 
@@ -14,6 +14,8 @@
   - 分块生成 loop + 模型无关 JSON 提取/归一化/确定性修复 + 修复式审校回灌。
   - 现有 5 剧本 + 隐藏新剧本门禁 3 个全部达到 B 级（审校 h0/m≤2）。
 - **E 导入解析验证** ✅ 4 剧本后端完整导入基线（见下）。
+- **F 前端重构** ✅ 已合并：四个工作区、两种网络总览、检查栏、搜索/结局导航、JSON 校对闭环、玩家视图与面板坞。实现与维护约束见 [FRONTEND.md](FRONTEND.md)，操作见 [USER_GUIDE.md](USER_GUIDE.md)。
+- **审校耗时优化** ✅ `43a8680` 已合并：确定性 preflight 与规则审校均无 high/medium 时跳过 LLM 语义审校和分块审校；保存的零值不代表审校实际执行。前端已保留这一说明。
 - **下一步**：见下方「当前待办」。
 
 ---
@@ -30,7 +32,7 @@
 - `lib/shared/tools/deep-parse-loop.js`：3 轮 loop；第 1 轮分块 + 最终生成（可配强模型），第 2/3 轮对同一份最终分支/结局草稿做修复式修订（默认廉价模型），审校问题回灌。
 - `scripts/`：离线评测与审校脚本（`run-deep-parse-loop` / `run-final-wiring` / `review-deep-parse` / `deep-parse-preflight` 等）。
 
-### B 级门禁结果
+### B 级门禁结果（历史运行）
 
 | 类别 | 剧本 | 结果 |
 |---|---|---|
@@ -41,6 +43,8 @@
 ---
 
 ## E 阶段：4 剧本后端完整导入验证（2026-09-05）
+
+> 本节为语义审校跳过优化之前的历史运行记录；不能据此推断当前重新导入的耗时、问题数或语义审校执行情况。
 
 用 `scripts/import-verify-4scenarios.mjs` 对 4 个剧本（短/中/长，不同标题结构）跑完整后端导入（结构分析 → 深度解析 loop → 保存 → 重算 preflight/rule/isolated），基线：
 
@@ -69,17 +73,16 @@
 ## 当前待办（下一步）
 
 0. **E 后续（本次验证后新增）**：
-   - **网络拓扑保真（最高优先级）**：当前剧情网络过于单线，按 `NETWORK-TOPOLOGY.md` 实施——节点 `reachability` 属性（strict/conditional/optional）、条件可达闭包、结构树 hub-and-spoke 确定性后处理、`fallback` 边标记、退役扁平 order 串链、preflight 分级判定。目标：硬门禁仍全绿，且《星孩》等剧本的并行幕/可选遭遇/支线不再被拉成单链。
+   - **网络拓扑保真后续验证**：前端已实现骨架/场景总览、分支/汇聚、金色主线、hover 线路与返回角标。后端的结构生成、条件可达和兜底连接继续按实际代码与样本验证；[NETWORK-TOPOLOGY.md](NETWORK-TOPOLOGY.md) 保留设计依据，不能把整份讨论稿当作尚未实施的任务清单。
    - **两面最终接线强化**：复杂多结局剧本的最终接线 LLM 会给条件结局生成空前置。方向：最终接线 prompt 增加“每条结局必须有至少一个独有前置，否则降级为单一最终分支+多选项”；或把结局条件草拟做成确定性步骤（从结局段落抽取互斥条件词），LLM 只做映射。
-   - **导入耗时优化**：冷启动基线 对流 493s / 两面 1175s / 盲愚 2178s / 星孩 3982s，大头在结构窗口（慢）与分块审校（块数多）。方向：结构窗口并发/缓存、分块审校只审有内容块（已做）+ 廉价模型 + 缩短 review 轮次。
+   - **导入耗时优化后续**：历史冷启动基线为对流 493s / 两面 1175s / 盲愚 2178s / 星孩 3982s。确定性检查干净时跳过语义审校已完成；下一步重新记录新策略下的耗时与实际执行阶段，再评估结构窗口并发/缓存等优化。
    - **运行时自动裁定**：`ending.kind="auto"` 的导入侧标记已完成，运行时“条件命中→自动落结局”的状态机仍需实现。
-   - **KP 校对面板 6c**：编辑模式 + 确认生效闭环。
 1. **多最终分支互斥建模** ✅ 已完成：已交付确定性互斥机制（缺口检测 + 自动补 `not.keyPointIds` + 同 scene 去重 + 分支标题场景保留 + 边/结局 requires 同步 + R5b 门控与本分支出边冲突检查）。星孩v1.0 复跑验证（43 块，1040s，3 轮）：最终审校 h0/m0、分块审校 h0/m0、规则审校 h0/m0、preflight h0/m30（leadsTo 指向 ending id、部分检定点分支/关键点不可达等体验项，不阻塞），pass=true，B 级达成。
-2. **分块局部条件语义审校** ✅ 已完成：新增 `buildChunkReviewPrompt / buildChunkRevisionPrompt`，loop 第 1 轮对全部有内容的分块跑语义审校（廉价模型、并发、低 reasoning），第 2/3 轮只复审并修复有 high/medium 问题的分块（其余分块保持第 1 轮定稿），分块审校计入 pass 门禁（chunkHigh=0 且 chunkMedium≤2）。真实剧本验证：2001：太空漫游 3 轮 pass（最终审校 h0/m0，分块审校 h0/m0，规则 h0/m1）。
+2. **分块局部条件语义审校** ✅ 已完成：新增 `buildChunkReviewPrompt / buildChunkRevisionPrompt`，需要执行语义审校时，loop 第 1 轮对全部有内容的分块跑语义审校（廉价模型、并发、低 reasoning），第 2/3 轮只复审并修复有 high/medium 问题的分块（其余分块保持第 1 轮定稿），分块审校计入 pass 门禁（chunkHigh=0 且 chunkMedium≤2）。真实剧本验证：2001：太空漫游 3 轮 pass（最终审校 h0/m0，分块审校 h0/m0，规则 h0/m1）。
 3. **场景实体化**：`currentScene` 是字符串匹配，同名场景标题无法区分；`final-branch-extractor` 与 `inferSceneTransition` 仍是启发式，替换方向见 `PATCHES.md` 行 21/26/27。
-4. **审校稳定性** ✅ 已完成：新增 `runDeepParseRuleReview`（`lib/core/scenario/deep-parse-review.js`）确定性规则化审校——条件引用存在性、条件自相矛盾、结局互斥完备性（optionLabel/requires 重复、选项覆盖）、`not.keyPointIds` 过度限制、分支门控与本分支结局冲突、结局 scene 与最终分支 scene 一致性、结局前置关键点循环依赖（只能在抉择后到达的 kp 不能作前置）、入边 requires 与结局 requires 一致性、结局关键词缺失。loop 现为「preflight + 规则化审校 + LLM 审校」三层门禁：规则审校 h0/m≤2 且 LLM 审校 h0/m≤2 才 pass；LLM 审校 prompt 被告知不重复报告规则审校已判问题，修订 prompt 回灌规则审校问题。
+4. **审校稳定性** ✅ 已完成：新增 `runDeepParseRuleReview`（`lib/core/scenario/deep-parse-review.js`）确定性规则化审校——条件引用存在性、条件自相矛盾、结局互斥完备性（optionLabel/requires 重复、选项覆盖）、`not.keyPointIds` 过度限制、分支门控与本分支结局冲突、结局 scene 与最终分支 scene 一致性、结局前置关键点循环依赖（只能在抉择后到达的 kp 不能作前置）、入边 requires 与结局 requires 一致性、结局关键词缺失。引入时使用「preflight + 规则化审校 + LLM 审校」三层门禁（当前干净数据跳过策略见状态总览）：规则审校 h0/m≤2 且 LLM 审校 h0/m≤2 才 pass；LLM 审校 prompt 被告知不重复报告规则审校已判问题，修订 prompt 回灌规则审校问题。
 5. **收尾清理** ✅ 已完成：`.gitignore` 加入 `/artifacts/`、`/scenarios/`、`/tests/fixtures/hidden_scenarios/`；决定隐藏门禁 PDF 不入库（体积 0.6–11MB、不参与自动化测试，`tests/fixtures/README.md` 说明本地目录结构与复跑方式）；删除本地 `exp/deep-parse-quality-0045` 分支（远端本就不存在）；README 补充 `deepParse` 推荐配置与全部 loopOptions 说明。
-6. **KP 校对面板** 🔄 进行中：6a/6b 已交付——「解析」Tab 含 SVG 网络拓扑（场景条带布局、折叠检定分支、聚焦最终结局、搜索/筛选）+ DOM 节点/边详情卡（条件 chips 化、keyPointConditions/branchConditions 挂载条件展示、结局卡片）+ 可折叠审校/门禁问题面板（severity 筛选、通道标注、problem→suggestion）。解析页自动隐藏聊天/快速掷骰区。另修复 `canonicalizeDeepParse` 边端点归一化去重、`POST /coc-api/deep-parse` 改走 canonicalize 并支持保存 quality。待办 6c（编辑模式 + 确认生效闭环）仍待做。
+6. **KP 校对面板与前端重构** ✅ 已完成并合并（`a7af183`、`fdb308b`）：骨架总览/场景总览、搜索/筛选、结局导航、节点/边详情、质量与来源展示、JSON 保存草稿/确认生效和结构编辑均可达。四个一级工作区与调试子导航已重组；删除演化视图、旧条带布局与无入口状态。6c 交付形式是 JSON 校对闭环，没有拖拽改拓扑的图形编辑器。当前 smoke 覆盖 28 项，另有星孩/两面双视图浏览器验收要求，见 [TESTING.md](TESTING.md)。
 
 ---
 
@@ -96,7 +99,7 @@
 
 1. 读 `AGENTS.md`（开发约定）与 `TESTING.md`（测试要求）。
 2. `lib/shared/` 与 `lib/core/` 必须 DSH-free。
-3. 不要改变现有 `/coc-api` 接口与 JSON 结构；调试面板只做增量。
+3. 不要改变现有 `/coc-api` 接口与 JSON 结构；前端布局与交互按 [FRONTEND.md](FRONTEND.md) 维护，功能重组时同步用户手册与测试。
 4. 启发式补丁必须登记 `PATCHES.md`，并写明替换方向。
 5. 只改后端内容时不用跑 ui-check；动了 client/DSH adapter 再跑。提交不包含 `node_modules` / 数据目录 / `artifacts/` / `scenarios/`。
 

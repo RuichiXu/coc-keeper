@@ -1,5 +1,7 @@
 # dsh-coc-keeper 技术文档
 
+> **维护范围**：2026-09-05 按 `main`（`228e32f`）更新前端与共享加载边界。当前前端以 [FRONTEND.md](FRONTEND.md) 为准，操作路径见 [USER_GUIDE.md](USER_GUIDE.md)。本文第 4 节和附录中的旧宿主函数/行号为历史索引，其他后端细节并未在本次文档更新中逐项重验；实现已迁往 `lib/core/`、`lib/shared/`、`lib/adapter/`，修改前须查实际源码。
+>
 > **目标**：为重构 Agent 提供完整的代码库分析，包括架构、数据流、关键实现细节、已知问题及可移植性评估。
 
 ---
@@ -16,7 +18,7 @@
 8. [渐进式规则披露（Tools + Skills）](#8-渐进式规则披露tools--skills)
 9. [关键技术细节](#9-关键技术细节)
 10. [已知问题与坑](#10-已知问题与坑)
-11. [可移植性评估](#11-可移植性评估)
+11. [可移植性与共享前端](#11-可移植性与共享前端)
 12. [文件清单](#12-文件清单)
 
 ---
@@ -28,44 +30,40 @@
 | 包名 | `@dsh-external/dsh-coc-keeper` |
 | 当前版本 | `v0.2.0` |
 | 类型 | DSH 双面插件（宿主端 + 浏览器端） |
-| 宿主端入口 | `lib/index.js`（2780 行） |
-| 浏览器端入口 | `lib/client.js`（1491 行） |
+| 宿主端入口 | `lib/index.js`（兼容导出，装配位于 `lib/adapter/plugin.js`） |
+| 浏览器端入口 | `lib/client.js`（DSH 与独立网页版共用的唯一源码） |
 | 内置规则 | `lib/rules-content.json`（5968 字符，342 行） |
 | 自测文件 | `tests/selftest.mjs`（178 行） |
 | 装配方式 | DSH bundle patch（`cordis.patch.yml`） |
-| 数据存储 | `~/.dsh/coc/<gameId>.json`（JSON 文件） |
+| 数据存储 | `~/.dsh/coc/games/<gameId>.json`（JSON 文件） |
 | LLM 配置 | `~/.dsh/coc/config.json`（前端设置面板保存） |
 
 ---
 
 ## 2. 架构总览
 
-### 2.1 两层架构
+### 2.1 当前共享架构
 
+```text
+lib/core/                    规则、结构化状态、剧情图
+    ↑
+lib/shared/                  工具、主持循环、导入、通用 API
+    ↑                              ↑
+lib/adapter/                 standalone/
+DSH/Cordis 装配              独立 HTTP 服务与登录
+    ↓                              ↓
+                   /coc-api
+                       ↓
+                lib/client.js
+   Keeper：主持 / 剧情 / 解析 / 调试
+   玩家视图 + 新建场次向导 + 面板坞
 ```
-┌─────────────────────────────────────────────────┐
-│  DSH 宿主（Node.js）                             │
-│                                                  │
-│  apply(ctx, config)                              │
-│  ├─ ctx.tools.register(def) — 注册 14 个 coc_* 工具│
-│  ├─ ctx.systemPrompt.section() — KP 人设提示词    │
-│  ├─ ctx.systemPrompt.context() — 实时状态快照     │
-│  ├─ ctx.inject(["webServer"], ...) — HTTP 路由    │
-│  │   └─ /coc-api/* (GET/POST)                    │
-│  ├─ runKpTurn() — 面板聊天桥（KP 迷你循环）        │
-│  └─ streamBlocks() — LLM 调用封装                 │
-├─────────────────────────────────────────────────┤
-│  DSH 浏览器（前端面板）                           │
-│                                                  │
-│  window.__ModuleLoader__.load()                   │
-│  └─ mountPanel()                                 │
-│      ├─ 酒馆式浮窗（右下角）                       │
-│      ├─ 7 个标签页：聊天/状态/剧情/人物/实体/导入/设置│
-│      └─ 通过 /coc-api 与宿主通信                  │
-└─────────────────────────────────────────────────┘
-```
+
+前端以 `window.__ModuleLoader__.load` 注册；独立网页版提供兼容加载器，直接服务同一文件。共享业务与 Core 不引入 DSH 依赖。前端细分职责及生命周期见 [FRONTEND.md](FRONTEND.md)。
 
 ### 2.2 数据流
+
+以下保留聊天桥的概念流程，具体签名与工具执行入口以 `lib/shared/chat/` 为准。
 
 ```
 用户输入（面板聊天区）
@@ -192,6 +190,8 @@ interface Reminder {
 
 ## 4. 宿主端索引（lib/index.js）
 
+> **历史索引**：以下函数表与行号描述旧单体实现，不能用于定位当前 `lib/index.js`。当前入口仅转导出 Adapter；旧实现保留在 `lib/legacy-index.js`，通用 API 已迁入 `lib/shared/api/coc-api.js`。
+
 ### 4.1 文件结构（按区域）
 
 | 行号 | 区域 | 说明 |
@@ -303,7 +303,7 @@ interface Reminder {
 
 ### 4.5 HTTP API 路由
 
-前缀 `/coc-api`，注册在 `webServer` 上（仅 web profile 存在）。
+前缀 `/coc-api`；DSH web profile 与独立网页版接入共享实现。下表是历史路由子集，不是完整清单；场次、资产、玩家视图、解析、结构、契约等当前路由见 `lib/shared/api/coc-api.js`，前端调用约定见 [FRONTEND.md](FRONTEND.md)。
 
 **GET 路由：**
 | 路径 | 功能 |
@@ -333,54 +333,38 @@ interface Reminder {
 
 ## 5. 浏览器端面板（lib/client.js）
 
-### 5.1 架构
+本节只保留全局概览，详细实现与维护约束统一维护在 **[FRONTEND.md](FRONTEND.md)**，避免重复的行号与旧导航长期失效。
 
-- **自包含 IIFE**：`(function() { ... })()` 通过 `window.__ModuleLoader__.load()` 注册
-- **无裸导入**：纯 DOM + fetch，不需要前端构建工具
-- **通信方式**：`/coc-api` HTTP 接口（POST JSON）
+### 5.1 加载与布局
 
-### 5.2 面板布局
+唯一前端是原生 DOM 的单文件 IIFE；无裸导入、`require()` 或构建工具。`exports.apply` 挂载 Keeper 与玩家面板并注册清理。DSH 客户端加载该文件，独立网页版由 `standalone/public/index.html` 的加载器兼容同一模块。
 
-```
-┌──────────────────────────────────┐
-│  [🎲 CoC 面板]  [游戏ID] [⟳] [🗕] │ ← 头部（可拖动）
-├──────────────────────────────────┤
-│  聊天区（flex: 1）               │
-│  ┌──────────────────────────┐    │
-│  │ KP 气泡                   │    │
-│  │ 用户气泡                   │    │
-│  │ ...                       │    │
-│  └──────────────────────────┘    │
-├─ 可拖拽分隔条 ────────────────────┤
-│  输入区                          │
-│  [textarea] [发送]               │
-│  [d100] [目标值] [常规] [说明]    │
-│  [🎲明骰] [🔒暗骰]               │
-├──────────────────────────────────┤
-│ [聊天] [状态] [剧情] [人物] [实体] [导入] [设置] │
-└──────────────────────────────────┘
-```
+Keeper 默认宽度不超过 1080px / 96vw、高度不超过 900px / 90vh，支持拖动、缩放、最大化、重置与最小化；位置、尺寸、场次和一级 Tab 通过 localStorage 记忆。面板坞统一管理显隐。窄面板使用容器断点调整分栏，解析检查栏可折叠。
 
-### 5.3 7 个标签页
+### 5.2 四个工作区
 
-| 标签 | 面板函数 | 功能 |
-|---|---|---|
-| 聊天 | 内联 | 对话流 + 输入 + 快捷掷骰 |
-| 状态 | `renderStatusPanel()` | 剧情概述编辑、KP 模式切换、场景/时间、玩家 HP/SAN/MP 进度条、物品栏、任务栏 |
-| 剧情 | `renderPlotPanel()` | 关键剧情点（揭示按钮）、分支（选择按钮）、提醒 |
-| 人物 | `renderCharsPanel()` | 人物卡查看编辑、添加人物、粘贴导入 |
-| 实体 | `renderEntsPanel()` | NPC/地点/物品分组展示、状态编辑、增删 |
-| 导入 | `renderImportPanel()` | 文件上传/粘贴、进度条、已导入内容、阅读全文 |
-| 设置 | `renderSettingsPanel()` | LLM API 配置（provider/model/apiKey/baseUrl）、预设按钮、测试连接、内置规则重新导入 |
+| Tab | 核心内容 |
+|---|---|
+| 主持 `dm` | 对话、输入与快捷骰；待处理检定、KP 指令预览/执行 |
+| 剧情 `plot` | 状态总览、剧情结构 |
+| 解析 `net` | 骨架总览、场景总览、搜索/筛选、缩放/平移、迷你导航与检查栏 |
+| 调试 `debug` | 导入、实体、人物、卡库、运行、契约、设置 |
 
-### 5.4 关键前端特性
+新建场次向导有三个准备步骤和创建后的开场白页。玩家视图消费 `/coc-api/player-view` 的公开投影，和 Keeper 共用当前场次；它不是独立的前端权限边界。
 
-- **面板坞系统**：右下角 🧩 常驻按钮，统一管理所有插件面板的显隐
-- **位置/尺寸记忆**：localStorage 存储面板位置和尺寸
-- **拖动/缩放**：标题栏拖动、四边+右下角缩放
-- **可拖拽分隔条**：调整聊天区与输入区比例
-- **SSE 流式导入**：`/coc-api/import` 的 SSE 流式进度条
-- **轮询**：每 2.5 秒自动轮询 `/coc-api/state` 获取最新状态
+### 5.3 网络渲染与状态流
+
+`createNetModel` 建索引与边表 → `createNetLayout` / 两个 view builder 计算展示投影与坐标 → `paintNetSvg` 批量生成 SVG → `bindNetViewport` 统一交互。主线金色、左向右推进、分支/汇聚、场景聚合、hover 高亮及返回角标均保留。
+
+布局按视图缓存；筛选只更新样式与结果列表；指针事件委托到视口并利用邻接索引；缩放/平移合并到动画帧。检查栏包含节点/边详情、质量与来源、显示选项、深度解析 JSON 校对和结构编辑。质量计数为保存记录，零值与确认状态均不能证明执行过语义审校。
+
+Keeper 约 2.5 秒轮询状态，玩家约 3 秒轮询公开视图；请求序号和场次检查避免旧回包覆盖新场次。重绘和销毁需释放事件、定时器、动画帧及 `ResizeObserver`。
+
+### 5.4 验证与迁移
+
+运行语法检查、当前 28 项 UI 冒烟与 58 个测试文件；网络相关变更还要跑星孩/两面两种视图的真实浏览器探针。命令、测试限制与计时口径见 [TESTING.md](TESTING.md)。
+
+旧七 Tab、演化视图、场景条带与聚焦最终结局开关不再是当前 UI 约定。新操作路径见 [USER_GUIDE.md](USER_GUIDE.md)，不要据历史截图恢复已合并的入口。
 
 ---
 
@@ -469,7 +453,8 @@ const baseUrl = cfg.apiBaseUrl || process.env.COC_API_BASE_URL || "";
 → enrichStoryPrerequisites（确定性草拟条件）
 → 深度解析 loop：分块生成(并发) + 最终分支/结局生成(finalModel)
 → canonicalizeDeepParse（字段别名折叠）→ repairDeepParseFinalWiring → repairDeepParseConnectivity
-→ runDeepParsePreflight + runDeepParseRuleReview + LLM review + chunk review
+→ runDeepParsePreflight + runDeepParseRuleReview
+→ 确定性检查干净则跳过语义审校，否则按配置执行 LLM review / chunk review
 → 第 2/3 轮修复式修订（只修订有问题的分块 + 最终分支/结局）
 ```
 
@@ -478,7 +463,9 @@ const baseUrl = cfg.apiBaseUrl || process.env.COC_API_BASE_URL || "";
 - **硬门禁（必须全绿）**：`preflight h0/m0`、`rule h0/m0`、未连线场景点 = 0。
 - **语义门禁（B 级）**：`review ≤ h0/m2`、`chunk ≤ h0/m2`。
 
-**4 剧本后端验证基线（2026-09-05）**：
+**当前审校执行策略**：`43a8680` 起，preflight 与规则审校均无 high/medium 时可跳过语义审校；`runReview: true` 不强制执行。`quality` 的零值不能说明模型已经审过，前端必须展示这一数据局限。
+
+**4 剧本后端历史验证基线（2026-09-05，跳过优化之前）**：
 
 | 剧本 | 字符 | preflight | rule | review | chunk | 未连线 | 硬门禁 |
 |---|---|---|---|---|---|---|---|
@@ -659,82 +646,55 @@ KP 人设 + 硬性规则（6 条）+ 3 行规则概要 + 工具列表 + 工具�
 
 ---
 
-## 11. 可移植性评估
+## 11. 可移植性与共享前端
 
-### 11.1 可移植模块
+独立网页版已经存在，旧的“另起前端、替换加载器为 ESM/CommonJS、复制样式与 DOM”建议不再适用。两个宿主共同加载 `lib/client.js`，保持 `/coc-api` 的调用和数据结构兼容。
 
-| 模块 | 文件位置 | 行号 | 耦合度 | 可移植性 |
-|---|---|---|---|---|
-| 骰点引擎 | `lib/index.js` | 154-226 | 无外部依赖 | **高** — 纯函数，可直接复制使用 |
-| DOCX 文本提取 | `lib/index.js` | 282-364 | 仅 `fs` + `zlib` | **高** — 唯一依赖是 Node.js 内置模块 |
-| 人物解析 | `lib/index.js` | 422-502 | 无 | **高** — 纯解析函数 |
-| 时间推进 | `lib/index.js` | 128-151 | 无 | **高** — 纯函数 |
-| 时间格式化 | `lib/client.js` | 57-60 | 无 | **高** — 纯函数 |
-| 状态管理 | `lib/index.js` | 48-127 | 仅 `fs` | **中** — 文件读写逻辑可替换为其他存储 |
-| 内置规则内容 | `lib/rules-content.json` | 全部 | 无 | **高** — 纯 JSON 数据 |
-| 战斗结算逻辑 | `lib/index.js` | 1281-1457 | 依赖于状态模型 | **中** — 逻辑可复用，但需要适配数据模型 |
-| SAN 损失逻辑 | `lib/index.js` | 1150-1258 | 依赖于状态模型 | **中** — 同上 |
-| SSE 进度报告 | `lib/index.js` | 2207-2217 | HTTP 响应 | **中** — 标准 SSE 模式，可移植 |
-| 前端面板样式 | `lib/client.js` | 66-150 | 纯 CSS | **高** — 可直接复制 |
-| 前端面板 DOM 结构 | `lib/client.js` | 364-510 | 纯 DOM 操作 | **高** — 可直接复制 |
+| 组件 | 当前边界 |
+|---|---|
+| 规则与状态 | `lib/core/`，保持 DSH-free |
+| 工具、主持、导入、API | `lib/shared/`，两个宿主复用 |
+| DSH 专属装配与 LLM 适配 | `lib/adapter/`，由 `lib/index.js` 兼容导出 |
+| 独立服务与加载页面 | `standalone/`；服务端提供兼容 API，页面提供现有模块加载器 shim |
+| 前端样式、DOM、网络图 | `lib/client.js`；文件内拆分职责，不复制成第二套实现 |
+| 面板坞 | 前端现有 `window.__dshPanelDock__` 注册接口，保留两个面板的显隐与销毁逻辑 |
+| 导入流式进度 | 浏览器 `fetch` / `ReadableStream`，保持接口格式 |
 
-### 11.2 不可移植/需改造的模块
-
-| 模块 | 原因 | 改造建议 |
-|---|---|---|
-| 工具注册 | 使用 `@deepseek-ai/dsh-tools` 的 `defineTool` | 替换为 `function(args, ctx)` 模式 |
-| `streamBlocks` | 依赖 `ctx.get("llm")` 和 `BlockAssembler` | 替换为 `fetch` 直接调用 LLM API |
-| `runKpTurn` | 依赖 `streamBlocks` 和工具注册系统 | 重写为独立循环（消息构建 → LLM → 工具执行 → 循环） |
-| HTTP API 路由 | 依赖 `webServer` inject | 替换为 Express/Koa/Fastify 路由 |
-| 前端 `__ModuleLoader__` | DSH 特有模块加载机制 | 替换为标准 ESM/CommonJS 或 UMD |
-| 前端 `window.__dshPanelDock__` | DSH 面板坞系统 | 移除或替换为自己的面板管理 |
-| SSE 流式导入前端 | 依赖 `fetch` + `ReadableStream` | 标准 API，但需要适配后端接口 |
-
-### 11.3 推荐可移植的子集
-
-如果重构为独立应用（非 DSH 插件），建议优先移植：
-
-1. **核心规则引擎**：`evaluateCoC`, `performRoll`, `parseDiceExpression`
-2. **DOCX 提取器**：`readZipEntry`, `extractDocxText`
-3. **人物解析器**：`parseCharacters`, `normalizeCharacter`
-4. **内置规则内容**：`rules-content.json`
-5. **战斗/SAN 逻辑**：`coc_sanity_check`, `coc_combat_resolve` 的内部逻辑
-6. **前端样式**：CSS 样式列表（`STYLE` 数组）
+新前端功能应在两个入口复用；涉及宿主差异时先确认 [AGENTS.md](AGENTS.md) 的改动边界。加载与生命周期细节见 [FRONTEND.md](FRONTEND.md)，独立服务启动见 [standalone/README.md](standalone/README.md)。
 
 ---
 
 ## 12. 文件清单
 
-```
-/Users/eeo/Documents/deepseek harness/coc-keeper/
-├── package.json          # 插件元信息（v0.2.0）
-├── cordis.patch.yml      # DSH 装配 patch
-├── README.md             # 使用文档
-├── DEVLOG.md             # 开发日志（300 行）
-├── TECHNICAL.md          # 本文档
+```text
+coc-keeper/
+├── AGENTS.md / AGENTS.local.md  # 开发与本地输出约定
+├── README.md                   # 项目概览与启动
+├── USER_GUIDE.md               # 用户操作手册
+├── FRONTEND.md                 # 当前前端开发与维护指南
+├── TECHNICAL.md / TESTING.md    # 全局技术背景与测试规范
+├── PLAN.md / DEVLOG.md         # 计划与历史记录
 ├── lib/
-│   ├── index.js          # 宿主端（2780 行）
-│   ├── index.js.bak      # 备份
-│   ├── client.js         # 浏览器端（1491 行）
-│   └── rules-content.json # 内置规则（5968 字符）
+│   ├── index.js                # Adapter 兼容导出
+│   ├── client.js               # 唯一共享前端
+│   ├── core/                   # 规则与结构化状态
+│   ├── shared/                 # 共享业务和 API
+│   ├── adapter/                # DSH/Cordis 适配
+│   └── legacy-index.js         # 过渡期旧实现
+├── standalone/                 # 独立服务和前端加载页
 └── tests/
-    ├── selftest.mjs      # 自测（178 行）
-    └── 墨渊V1.1.docx     # 测试剧本
+    ├── run-tests.mjs           # 全量自动测试
+    ├── ui-check.mjs            # DSH 真实启动的 UI 冒烟
+    └── tmp/                    # 本地临时探针，已忽略，不保证存在
 ```
 
-### 数据文件（运行时生成）
-
-```
-~/.dsh/coc/
-├── config.json            # LLM API 配置（前端设置面板保存）
-├── default.json           # 默认游戏状态
-├── <gameId>.json          # 其他游戏状态
-└── tmp/                   # 导入临时文件
-```
+运行数据在配置的 `dataDir` 下（DSH 默认 `$DSH_HOME/coc`，独立版可设 `COC_DATA_DIR`）：`games/<gameId>.json` 是场次，`assets/` 是共享资产，`config.json` 是模型配置。数据、配置与临时产物不提交。
 
 ---
 
 ## 附录：关键代码片段速查
+
+> 以下为旧单体实现的历史示例。新增工具与路由请依据当前 shared/adapter 实现，不能直接把主逻辑写回 `lib/index.js`。
 
 ### A. 注册一个新工具的模式
 
