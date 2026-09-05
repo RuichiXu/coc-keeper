@@ -130,11 +130,12 @@ if (executablePath === null) {
 console.log("chromium:", executablePath);
 
 const { child, port, url } = await startDshWeb();
-console.log("dsh web: " + url);
+console.log("dsh web: port " + port);
 
 const browser = await chromium.launch({ executablePath, headless: true });
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const results = [];
+const pageErrors = [];
 const check = (name, ok, extra = "") => {
   results.push({ name, ok, extra });
   console.log((ok ? "✓" : "✗") + " " + name + (extra ? " — " + extra : ""));
@@ -142,13 +143,28 @@ const check = (name, ok, extra = "") => {
 
 try {
   page.on("dialog", async (dialog) => { await dialog.accept(); });
-  page.on("pageerror", (error) => console.log("pageerror:", error.message));
+  page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
   await sleep(2500);
 
   // 1. Keeper 面板挂载
   const keeper = await page.$("#coc-keeper-panel");
   check("Keeper 面板挂载", keeper !== null);
+
+  // 四个工作区均使用真实点击，并验证专属内容可见。
+  for (const [label, key] of [["主持", "dm"], ["剧情", "plot"], ["解析", "net"], ["调试", "debug"]]) {
+    const tab = page.getByRole("tab", { name: label, exact: true });
+    await tab.click();
+    const content = page.locator(`#coc-keeper-panel [data-panel="${key}"]`);
+    check(`工作区「${label}」可达`, await content.isVisible());
+  }
+  await page.getByRole("tab", { name: "主持", exact: true }).click();
+  check("主持对话与快捷骰可见", await page.locator("#coc-keeper-panel .coc-composer").isVisible() && await page.getByRole("button", {name:"🎲 明骰",exact:true}).isVisible());
+  await page.getByRole("tab", { name: "剧情", exact: true }).click();
+  await page.getByRole("button", { name: "剧情结构", exact: true }).click();
+  check("剧情结构子页可达", await page.locator('[data-subpanel="plotInner"]').isVisible());
+  await page.getByRole("button", { name: "状态总览", exact: true }).click();
+  check("状态总览子页可达", await page.locator('[data-subpanel="status"]').isVisible());
 
   // 2. 调试 tab 切换
   const debugTabBtn = await page.locator("#coc-keeper-panel .coc-tabs button", { hasText: "调试" }).first();
@@ -205,6 +221,11 @@ try {
     check(`子按钮「${label}」有反应`, style.display === "block" && style.text > 0, `display=${style.display}, 文本长度=${style.text}`);
   }
 
+  for (const label of ["运行", "契约"]) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    check(`调试「${label}」可达`, await page.locator('[data-panel="debug"] .coc-card').count() > 0);
+  }
+
   // 3b. 实体行揭示/隐藏按钮（本次更新对应按钮）
   {
     const entsTab = page.locator("#coc-keeper-panel button", { hasText: "实体" }).first();
@@ -256,6 +277,14 @@ try {
   // 5. 玩家面板挂载
   const player = await page.$("#coc-keeper-player-panel");
   check("玩家面板挂载", player !== null);
+  await page.getByRole("button", {name:"关闭向导",exact:true}).click();
+  check("向导可关闭", await page.locator(".coc-wizard").count() === 0);
+  await page.getByTitle("最小化到面板坞（右下角 🧩 恢复）",{exact:true}).click();
+  check("Keeper 可最小化", !(await page.locator("#coc-keeper-panel").isVisible()));
+  await page.locator("#dsh-panel-dock .dock-fab").click();
+  await page.locator("#dsh-panel-dock .dock-row").filter({hasText:"CoC 跑团"}).click();
+  check("面板坞可恢复 Keeper", await page.locator("#coc-keeper-panel").isVisible());
+  check("无页面错误", pageErrors.length === 0, pageErrors.join("; "));
 } catch (error) {
   check("UI 检查执行", false, error.message);
 } finally {
