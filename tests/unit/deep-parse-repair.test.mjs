@@ -15,7 +15,7 @@ import {
   repairDeepParseFinalWiring,
   runDeepParseRuleReview,
 } from "../../lib/core/index.js";
-import { shouldRetryLlmError } from "../../lib/shared/tools/deep-parse-loop.js";
+import { shouldRetryLlmError, shouldSkipSemanticReview } from "../../lib/shared/tools/deep-parse-loop.js";
 
 const fixturePath = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "convection-import.json");
 
@@ -102,3 +102,18 @@ describe("Deep Parse 修复（对流 fixture）", () => {
 });
 
 run().then(summarize);
+
+describe("Deep Parse 语义审校跳过（干净确定性门禁）", () => {
+  it("preflight/rule 均为 0 high/0 medium 时跳过语义审校", () => {
+    expect(shouldSkipSemanticReview({ high: 0, medium: 0 }, { high: 0, medium: 0 })).toBe(true);
+  });
+  it("preflight 有 high 时不跳过", () => {
+    expect(shouldSkipSemanticReview({ high: 1, medium: 0 }, { high: 0, medium: 0 })).toBe(false);
+  });
+  it("preflight 有 medium 时不跳过", () => {
+    expect(shouldSkipSemanticReview({ high: 0, medium: 1 }, { high: 0, medium: 0 })).toBe(false);
+  });
+  it("规则审校有 medium 时不跳过", () => {
+    expect(shouldSkipSemanticReview({ high: 0, medium: 0 }, { high: 0, medium: 2 })).toBe(false);
+  });
+});

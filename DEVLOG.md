@@ -1744,3 +1744,12 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   - 兜底边标记 `fallback`，前端淡化渲染；旧扁平串链逻辑退役。
   - 分头调查不在图层面解决（需 WorldState party 维度，另行评估）。
 - 下一步：按 `NETWORK-TOPOLOGY.md` 第 9 节顺序实施。
+
+---
+
+## Session（2026-09-05 后续）：深度解析 loop 确定性门禁跳过语义审校
+
+- 目标：在不降低解析效果的前提下减少 LLM 调用轮次与 token 消耗，并降低审校模型波动对产物的影响。
+- 实现：`deep-parse-loop.js` 新增 `shouldSkipSemanticReview(preflight, ruleReview)`；当 preflight 与规则审校均为 0 high / 0 medium 时，跳过 LLM 语义审校与分块审校，直接用确定性门禁分数判 pass。任何 high/medium 问题仍走原有审校+修订兜底。
+- 效果：干净剧本（两面/盲愚/星孩）热缓存下第 1 轮即可 pass，省去 1 次全局审校 + N 次分块审校；复杂剧本（对流）仍保留完整审校与修复轮次，质量不回退。
+- 测试：`tests/unit/deep-parse-repair.test.mjs` 增加 `shouldSkipSemanticReview` 4 条断言；全量 58/58 通过。
