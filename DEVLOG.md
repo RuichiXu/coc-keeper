@@ -1753,3 +1753,27 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - 实现：`deep-parse-loop.js` 新增 `shouldSkipSemanticReview(preflight, ruleReview)`；当 preflight 与规则审校均为 0 high / 0 medium 时，跳过 LLM 语义审校与分块审校，直接用确定性门禁分数判 pass。任何 high/medium 问题仍走原有审校+修订兜底。
 - 效果：干净剧本（两面/盲愚/星孩）热缓存下第 1 轮即可 pass，省去 1 次全局审校 + N 次分块审校；复杂剧本（对流）仍保留完整审校与修复轮次，质量不回退。
 - 测试：`tests/unit/deep-parse-repair.test.mjs` 增加 `shouldSkipSemanticReview` 4 条断言；全量 58/58 通过。
+
+---
+
+## Session（2026-09-05 合并后）：文档、内置场次与收尾开发
+
+- 两个 feature 分支已合入 main：`feat/deep-parse-optimize`（后端审校跳过）与 `feat/frontend-refactor`（前端重构），合并提交 `228e32f`（含 ui-check dock 用例 `dispatchEvent` 调整）。
+- 当前待办：
+  1. 后端文档更新（PLAN/TECHNICAL/DEVLOG）。
+  2. 内置场次：`presets/games/verify-xinghai.json`、`presets/games/verify-liangmian.json` 随仓库分发，插件启动时播种到 `dataDir/games/`。
+  3. 面板坞真实鼠标点击修复（ui-check 暂用 `dispatchEvent`，待排查 dock fab 命中）。
+  4. 《盲愚之眼》单章节 hub 不可达修复（preflight `0h/5m`，main 直接改）。
+  5. 重新导入《盲愚之眼》《对流》到 DB：硬门禁 pass，并核查非主线边（hub 辐条/支线 hook/跨场景推进边）无大量遗漏。
+
+---
+
+## Session（2026-09-05 收尾）：内置场次、dock 修复、盲愚拓扑与 DB 重导入
+
+- 内置场次：`presets/games/verify-xinghai.json`、`presets/games/verify-liangmian.json` 入库；`lib/adapter/plugin.js` 新增 `seedBundledGames`，缺失才复制到 `dataDir/games/`，不覆盖已有进度。
+- 面板坞真实鼠标修复：宿主页面 document 级 capture 会拦掉右下角 dock 的 click；在 `lib/client.js` dock 初始化中增加 window capture 监听，提前接管 `.dock-fab` 与 `.dock-row` 点击并 `stopPropagation`。`tests/ui-check.mjs` 恢复真实 `click()`，28/28 通过。
+- 《盲愚之眼》拓扑修复：`topology-skeleton.js` 对唯一 chapter（`w9-s0`）且存在 root 主线场景时，补 `开场主场景 → topHub` 与 `topHub → chapterHub`；新增 `hasIncomingKpExcludingReturn` 避免把 `return->hub` 当作可达入边。
+- 深度解析确定性兜底：`deep-parse.js` `repairDeepParseFinalWiring` 对同最终分支、正向前置相同的结局补齐 `not.keyPointIds`（登记 PATCHES 行 32）。
+- DB 重导入：`verify-盲愚之眼`、`verify-对流` 已重新导入本地 `~/.dsh/coc/games/`。
+  - 对流：preflight 0h/0m、rule 0h/0m、isolated 0、quality.pass=true。
+  - 盲愚：preflight 0h/0m、rule 0h/0m、isolated 0；quality.reviewHigh=1（语义审校对“依赖咒语缺陷（守秘人可选）”作为玩家选项仍有 high），待最终接线/结局选项确定性化继续处理。

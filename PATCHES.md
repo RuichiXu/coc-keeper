@@ -46,6 +46,8 @@
 | 31 | `lib/core/scenario/topology-skeleton.js` `sequenceRank` / `hasSequentialTitles` 用“房间1/地点一/第一幕”等标题正则判断同级 main 子节点是否按编号顺序补边 | 结构树没有显式顺序关系字段，标题编号是仅有的确定性顺序信号；否则默认 hub-and-spoke | 结构分析输出显式 `sequence`/`actOrder` 字段后，直接读结构化顺序，删除标题正则 |
 
 
+| 32 | `lib/core/scenario/deep-parse.js` `repairDeepParseFinalWiring` 同最终分支结局正向前置相同但一方缺少 `not.keyPointIds` 时，复制另一方的排除项 | 最终接线 LLM 会给“同状态不同选项”的结局漏写阶段排除项（如《盲愚之眼》end-2 漏 not.kp-39，导致仪式完成后仍可命中干预结局）；审校能发现但修订不稳定 | 最终接线/结局条件确定性草拟，或结构化结局互斥模型输出 | 本轮为确定性兜底，后续并入结局互斥建模 |
+
 ## 补丁现状审计（2026-09-05）
 
 **结论**：行 1–31（除已划线的行 11、29）对应的实现**都仍然保留并被调用**，不是文档滞后；行 11 的旧实现已删除，行 29 的扁平串链已删除、仅存表内划线存档。行 30 本轮已收窄（已有 branchChoiceIds+optionLabel 的结局不再加 entryEvidence）；行 31 为网络拓扑保真新增。

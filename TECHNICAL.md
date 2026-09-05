@@ -36,6 +36,7 @@
 | 自测文件 | `tests/selftest.mjs`（178 行） |
 | 装配方式 | DSH bundle patch（`cordis.patch.yml`） |
 | 数据存储 | `~/.dsh/coc/games/<gameId>.json`（JSON 文件） |
+| 内置场次 | `presets/games/*.json`（随包剧本 DB；启动时缺失才播种到 `dataDir/games/`） |
 | LLM 配置 | `~/.dsh/coc/config.json`（前端设置面板保存） |
 
 ---
@@ -637,6 +638,8 @@ KP 人设 + 硬性规则（6 条）+ 3 行规则概要 + 工具列表 + 工具�
 | **文件存储** | 使用 `JSON.stringify` 写整个文件，大状态时性能差 | 改用 SQLite 或增量存储 |
 | **无用户认证** | 所有操作基于 `gameId` 字符串，无权限控制 | 添加用户/权限系统 |
 | **无 OCR** | PDF 扫描件无法提取文本 | 集成 OCR 库（如 Tesseract） |
+| **面板坞鼠标点击** | Playwright 与部分真实鼠标环境点击 dock fab 不触发 click 监听（JS `dispatchEvent` 正常），待修 | 检查 `lib/client.js` dock fab 的事件绑定与命中区域 |
+| **单章节 hub 不可达** | 《盲愚之眼》唯一 `chapter` 的虚拟枢纽只有 `return->hub` 入边，BFS 不可达，preflight `0h/5m` | `topHub->chapterHub` + `开场主场景->topHub`（见 PLAN） |
 | **无网络同步** | 数据只存本地 | 添加云端同步或多端共享 |
 | **无截图/图片支持** | 不能处理地图/线索图片 | 添加图片上传和 AI 分析 |
 | **无追逐规则** | CoC 7e 的追逐系统未实现 | 扩展 `coc_combat_resolve` 或新增工具 |

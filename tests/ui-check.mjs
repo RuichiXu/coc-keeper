@@ -281,8 +281,8 @@ try {
   check("向导可关闭", await page.locator(".coc-wizard").count() === 0);
   await page.getByTitle("最小化到面板坞（右下角 🧩 恢复）",{exact:true}).click();
   check("Keeper 可最小化", !(await page.locator("#coc-keeper-panel").isVisible()));
-  await page.locator("#dsh-panel-dock .dock-fab").dispatchEvent("click");
-  await page.locator("#dsh-panel-dock .dock-row").filter({hasText:"CoC 跑团"}).dispatchEvent("click");
+  await page.locator("#dsh-panel-dock .dock-fab").click();
+  await page.locator("#dsh-panel-dock .dock-row").filter({hasText:"CoC 跑团"}).click();
   check("面板坞可恢复 Keeper", await page.locator("#coc-keeper-panel").isVisible());
   check("无页面错误", pageErrors.length === 0, pageErrors.join("; "));
 } catch (error) {
