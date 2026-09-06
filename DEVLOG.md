@@ -1777,3 +1777,22 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - DB 重导入：`verify-盲愚之眼`、`verify-对流` 已重新导入本地 `~/.dsh/coc/games/`。
   - 对流：preflight 0h/0m、rule 0h/0m、isolated 0、quality.pass=true。
   - 盲愚：preflight 0h/0m、rule 0h/0m、isolated 0；quality.reviewHigh=1（语义审校对“依赖咒语缺陷（守秘人可选）”作为玩家选项仍有 high），待最终接线/结局选项确定性化继续处理。
+
+---
+
+## Session（2026-09-05 后半）：两面不是人 标题粘连 / 胀妇之死节点 / 括号检定提取
+
+- 背景：AI 对照《两面不是人》原文复核发现三处标题粘连（“舞动的皮可能的发展”“其他人的船阿瞒的皮”“人物关系图谱地图运行游戏”）、高潮事件“胀妇之死”未成节点、`【侦查】/【灵感】` 类括号检定整类漏提。
+- 根因：
+  1. `cleanScenarioText` 残句合并会把 ≤6 字非标题短行并进上一行；标题识别不认 `- ◆` 章节记号，也不认“后随标题/页码/页标记”的裸露短标题，于是页底标题+下一短标题+页号被拼成一行交给窗口 LLM。
+  2. `胀妇之死` 是裸露短标题（无编号/冒号/结局词），窗口 LLM 把它并入上一节 `w8-s4` 末尾。
+  3. `parseCheckpointLine` 只认“技能名在检定锚点前结尾”，不认 `【技能】检定` 括号式；且 `applyStructureAnalysis` 只从 scene/scene_event section 提取检定点，facts 里的知识类检定被跳过。
+- 实现：
+  - 新增 `lib/core/scenario/heading-rules.js`：统一编号/附录/结局/冒号/`- ◆` 项目符号/裸露短标题/页码/目录点线行判定。
+  - `scene-facts.js` `splitScenarioSections` 改走 `looksLikeHeadingForSplit`；新增括号式检定提取（排除斗殴/格斗/力量/POW/射击/投掷/闪避），`SKILL_ALIASES` 补 药物/驾驶：船/语言 等变体。
+  - `structure-analysis.js` `cleanScenarioText` 不再合并页码行/目录点线行，`- ◆` 与后随标题/页码的裸标题独立成显示行；新增 `splitSectionsAtBareHeadingBoundaries`，在 `applyStructureAnalysis` 前把被吞掉的裸标题拆成独立 `scene_event` section；检定点提取扩展到 facts section。
+- 验证（确定性，不跑全量复验）：
+  - 单测 58/58（新增 3 条回归：清洗不粘连、裸标题拆分、括号检定提取并排除战斗对抗）。
+  - 真实《两面不是人》文本：清洗后 890/891、1039/1040、1973/1974 均独立成行，目录页号不再粘连。
+  - `extractCheckpoints` 从 2 条增至 68 条；`applyStructureAnalysis`（复用现有 sections）下 checkpoints 49 条，keyPoints 30（新增“胀妇之死”），战斗对抗类 0 条。
+- 待办：本地 DB 重新导入《两面不是人》以落盘新结构（需走一次带缓存的导入流程，暂未执行）。

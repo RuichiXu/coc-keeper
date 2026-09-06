@@ -92,6 +92,24 @@ describe("Scene Facts", () => {
     expect(san.sanLoss).toBe("1/1d3");
   });
 
+  it("extractCheckpoints 提取括号式检定并排除战斗对抗类", () => {
+    const text = `检验：
+一个成功的【医学】或【生物学】检定可以发现线索。
+困难成功的【教育】检定能得知真相。
+极难难度的【幸运】检定可以脱身。
+一个成功的【侦查】或【幸运】发现。
+此为【斗殴】检定，命中造成 1D6 点伤害。
+目标需以【力量】对抗检定挣脱。`;
+    const checks = extractCheckpoints(text);
+    expect(checks.some((c) => c.skill === "医学" && c.difficulty === "regular")).toBeTrue();
+    expect(checks.some((c) => c.skill === "生物学" && c.difficulty === "regular")).toBeTrue();
+    expect(checks.some((c) => c.skill === "教育" && c.difficulty === "hard")).toBeTrue();
+    expect(checks.some((c) => c.skill === "幸运" && c.difficulty === "extreme")).toBeTrue();
+    expect(checks.some((c) => c.skill === "侦查" && c.difficulty === "regular")).toBeTrue();
+    expect(checks.some((c) => c.skill === "斗殴")).toBeFalse();
+    expect(checks.some((c) => c.skill === "力量")).toBeFalse();
+  });
+
   it("selectSceneFacts 匹配当前场景", () => {
     const facts = extractSceneFacts(SAMPLE);
     const selected = selectSceneFacts("三层书房", facts);

@@ -6,6 +6,7 @@ import {
   cleanScenarioText,
   parseStructureAnalysisResult,
   computeSectionTexts,
+  splitSectionsAtBareHeadingBoundaries,
   applyStructureAnalysis,
   applyStructureEdits,
   buildStructureAnalysisPrompt,
@@ -181,6 +182,61 @@ describe("Structure Analysis", () => {
     const prompt = buildStructureWindowPrompt(doc, windows[0], "测试剧本");
     expect(prompt.includes("level 只表示标题层级")).toBeTrue();
     expect(prompt.includes("连续多个 sc 应并列")).toBeTrue();
+  });
+
+  it("cleanScenarioText 不粘连 ◆ 标题、裸露短标题与目录页号", () => {
+    const text = [
+      "人物关系图谱------------------ 11",
+      "地图------------------ 12",
+      "运行游戏------------------ 14",
+      "",
+      "- ◆ 舞动的皮",
+      "可能的发展",
+      "-- 31 of 79 --",
+      "28",
+      "紫兰相正文",
+      "",
+      "- ◆ 其他人的船",
+      "阿瞒的皮",
+      "-- 36 of 79 --",
+      "33",
+      "登岛正文",
+      "胀妇之死",
+      "结局",
+    ].join("\n");
+    const doc = cleanScenarioText(text);
+    const texts = doc.displayLines.map((line) => line.text);
+    expect(texts.includes("- ◆ 舞动的皮")).toBeTrue();
+    expect(texts.includes("可能的发展")).toBeTrue();
+    expect(texts.includes("- ◆ 其他人的船")).toBeTrue();
+    expect(texts.includes("阿瞒的皮")).toBeTrue();
+    expect(texts.includes("人物关系图谱")).toBeTrue();
+    expect(texts.includes("地图")).toBeTrue();
+    expect(texts.includes("运行游戏")).toBeTrue();
+    expect(texts.includes("胀妇之死")).toBeTrue();
+    expect(texts.includes("结局")).toBeTrue();
+    // 页号独立成行，不与标题粘连。
+    expect(texts.includes("28")).toBeTrue();
+    expect(texts.includes("33")).toBeTrue();
+    expect(texts.some((t) => t.includes("舞动的皮可能的发展"))).toBeFalse();
+    expect(texts.some((t) => t.includes("其他人的船阿瞒的皮"))).toBeFalse();
+    expect(texts.some((t) => t.includes("人物关系图谱地图"))).toBeFalse();
+  });
+
+  it("splitSectionsAtBareHeadingBoundaries 把被吞掉的裸露短标题拆成独立 section", () => {
+    const text = "可能的发展：失控\n失控正文。\n胀妇之死\n结局\n结局正文。";
+    const doc = cleanScenarioText(text);
+    const sections = [
+      { id: "s1", title: "可能的发展：失控", displayName: "失控", kind: "scene", flowRole: "main", desc: "", level: 1, parentId: null, startLine: 1, endLine: 3, page: null, order: 1 },
+    ];
+    const split = splitSectionsAtBareHeadingBoundaries(doc, sections);
+    expect(split.length).toBe(2);
+    expect(split[0].endLine).toBe(2);
+    expect(split[1].title).toBe("胀妇之死");
+    expect(split[1].kind).toBe("scene_event");
+    expect(split[1].flowRole).toBe("main");
+    expect(split[1].startLine).toBe(3);
+    expect(split[1].endLine).toBe(3);
   });
 });
 
