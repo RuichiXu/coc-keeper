@@ -1834,3 +1834,17 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   1. `plot-tools.js` 新增 `branchSceneVisited`：当前场景匹配，或 `flat.events` 里的 `SceneChanged` 历史已切入过最终场景，即允许 reached/choose。既防提前标记，也允许事后补登记。
   2. `state-tools.js` `coc_pc`：单人团且模型漏传 `name` 时，自动落到唯一调查员；多人仍报错要求显式指定。
 - 验证：用 Codex r2 保留场次验证，`外部控制室/酒馆/尾声/房间3` 四种当前场景下 `branchSceneVisited` 全部通过；全量测试 60/60。
+
+---
+
+## Session（2026-09-06 第四次）：Codex r3 续跑后的输出预算与场景历史修复
+
+- Codex r3 续跑（5c136da，+6 轮，累计 52 轮）：两阶段复现两个阻断：
+  1. `max_tokens=500` 时 pro 模型把 500 tokens 全部用于 reasoning，正文/工具调用为空，空叙述发生在 API 输出阶段；
+  2. r3 存档没有「房间3：设施总控室」的 SceneChanged 历史（KP 漏调 coc_scene），最终分支补登记仍被场景门禁拒绝 5 次。
+- 修复：
+  1. `runner.js` `makeLiveKpStream` 默认 `max_tokens` 500→2000；检测 `finish=length` 且无正文/工具调用时，追加“直接输出正文”纠正消息并以 3000 预算重试。
+  2. `chat-bridge.js` `runNarrationLoop` 同样增加“length 空输出→纠正重试（max_tokens 2000）”，生产路径不再因 reasoning 耗尽而空叙述。
+  3. `chat-bridge.js` 确定性场景推断（`inferSceneTransition`）落地时，现在会写 `SceneChanged` 事件，不再让推断场景从历史中消失。
+  4. `plot-tools.js` `branchSceneVisited` 增加第三级证据：对话日志（kp/user）提及最终场景名/短场景名（如「总控室」）。旧存档无 SceneChanged 历史也能补登记。
+- 验证：全量测试 60/60；用 Codex r3 存档验证，`沸核过早释放/宅邸外围/遗迹入口` 三种当前场景下 `br-final-1` 均放行。

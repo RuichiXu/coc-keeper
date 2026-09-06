@@ -2,7 +2,7 @@
  * coc_branch 工具辅助函数（分支解析/最终分支场景门禁）单元测试
  */
 import { describe, it, expect } from "../runner.js";
-import { resolveBranch, branchSceneMatches, branchSceneVisited, isFinalBranch } from "../../lib/shared/tools/plot-tools.js";
+import { resolveBranch, branchSceneMatches, branchSceneVisited, branchSceneKeywords, isFinalBranch } from "../../lib/shared/tools/plot-tools.js";
 
 const branches = [
   { id: "br-1", title: "普通分支", scene: "一层门厅", reached: false, chosen: null, options: [] },
@@ -67,6 +67,20 @@ describe("最终分支场景门禁", () => {
     };
     expect(branchSceneVisited(flat, branch)).toBeTrue();
     expect(branchSceneVisited({ currentScene: "极光镇", events: [] }, branch)).toBeFalse();
+  });
+
+  it("旧存档无 SceneChanged 历史但对话日志提到最终场景时，允许补登记", () => {
+    const branch = branches[1];
+    const flat = {
+      currentScene: "沸核过早释放",
+      events: [],
+      log: [
+        { kind: "kp", text: "你进入房间3：设施总控室，屏幕亮着。" },
+        { kind: "kp", text: "总控室里倒计时仍在跳动。" },
+      ],
+    };
+    expect(branchSceneVisited(flat, branch)).toBeTrue();
+    expect(branchSceneKeywords("房间3：设施总控室")).toContain("总控室");
   });
 });
 
