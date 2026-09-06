@@ -49,6 +49,7 @@
 | 32 | `lib/core/scenario/deep-parse.js` `repairDeepParseFinalWiring` 同最终分支结局正向前置相同但一方缺少 `not.keyPointIds` 时，复制另一方的排除项 | 最终接线 LLM 会给“同状态不同选项”的结局漏写阶段排除项（如《盲愚之眼》end-2 漏 not.kp-39，导致仪式完成后仍可命中干预结局）；审校能发现但修订不稳定 | 最终接线/结局条件确定性草拟，或结构化结局互斥模型输出 | 本轮为确定性兜底，后续并入结局互斥建模 |
 | 33 | `lib/core/scenario/heading-rules.js` + `scene-facts.js` `splitScenarioSections` + `structure-analysis.js` `cleanScenarioText` 识别 `- ◆` 项目符号标题、裸露短标题（后随标题/页码/页标记才成节）、页码/目录点线行独立成行 | PDF 提取把页底标题与下一短标题、页码粘成一行（《两面不是人》“舞动的皮可能的发展”等），确定性切分与清洗此前只认编号/冒号标题 | 结构分析输出显式标题层级与页面布局信息后，按结构化标题行切分 | 本轮为确定性兜底，裸标题仍依赖“后随标题/页码”上下文判定 |
 | 34 | `lib/core/scenario/structure-analysis.js` `splitSectionsAtBareHeadingBoundaries` 把被上一节吞掉的裸标题（如“胀妇之死”）拆成独立 scene_event section；`scene-facts.js` `parseBracketCheckpoints` 提取 `【技能】` 括号式检定点并排除战斗/对抗类 | 窗口 LLM 会把“胀妇之死”并入上一节，且旧检定点提取整类漏掉括号式 `【侦查】` 检定 | 结构分析保证每个标题成节；检定点由结构化技能字段生成 | 本轮为确定性兜底，后续并入结构分析器 |
+| 35 | `lib/shared/chat/chat-bridge.js` `autoLandBranches` 对 `finalChoice`/`br-final-*` 分支：玩家输入精确命中选项原文且当前场景与分支场景一致时，落地 reached+chosen | 聊天 UI 里玩家的明确选择就是文本输入，但旧逻辑完全禁止文本代选最终分支；KP 不调用 `coc_branch` 时结局永远不可达（runtime smoke 暴露） | 前端分支选项点击统一走 `coc_branch choose` 事件后，此文本兜底可降级/删除 | 本轮为确定性兜底；仍要求场景匹配，不因叙述词落地 |
 
 ## 补丁现状审计（2026-09-05）
 

@@ -425,6 +425,34 @@ describe("分支自动落地", () => {
     expect(flat.branches[0].reached).toBeTrue();
     expect(flat.branches[0].chosen).toBe("掀开地毯查看");
   });
+
+  it("玩家输入精确命中最终分支选项原文时落地 finalChoice 分支", () => {
+    const flat = {
+      currentScene: "房间3：设施总控室",
+      currentBranchId: "",
+      branches: [
+        { id: "br-final-1", title: "最终抉择：应对沸核与寒星", scene: "房间3：设施总控室", finalChoice: true, reached: false, chosen: null, options: [{ label: "修理好泄压阀并撤离", leadsTo: "修好基地" }] },
+      ],
+    };
+    const changed = autoLandBranches(flat, "我选择修理好泄压阀并撤离。", "你站在总控室中……");
+    expect(changed).toBe(1);
+    expect(flat.branches[0].reached).toBeTrue();
+    expect(flat.branches[0].chosen).toBe("修理好泄压阀并撤离");
+    expect(flat.currentBranchId).toBe("br-final-1");
+  });
+
+  it("最终分支场景不匹配时玩家文本不落地（防误选）", () => {
+    const flat = {
+      currentScene: "矿洞",
+      currentBranchId: "",
+      branches: [
+        { id: "br-final-1", title: "最终抉择：应对沸核与寒星", scene: "房间3：设施总控室", finalChoice: true, reached: false, chosen: null, options: [{ label: "修理好泄压阀并撤离", leadsTo: "修好基地" }] },
+      ],
+    };
+    const changed = autoLandBranches(flat, "我选择修理好泄压阀并撤离。");
+    expect(changed).toBe(0);
+    expect(flat.branches[0].reached).toBeFalse();
+  });
 });
 
 describe("物品实体归一", () => {

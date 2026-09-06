@@ -206,6 +206,16 @@ describe("结构化查找", () => {
     expect(findFinalBranch(flat).id).toBe("ai-br-3");
   });
 
+  it("findFinalBranch 识别 finalChoice 分支（选项 leadsTo 无「结局」字样）", () => {
+    const flat = {
+      branches: [
+        { id: "br-1", title: "普通分支", options: [{ label: "继续", leadsTo: "下一场景" }] },
+        { id: "br-final-1", title: "最终抉择：应对沸核与寒星", finalChoice: true, options: [{ label: "修理好泄压阀并撤离", leadsTo: "修好基地" }] },
+      ],
+    };
+    expect(findFinalBranch(flat).id).toBe("br-final-1");
+  });
+
   it("findKeyPointsRequiringBranch 返回引用指定分支的关键点", () => {
     const flat = {
       keyPoints: [

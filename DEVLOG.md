@@ -1796,3 +1796,17 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   - 真实《两面不是人》文本：清洗后 890/891、1039/1040、1973/1974 均独立成行，目录页号不再粘连。
   - `extractCheckpoints` 从 2 条增至 68 条；`applyStructureAnalysis`（复用现有 sections）下 checkpoints 49 条，keyPoints 30（新增“胀妇之死”），战斗对抗类 0 条。
 - 待办：本地 DB 重新导入《两面不是人》以落盘新结构（需走一次带缓存的导入流程，暂未执行）。
+
+---
+
+## Session（2026-09-06）：在线运行冒烟测试（mock / live / LLM 玩家 / 评审）
+
+- 新增 `lib/testing/runtime-smoke/`（DSH-free）：统一 PlayerDriver 接口（scripted / llm / http）与 Evaluator 接口（threshold / llm / http），runner 直接驱动 `createSharedChatBridge` 模拟前端 `/coc-api/chat` 输入事件；CLI 入口 `scripts/runtime-smoke.mjs`。
+- 新增 CI 集成测试 `tests/integration/runtime-smoke-mock.test.mjs`（mock KP + scripted 玩家，不依赖真实 LLM），全量测试 59/59。
+- live 最终门禁（真实 LLM KP + LLM 玩家）跑通《对流》全本：
+  - 累计 166 条玩家消息 / 165 条 KP 消息，抵达结局「修好基地」，flat↔core 一致，0 异常 0 busy 悬挂。
+  - LLM 评审（deepseek-v4-pro）6 维评分：剧情还原 3、规则与检定 4、状态一致 5、玩家体验 3、守门安全 4、结局质量 4，总评 go。
+- 发现并修复两个在线运行缺陷：
+  1. `findFinalBranch` 只认选项 leadsTo 含“结局/END/TE/BE/GE/TRUE”的分支；《对流》`br-final-1`（finalChoice）leadsTo 不含这些词，导致最终分支已 reached+chosen 仍不结算结局。修复为显式识别 `finalChoice`/`br-final-*`/deepParse endings 挂接分支。
+  2. `autoLandBranches` 完全禁止玩家文本代选最终分支；聊天 UI 里玩家明确选择就是文本输入。新增 finalChoice 分支精确命中选项原文 + 场景匹配时落地 reached+chosen（PATCHES 行 35）。
+- 测试基建还暴露（未修复）：flash/pro 模型担任 KP 时都偏慢、爱铺陈，50 轮内往往走不到结局；live 门禁通过依赖测试专用 KP/玩家 nudge（压缩节奏 + 指定最终选项）。正式上线前应把节奏约束与最终分支落地提示固化到生产 KP 系统提示，并用 Codex 玩家/评审复验。

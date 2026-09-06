@@ -74,6 +74,7 @@ const TESTS = {
     "integration/import-parity.test.mjs",
     "integration/audit-fixes.test.mjs",
     "integration/scenario-contract.test.mjs",
+    "integration/runtime-smoke-mock.test.mjs",
   ],
   scenarios: [
     "scenarios/normal-investigation.test.mjs",
