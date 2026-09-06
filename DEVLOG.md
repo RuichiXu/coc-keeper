@@ -1810,3 +1810,16 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   1. `findFinalBranch` 只认选项 leadsTo 含“结局/END/TE/BE/GE/TRUE”的分支；《对流》`br-final-1`（finalChoice）leadsTo 不含这些词，导致最终分支已 reached+chosen 仍不结算结局。修复为显式识别 `finalChoice`/`br-final-*`/deepParse endings 挂接分支。
   2. `autoLandBranches` 完全禁止玩家文本代选最终分支；聊天 UI 里玩家明确选择就是文本输入。新增 finalChoice 分支精确命中选项原文 + 场景匹配时落地 reached+chosen（PATCHES 行 35）。
 - 测试基建还暴露（未修复）：flash/pro 模型担任 KP 时都偏慢、爱铺陈，50 轮内往往走不到结局；live 门禁通过依赖测试专用 KP/玩家 nudge（压缩节奏 + 指定最终选项）。正式上线前应把节奏约束与最终分支落地提示固化到生产 KP 系统提示，并用 Codex 玩家/评审复验。
+
+---
+
+## Session（2026-09-06 后半）：Codex 外部玩家/评审 NO-GO 后的 P0 修复
+
+- Codex 以 HTTP 玩家+评审跑《对流》60 轮：`endingReached=false`，总评 2/5。发现：coc_branch 两次把标题当 branchId；第 3 轮工具标记泄漏到玩家正文；第 9/20 轮占位回复被当 KP 叙述落盘；最终分支从未 reached/chosen。
+- P0 修复：
+  1. `plot-tools.js` `resolveBranch`：branchId 支持 id→标题精确→标题包含→id 前缀逐级解析，错误信息列候选；finalChoice 分支 reached/choose 增加场景门禁，防止未抵达就标记。
+  2. `context-builder.js`：系统提示显式给出最终分支 id/标题/场景/选项原文。
+  3. `narration-guard.js` `containsRawToolCallSyntax`：正文出现工具调用标签时判定为泄漏，runNarrationLoop 纠正重试并计数 `toolSyntaxLeaks`。
+  4. `chat-bridge.js`：空叙述不再落成 KP 正文，改为系统提示行；runKpTurn 返回 `emptyNarration` 与 `toolSyntaxLeaks`。
+  5. `runner.js`/`evaluator.js`：metrics 新增 `toolErrors`、`toolSyntaxLeaks`，并计入硬门槛。
+- 验证：全量测试 60/60；用 Codex 保留场次验证 `resolveBranch('最终抉择：应对沸核与寒星')→br-final-1`，工具标记检测器在 60 行 KP 叙述中命中唯一泄漏行。

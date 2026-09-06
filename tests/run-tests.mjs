@@ -57,6 +57,7 @@ const TESTS = {
     "unit/narration-guard.test.mjs",
     "unit/scenario-contract.test.mjs",
     "unit/story-presets.test.mjs",
+    "unit/plot-tools.test.mjs",
     "unit/deep-parse.test.mjs",
     "unit/deep-parse-fixtures.test.mjs",
     "unit/deep-parse-repair.test.mjs",

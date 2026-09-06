@@ -4,6 +4,7 @@
 import { describe, it, expect, run, summarize } from "../runner.js";
 import {
   clueWordsForCheckpoint,
+  containsRawToolCallSyntax,
   findCheckpointClueLeak,
   findUnsafeRecommendation,
   selectRelevantCheckpoints,
@@ -123,6 +124,19 @@ describe("综合候选校验", () => {
     });
     expect(issues.length).toBeGreaterThanOrEqual(1);
     expect(issues.some((issue) => issue.kind === "clue-leak")).toBeTrue();
+  });
+});
+
+describe("工具标记泄漏检测", () => {
+  it("识别正文里混入的工具调用标签", () => {
+    expect(containsRawToolCallSyntax("你观察四周。<invoke name=\"coc_check\"></invoke>")).toBeTrue();
+    expect(containsRawToolCallSyntax("你观察四周。<tool_calls></tool_calls>")).toBeTrue();
+    expect(containsRawToolCallSyntax("你观察四周。<parameter name=\"skill\">侦查</parameter>")).toBeTrue();
+  });
+
+  it("普通叙述不误报", () => {
+    expect(containsRawToolCallSyntax("你观察四周，发现一扇半掩的门。")).toBeFalse();
+    expect(containsRawToolCallSyntax("温度小于 0 度")).toBeFalse();
   });
 });
 
