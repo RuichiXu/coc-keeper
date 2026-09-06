@@ -179,6 +179,27 @@ describe("团检指令", () => {
     });
   });
 
+  describe("stripCheckRequests .ra 指令清理", () => {
+    it("清理 Markdown 包裹的 .ra 指令整句", () => {
+      expect(stripCheckRequests("请发送 **.ra机械维修**，完成轨道校准的手操微调。")).toBe("");
+    });
+    it("清理反引号包裹的 .ra 指令整句", () => {
+      expect(stripCheckRequests("请发送 `.ra力量`，完成撬门的发力。")).toBe("");
+    });
+    it("清理无包裹 .ra 指令整句", () => {
+      expect(stripCheckRequests("请发送 .ra侦查 完成走廊观察。")).toBe("");
+    });
+    it("清理方括号 .ra 指令整句", () => {
+      expect(stripCheckRequests("请发送 [.ra聆听] 完成倾听。")).toBe("");
+    });
+    it("保留 .ra 指令前的内容", () => {
+      expect(stripCheckRequests("若想继续，请发送 .ra跳跃完成窗口跳下。")).toBe("若想继续。");
+    });
+    it("不动正常括号式检定提示", () => {
+      expect(stripCheckRequests("（需攀爬/敏捷）可以翻过墙。")).toBe("可以翻过墙。");
+    });
+  });
+
   describe("formatCheckLine", () => {
     it("常规输出可复制指令", () => {
       expect(formatCheckLine("聆听")).toBe("[团检：聆听] [.ra聆听]");

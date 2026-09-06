@@ -1859,3 +1859,17 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   2. `floor === "导入"` 的检定点作为“全局检定点”常驻注入；≤10 个时展示完整触发文本，>10 时只展示前 20 条索引并注明其余按场景匹配。
   3. `currentFact === null` 时明确提示“当前场景未匹配到事实卡，以全局事实卡和全局检定点为准”。
 - 验证：全量测试 60/60；《对流》系统提示已包含 4 个 facts 章节与 5 个导入级检定点。
+
+---
+
+## Session（2026-09-07）：第二批修复——跨剧本咒文、检定残壳、技能成长一致性、剧本结算点
+
+- 背景：Codex 对 663750c 的《对流》复测仍 NO-GO（剧情还原 2/5、规则与检定 2/5）。评审报告给出可复现根因：跨剧本《墨渊》咒文注入、`.ra` 指令残壳、机械维修默认值/成长不一致、SAN/体质/HP 结算遗漏、物品脏数据。
+- 修复：
+  1. `chat-bridge.js` / `ending.js`：新增 `scenarioHasMoyuanSpell(flat)`（剧本全文同时含“启墨渊”与“归字主”才启用），十二字咒文展示、最终咒文仪式提示、玩家念咒系统消息、《墨渊》日记核心句防护全部场景化；`endingSentenceFor` 对非墨渊剧本只输出通用结局句。
+  2. `check-command.js` `stripCheckRequests`：整句移除“请发送 **.ra机械维修**，完成轨道校准的手操微调。”式 Markdown/反引号/方括号 `.ra` 指令，消除 8 轮“请发送 **，完成……”残壳。
+  3. `rules.js` `coc_skill_growth`：技能当前值改走 `resolveRaTarget`（人物卡→属性别名→内置规则默认值），不再把未写卡技能当 0；新增 `skillUseLog`，本局该技能只有失败/未成功记录时确定性拒绝成长。
+  4. `scene-facts.js` 检定点解析：新增 SC 表达式生成理智检定点、`承受X/Y的伤害` 挂到检定点 `damage`；`chat-bridge.js` `.ra` 结算时按成败应用检定点/门禁伤害。
+  5. 新增 `lib/core/scenario/settlements.js`：从剧本原文提取 SC/HP 结算点（SC 走 coc_sanity_check、HP 走 coc_pc），匹配到“直面沸核SC 1d4/1d10”“外出SC 1/1d6”“全员HP-1d6”等旧提取器漏掉的事件；SC 行紧邻体质伤害时生成 linkedGate，由聊天桥登记带 damage 的体质门禁。
+  6. `chat-bridge.js` 物品垃圾过滤：`ITEM_PARTICLE_DENY` 加“你”、`ITEM_JUNK_EXTRA` 加“可用装备”。
+- 验证：全量测试 61/61；《对流》DB 结算点提取 4 条（含外出 SC→体质 1/1d4 linkedGate），沸核/外出/阀门三类文本匹配符合预期。
