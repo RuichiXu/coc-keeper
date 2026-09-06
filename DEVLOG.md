@@ -1823,3 +1823,14 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   4. `chat-bridge.js`：空叙述不再落成 KP 正文，改为系统提示行；runKpTurn 返回 `emptyNarration` 与 `toolSyntaxLeaks`。
   5. `runner.js`/`evaluator.js`：metrics 新增 `toolErrors`、`toolSyntaxLeaks`，并计入硬门槛。
 - 验证：全量测试 60/60；用 Codex 保留场次验证 `resolveBranch('最终抉择：应对沸核与寒星')→br-final-1`，工具标记检测器在 60 行 KP 叙述中命中唯一泄漏行。
+
+---
+
+## Session（2026-09-06 第三次）：Codex 复测 NO-GO 后的第二轮 P0 修正
+
+- Codex 复测（67d7a9c，47 轮）：`endingReached=false`，`toolErrors=13`（coc_branch 场景门禁误伤 11 次 + coc_scene/coc_pc 缺参各 1），`toolSyntaxLeaks=0`，`emptyNarrations=2`。
+- 根因：上一轮给 finalChoice 分支加的“当前场景必须匹配”门禁过严。KP 在玩家离开最终场景（外部控制室/尾声）后才补登记 reached/choose，11 次全部被拒，结局因此无法落盘。
+- 修正：
+  1. `plot-tools.js` 新增 `branchSceneVisited`：当前场景匹配，或 `flat.events` 里的 `SceneChanged` 历史已切入过最终场景，即允许 reached/choose。既防提前标记，也允许事后补登记。
+  2. `state-tools.js` `coc_pc`：单人团且模型漏传 `name` 时，自动落到唯一调查员；多人仍报错要求显式指定。
+- 验证：用 Codex r2 保留场次验证，`外部控制室/酒馆/尾声/房间3` 四种当前场景下 `branchSceneVisited` 全部通过；全量测试 60/60。

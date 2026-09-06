@@ -50,7 +50,7 @@
 | 33 | `lib/core/scenario/heading-rules.js` + `scene-facts.js` `splitScenarioSections` + `structure-analysis.js` `cleanScenarioText` 识别 `- ◆` 项目符号标题、裸露短标题（后随标题/页码/页标记才成节）、页码/目录点线行独立成行 | PDF 提取把页底标题与下一短标题、页码粘成一行（《两面不是人》“舞动的皮可能的发展”等），确定性切分与清洗此前只认编号/冒号标题 | 结构分析输出显式标题层级与页面布局信息后，按结构化标题行切分 | 本轮为确定性兜底，裸标题仍依赖“后随标题/页码”上下文判定 |
 | 34 | `lib/core/scenario/structure-analysis.js` `splitSectionsAtBareHeadingBoundaries` 把被上一节吞掉的裸标题（如“胀妇之死”）拆成独立 scene_event section；`scene-facts.js` `parseBracketCheckpoints` 提取 `【技能】` 括号式检定点并排除战斗/对抗类 | 窗口 LLM 会把“胀妇之死”并入上一节，且旧检定点提取整类漏掉括号式 `【侦查】` 检定 | 结构分析保证每个标题成节；检定点由结构化技能字段生成 | 本轮为确定性兜底，后续并入结构分析器 |
 | 35 | `lib/shared/chat/chat-bridge.js` `autoLandBranches` 对 `finalChoice`/`br-final-*` 分支：玩家输入精确命中选项原文且当前场景与分支场景一致时，落地 reached+chosen | 聊天 UI 里玩家的明确选择就是文本输入，但旧逻辑完全禁止文本代选最终分支；KP 不调用 `coc_branch` 时结局永远不可达（runtime smoke 暴露） | 前端分支选项点击统一走 `coc_branch choose` 事件后，此文本兜底可降级/删除 | 本轮为确定性兜底；仍要求场景匹配，不因叙述词落地 |
-| 36 | `lib/shared/tools/plot-tools.js` `resolveBranch` 按 id 精确→标题精确→标题包含→id 前缀逐级解析 branchId，并对 finalChoice 分支加场景门禁；`context-builder.js` 在系统提示显式给出最终分支 id/选项 | Codex 实测模型两次把最终分支标题当 branchId 调用 `coc_branch` 返回“不存在”，且会提前标记未抵达的最终分支 | 模型工具调用稳定使用 id 后，标题解析可保留为容错；最终分支 id 应由工具 schema/前端选项直接传递 | 本轮为确定性容错；场景门禁防止提前 reached/choose |
+| 36 | `lib/shared/tools/plot-tools.js` `resolveBranch` 按 id 精确→标题精确→标题包含→id 前缀逐级解析 branchId，并对 finalChoice 分支加“当前场景或场景历史（SceneChanged 事件）已切入过最终场景”门禁；`context-builder.js` 在系统提示显式给出最终分支 id/选项 | Codex 实测模型两次把最终分支标题当 branchId 调用 `coc_branch` 返回“不存在”，且会提前标记未抵达的最终分支；复测中 KP 在外部控制室/尾声补登记最终分支，纯当前场景门禁误伤 11 次 | 模型工具调用稳定使用 id 后，标题解析可保留为容错；最终分支 id 应由工具 schema/前端选项直接传递 | 本轮为确定性容错；场景历史门禁既防提前 reached/choose，也允许事后补登记 |
 
 ## 补丁现状审计（2026-09-05）
 
