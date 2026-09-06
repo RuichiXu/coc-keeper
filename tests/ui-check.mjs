@@ -151,6 +151,26 @@ try {
   const keeper = await page.$("#coc-keeper-panel");
   check("Keeper 面板挂载", keeper !== null);
 
+  // 内置手册：在当前页面阅读，关闭后保持工作区与键盘焦点。
+  const helpButton = page.getByRole("button", { name: "使用手册", exact: true });
+  const previousTab = await page.locator('[data-tab][aria-selected="true"]').getAttribute("data-tab");
+  await helpButton.click();
+  const manual = page.getByRole("dialog", { name: "使用手册", exact: true });
+  check("内置使用手册可打开", await manual.isVisible() && await manual.getByRole("heading", { name: "认识面板", exact: true }).isVisible());
+  await manual.getByRole("button", { name: "质量与校对", exact: true }).click();
+  const manualText = await manual.locator("article").innerText();
+  await page.keyboard.press("Tab");
+  const helpClose = manual.getByRole("button", { name: "关闭使用手册", exact: true });
+  const focusAtClose = await helpClose.evaluate((node) => node === document.activeElement);
+  await page.keyboard.press("Shift+Tab");
+  const focusAtLastChapter = await manual.locator("nav button").last().evaluate((node) => node === document.activeElement);
+  check("手册目录、校对说明与键盘循环", manualText.includes("0 条问题记录不等于执行过语义审校") && manualText.includes("不会自动保存输入框中的改动") && focusAtClose && focusAtLastChapter);
+  await page.keyboard.press("Escape");
+  check("关闭手册恢复焦点与原工作区", await manual.count() === 0 && await helpButton.evaluate((node) => node === document.activeElement) && await page.locator('[data-tab][aria-selected="true"]').getAttribute("data-tab") === previousTab);
+  await helpButton.click();
+  await manual.getByRole("button", { name: "关闭使用手册", exact: true }).click();
+  check("手册可重开并用按钮关闭", await manual.count() === 0);
+
   // 四个工作区均使用真实点击，并验证专属内容可见。
   for (const [label, key] of [["主持", "dm"], ["剧情", "plot"], ["解析", "net"], ["调试", "debug"]]) {
     const tab = page.getByRole("tab", { name: label, exact: true });

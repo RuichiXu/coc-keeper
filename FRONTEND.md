@@ -19,6 +19,7 @@
 | 调试 `debug` | 导入、实体、人物、卡库、运行、契约、设置 | `renderDebugPanel` 及各子区域函数 |
 | 新建场次 | 选择剧本 → 调查员 → 确认；创建成功后显示开场白 | `openGameWizard` |
 | 玩家视图 | 场景、人物、已公开信息、动态与行动输入 | `mountPlayerPanel` |
+| 内置使用手册 | 标题栏帮助 → 章节目录与正文 | `openHelpManual`、`closeHelpManual` |
 | 面板管理 | 场次选择、新建、刷新、更多、最大化、最小化与面板坞 | `mountPanel`、`registerDockPanel` |
 
 `mountPanel` 创建四个工作区并保留原有子面板容器。不要依赖旧的七个顶级 Tab：聊天已归入主持；状态归入剧情；人物、实体、导入、设置归入调试。运行诊断与契约也在调试中。
@@ -37,6 +38,7 @@ Keeper 默认宽度不超过 1080px / 96vw，高度不超过 900px / 90vh；已�
 | 网络视口 | `.coc-net-viewport`，`data-layout` 与 `data-render-ms` |
 | 网络节点 / 边 | `.node[data-type][data-id]`；`.edge[data-edge]` 与透明 `.edge-hit` |
 | 检查栏 / 质量问题列表 | `.coc-net-inspector` / `.coc-quality-issues` |
+| 使用手册 | `#coc-help-dialog`，原生 `dialog`，目录 `nav` 与正文 `article` |
 | 面板坞 | `#dsh-panel-dock` |
 
 运行、契约直接向调试区渲染卡片，没有同名 `data-subpanel`。测试优先按 role、可访问名称和稳定属性定位。重排 DOM 时同步维护 [tests/ui-check.mjs](tests/ui-check.mjs) 的同等覆盖。
@@ -148,3 +150,9 @@ Keeper 默认宽度不超过 1080px / 96vw，高度不超过 900px / 90vh；已�
 修改前端后运行语法检查、UI 冒烟和全量测试；修改网络图还要完成《星孩》《两面不是人》两种视图的真实浏览器探针。完整步骤、数据准备和计时口径见 [TESTING.md](TESTING.md)。不要只凭静态截图或空场次 smoke 判断大图流畅性。
 
 开发文档以本文维护当前前端；[TECHNICAL.md](TECHNICAL.md) 保留全局技术背景；[NETWORK-TOPOLOGY.md](NETWORK-TOPOLOGY.md) 保留拓扑设计依据。新功能要同时更新本文、[用户手册](USER_GUIDE.md) 和受影响测试，避免把历史计划当成现状。
+
+## 9. 内置使用手册（2026-09-06）
+
+Keeper 标题栏「帮助」调用 `openHelpManual`，通过原生 `dialog.showModal()` 在当前页面显示手册。八章内容以内嵌结构化数据维护，切章仅生成当前章节的 DOM；不请求 Markdown 或新增后端接口。更新操作路径时同步本文、`USER_GUIDE.md` 和 `openHelpManual` 中的章节内容。
+
+目录在宽屏左侧、窄屏上方，正文独立滚动；原生模态窗口配合局部 Tab/Shift+Tab 循环约束键盘焦点，支持 Esc/关闭按钮返回入口。`closeHelpManual` 移除弹窗，在 Keeper cleanup 中也调用，避免插件卸载遗留弹窗。样式全部限定到 `#coc-help-dialog`，不影响网络图布局。
