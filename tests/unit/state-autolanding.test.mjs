@@ -301,15 +301,29 @@ describe("门禁短路与候选解析", () => {
     expect(sanitizeGateAction("请发送 ` 来完成验算")).toBe("");
   });
 
-  it("findEarlyDiaryLeak 在日记关键点揭示前拦截核心句", () => {
-    const flat = { keyPoints: [{ id: "ai-kp-4", title: "发现日记与手稿", revealed: false }] };
+  it("findEarlyDiaryLeak 在日记关键点揭示前拦截其自带文本中的受保护句", () => {
+    const flat = {
+      keyPoints: [{
+        id: "ai-kp-4",
+        title: "发现日记与手稿",
+        revealed: false,
+        desc: "它在梦里给我讲故事。我必须把它们写下来。",
+      }],
+    };
     const issues = findEarlyDiaryLeak("你翻开日记，上面写着：它在梦里给我讲故事。", flat);
     expect(issues.length).toBe(1);
     expect(issues[0]).toContain("它在梦里给我讲故事");
   });
 
   it("findEarlyDiaryLeak 在日记关键点揭示后放行", () => {
-    const flat = { keyPoints: [{ id: "ai-kp-4", title: "发现日记与手稿", revealed: true }] };
+    const flat = {
+      keyPoints: [{
+        id: "ai-kp-4",
+        title: "发现日记与手稿",
+        revealed: true,
+        desc: "它在梦里给我讲故事。我必须把它们写下来。",
+      }],
+    };
     const issues = findEarlyDiaryLeak("你翻开日记，上面写着：它在梦里给我讲故事。", flat);
     expect(issues.length).toBe(0);
   });

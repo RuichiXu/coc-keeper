@@ -26,6 +26,7 @@ const TESTS = {
     "unit/clock.test.mjs",
     "unit/character-parser.test.mjs",
     "unit/check-command.test.mjs",
+    "unit/spell-text.test.mjs",
     "unit/settlements.test.mjs",
     "unit/check-gates.test.mjs",
     "unit/gate-lifecycle.test.mjs",

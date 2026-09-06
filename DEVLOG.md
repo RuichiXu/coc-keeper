@@ -1873,3 +1873,18 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   5. 新增 `lib/core/scenario/settlements.js`：从剧本原文提取 SC/HP 结算点（SC 走 coc_sanity_check、HP 走 coc_pc），匹配到“直面沸核SC 1d4/1d10”“外出SC 1/1d6”“全员HP-1d6”等旧提取器漏掉的事件；SC 行紧邻体质伤害时生成 linkedGate，由聊天桥登记带 damage 的体质门禁。
   6. `chat-bridge.js` 物品垃圾过滤：`ITEM_PARTICLE_DENY` 加“你”、`ITEM_JUNK_EXTRA` 加“可用装备”。
 - 验证：全量测试 61/61；《对流》DB 结算点提取 4 条（含外出 SC→体质 1/1d4 linkedGate），沸核/外出/阀门三类文本匹配符合预期。
+
+---
+
+## Session（2026-09-07）：补丁审计——移除《墨渊》硬编码，咒文改为数据驱动
+
+- 背景：用户指出实际使用中不可能为某个剧本打补丁，要求清点可删除/低成本替换的补丁。
+- 结论与动作：最典型的剧本特化是聊天桥里的《墨渊》十二字咒文/结局句/日记核心句硬编码。已删除：
+  - `scenarioHasMoyuanSpell` 关键词闸门；
+  - `FULL_FORWARD_SPELL_RE` / `FULL_INVERSE_SPELL_RE` 硬编码咒文正则；
+  - 咒文展示固定文本与最终仪式轮的“逆序/正序念诵→墨渊消散/夏拉卡拉布降临”指引；
+  - `endingSentenceFor` 的“夏拉卡拉布被逐回虚空，书房重新归于寂静”固定结局模板。
+- 替换为 `lib/shared/chat/spell-text.js`：优先读咒文关键点 `spellGroups/spellText`，否则从剧本原文“咒”字附近提取“三字一组、四组”的成组咒文；玩家念诵识别与倒序展示都由提取结果动态生成，提取不到则不注入。
+- `findEarlyDiaryLeak` 通用化：拦截日记关键点自带文本（desc/ownText/trigger/playerDesc）中的受保护句，不再含《墨渊》固定句。
+- PATCHES.md：行 38 标记为已删除/替代；行 13/14/15 同步更新。
+- 验证：全量测试 62/62。
