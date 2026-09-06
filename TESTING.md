@@ -186,32 +186,16 @@ E2E 发现问题 → Integration 定位模块边界 → Unit 定位具体实现
 
 ```
 tests/
-├── run-tests.mjs           # 测试运行器（入口）
+├── run-tests.mjs           # 测试运行器（入口，完整清单以此文件为准）
 ├── runner.js               # 轻量测试 harness（assert, describe, it）
-├── unit/
-│   ├── dice.test.mjs
-│   ├── events.test.mjs
-│   ├── clock.test.mjs
-│   ├── character-parser.test.mjs
-│   ├── world-state.test.mjs
-│   ├── sanity.test.mjs
-│   ├── combat.test.mjs
-│   ├── skill-growth.test.mjs
-│   ├── plot-graph.test.mjs
-│   ├── clue-graph.test.mjs
-│   └── scenario-compiler.test.mjs
-├── integration/
-│   ├── rule-event-state.test.mjs
-│   ├── clue-trigger-plot.test.mjs
-│   └── scenario-init.test.mjs
-├── scenarios/
-│   ├── normal-investigation.test.mjs
-│   ├── random-failure-recovery.test.mjs
-│   ├── decision-failure.test.mjs
-│   └── time-event.test.mjs
-└── e2e/
-    └── vertical-slice.test.mjs
+├── unit/                   # 42 个单元测试（骰点/SAN/战斗/成长/场景事实/检定点/结算点/剧情图/深度解析…）
+├── integration/            # 13 个集成测试（规则→事件→状态、聊天桥、导入链路、mock 冒烟…）
+├── scenarios/              # 4 个场景测试（正常推进/随机失败/决策失败/时间事件）
+├── e2e/                    # vertical-slice.test.mjs
+└── replay/                 # final-rite-replay.test.mjs
 ```
+
+> 单元测试文件包括 `unit/settlements.test.mjs`（`SC/HP` 结算点提取与匹配）、`unit/check-command.test.mjs`（含 `.ra` 指令残壳清理回归）、`unit/plot-tools.test.mjs` 等，以 `tests/run-tests.mjs` 中的 `TESTS` 数组为准。
 
 ---
 

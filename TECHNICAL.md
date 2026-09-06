@@ -126,6 +126,9 @@ interface GameState {
 }
 ```
 
+> 实际 `flat`（`games/<gameId>.json`）是上述字段的超集。运行时新增的字段包括：
+> `pendingChecks` / `skippedChecks` / `resolvedChecks` / `passedCheckpointIds` / `sanitySettled`（门禁与检定点账本）、`scenarioFacts` / `scenarioCheckpoints` / `scenarioSettlements` / `settledSettlementIds`（场景事实、显式检定点、SC/HP 结算点）、`skillUseLog`（技能成功/失败使用记录，供 `coc_skill_growth` 门控）、`spellShown`、`endingReached` / `endedAt`、`firedNightEventIds`、`core`（WorldState 投影快照）。这些字段由 `lib/shared/chat/chat-bridge.js` 与 `projectToFlat` 维护。
+
 ### 3.2 子数据结构
 
 ```typescript
@@ -210,27 +213,28 @@ interface Reminder {
 | 2739-2777 | 渲染函数 | `renderStatus` |
 | 2779-2780 | 导出 | `export { Config, apply, inject, name }` |
 
-### 4.2 14 个工具注册清单
+### 4.2 工具注册清单（共享层共 18 个，面板/聊天环允许列表 `PANEL_TOOLS` 15 个）
 
-| 工具名 | 行号 | 用途 | 关键参数 |
-|---|---|---|---|
-| `coc_import` | ~620 | 导入规则/剧本/人物(S/F/T) | `kind`, `source`, `filePath`/`text`/`fileBase64` |
-| `coc_read` | ~892 | 分段阅读已导入全文 | `what`, `offset`, `limit` |
-| `coc_roll` | ~933 | 明骰 | `expression`, `target`, `difficulty`, `player` |
-| `coc_roll_secret` | ~1001 | 暗骰 | 同上，输出含 `secret: true` |
-| `coc_query_rule` | ~1071 | 查询规则（渐进式披露） | `topic`（关键词匹配章节） |
-| `coc_sanity_check` | ~1150 | 理智检定 | `player`, `sanLoss`（格式 "0/1d3"） |
-| `coc_combat_resolve` | ~1261 | 战斗回合结算 | `attacker`, `defender`, `weapon` |
-| `coc_skill_growth` | ~1461 | 技能成长 | `player`, `skill` |
-| `coc_status` | ~1505 | 全局状态视图 | `view`, `includeSecretRolls` |
-| `coc_branch` | ~1560 | 剧情结构管理 | `action`, `type`, `item` |
-| `coc_remind` | ~1701 | 提醒管理 | `action`, `scene`, `text` |
-| `coc_character` | ~1761 | 人物卡管理 | `action`, `character` |
-| `coc_kp` | ~1817 | KP 模式切换 | `action`（"ai"/"human"/"status"） |
-| `coc_scene` | ~1856 | 场景/时间/概述 | `scene`, `time`, `synopsis`, `timeAdvance` |
-| `coc_task` | ~1900 | 任务栏管理 | `action`, `title`, `note` |
-| `coc_entity` | ~1950 | 实体管理 | `action`, `entity` |
-| `coc_pc` | ~2032 | 玩家状态更新 | `name`, `hp`, `san`, `inventoryAdd` |
+| 工具名 | 用途 | 关键参数 |
+|---|---|---|
+| `coc_import` | 导入规则/剧本/人物(S/F/T) | `kind`, `source`, `filePath`/`text`/`fileBase64` |
+| `coc_read` | 分段阅读已导入全文 | `what`, `offset`, `limit` |
+| `coc_check` | 登记玩家明骰技能门禁 | `skill`, `difficulty`, `action`, `hidden` |
+| `coc_roll` | 明骰 | `expression`, `target`, `difficulty`, `player` |
+| `coc_roll_secret` | 暗骰 | 同上，输出含 `secret: true` |
+| `coc_query_rule` | 查询规则（渐进式披露） | `topic`（关键词匹配章节） |
+| `coc_sanity_check` | 理智检定 | `player`, `sanLoss`（格式 "0/1d3"） |
+| `coc_combat_resolve` | 战斗回合结算 | `attacker`, `defender`, `weapon` |
+| `coc_skill_growth` | 技能成长 | `player`, `skill` |
+| `coc_status` | 全局状态视图 | `view`, `includeSecretRolls` |
+| `coc_branch` | 剧情结构管理 | `action`, `type`, `item` |
+| `coc_remind` | 提醒管理 | `action`, `scene`, `text` |
+| `coc_character` | 人物卡管理 | `action`, `character` |
+| `coc_kp` | KP 模式切换 | `action`（"ai"/"human"/"status"） |
+| `coc_scene` | 场景/时间/概述 | `scene`, `time`, `synopsis`, `timeAdvance` |
+| `coc_task` | 任务栏管理 | `action`, `title`, `note` |
+| `coc_entity` | 实体管理 | `action`, `entity` |
+| `coc_pc` | 玩家状态更新 | `name`, `hp`, `san`, `inventoryAdd` |
 
 ### 4.3 关键函数
 
@@ -681,8 +685,11 @@ coc-keeper/
 ├── lib/
 │   ├── index.js                # Adapter 兼容导出
 │   ├── client.js               # 唯一共享前端
-│   ├── core/                   # 规则与结构化状态
-│   ├── shared/                 # 共享业务和 API
+│   ├── core/
+│   │   ├── rules/              # 骰点/SAN/战斗/技能成长
+│   │   └── scenario/           # 场景事实/检定点/结算点/深度解析
+│   ├── shared/                 # 共享业务和 API（含 chat/ 聊天桥与 tools/ 工具）
+│   ├── testing/runtime-smoke/  # 在线运行冒烟测试（DSH-free）
 │   ├── adapter/                # DSH/Cordis 适配
 │   └── legacy-index.js         # 过渡期旧实现
 ├── standalone/                 # 独立服务和前端加载页
