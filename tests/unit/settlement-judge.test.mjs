@@ -117,6 +117,52 @@ describe("结算点语义裁决器", () => {
       if (previousBase === undefined) delete process.env.COC_LLM_BASE_URL; else process.env.COC_LLM_BASE_URL = previousBase;
     }
   });
+
+  it("judgeSettlements 空解析时重试一次并成功", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-judge-retry-test-"));
+    const previousFetch = globalThis.fetch;
+    const previousKey = process.env.COC_API_KEY;
+    const previousBase = process.env.COC_LLM_BASE_URL;
+    process.env.COC_API_KEY = "test-key";
+    process.env.COC_LLM_BASE_URL = "http://judge-retry.invalid/v1/chat/completions";
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{
+            message: {
+              content: calls === 1
+                ? "抱歉，我需要再想想。"
+                : '{"verdicts":[{"id":"set-2","happened":false,"subject":"none","confidence":0.9,"evidence":""}]}',
+            },
+            finish_reason: "stop",
+          }],
+          usage: {},
+        }),
+      };
+    };
+    try {
+      const result = await judgeSettlements(
+        { dataDir },
+        {
+          settlements: [{ id: "set-2", kind: "hp", scene: "房间2", trigger: "泄压阀崩裂 HP-1d6", damage: "1d6" }],
+          playerText: "我观察泄压阀",
+          narration: "泄压阀只是微微震颤。",
+          currentScene: "房间2",
+          pcName: "林晚",
+        },
+      );
+      expect(calls).toBe(2);
+      expect(result.ok).toBe(true);
+      expect(result.verdicts.get("set-2").happened).toBe(false);
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey === undefined) delete process.env.COC_API_KEY; else process.env.COC_API_KEY = previousKey;
+      if (previousBase === undefined) delete process.env.COC_LLM_BASE_URL; else process.env.COC_LLM_BASE_URL = previousBase;
+    }
+  });
 });
 
 import { run, summarize } from "../runner.js";

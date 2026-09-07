@@ -24,7 +24,7 @@ describe("结局语义裁决器", () => {
     ],
   };
 
-  it("构建裁决输入包含已选分支与结局", () => {
+  it("构建裁决输入包含候选选项与已选结局", () => {
     const prompt = buildEndingJudgePrompt({
       finalBranch,
       playerText: "就此画下句点，结束本次跑团",
@@ -34,8 +34,9 @@ describe("结局语义裁决器", () => {
     });
     expect(prompt.includes("寻找外部控制室并按键发射")).toBe(true);
     expect(prompt.includes("外部控制台完成手操")).toBe(true);
+    expect(prompt.includes("候选选项")).toBe(true);
     expect(prompt.includes("就此画下句点")).toBe(true);
-    expect(prompt.includes("ended")).toBe(true);
+    expect(prompt.includes("endingLabel")).toBe(true);
   });
 
   it("系统提示要求只输出 JSON 并区分过程与结局", () => {
@@ -46,7 +47,9 @@ describe("结局语义裁决器", () => {
   });
 
   it("解析纯 JSON 输出", () => {
-    expect(parseEndingJudgeOutput('{"ended":true,"confidence":0.9,"evidence":"幕落"}').ended).toBe(true);
+    const parsed = parseEndingJudgeOutput('{"ended":true,"endingLabel":"寒星降临","confidence":0.9,"evidence":"幕落"}');
+    expect(parsed.ended).toBe(true);
+    expect(parsed.endingLabel).toBe("寒星降临");
     expect(parseEndingJudgeOutput('{"ended":false}').ended).toBe(false);
   });
 

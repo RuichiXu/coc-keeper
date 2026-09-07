@@ -1993,3 +1993,18 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   2. `chat-bridge.js` 结局块：judge 可用时只由 `ended=true` 落盘 `endingReached`；固定收束语词表（本次跑团到此/幕落/结束行动…）仅作 judge 不可用/未启用时的回退。观测写入 `flat.endingJudgeStats`（calls/endedTrue/failures/lastDurationMs）与 session.trace。
   3. 测试：新增 `tests/unit/ending-judge.test.mjs`（prompt/解析/块式消息/mock fetch 全通路）。
 - 验证：全量测试 68/68。
+
+---
+
+## Session（2026-09-07）：r8 修复——终局候选前置、endingLabel 自动落地、结算 judge 空解析重试
+
+- 背景：Codex r8（f5af014）状态一致 4/5、玩家体验 4/5，但规则与检定 3/5（settlement judge 1 次空解析回退）、守门安全 3/5（第 49 轮“冒险落幕”时最终分支未标记，ending judge 直到第 53 轮才运行）。
+- 修复：
+  1. `ending-judge.js`：输出增加 `endingLabel`；prompt 改为“候选选项 + 是否实际落幕 + 对应哪个选项”。
+  2. `chat-bridge.js` 结局块：终局候选不再要求最终分支已 reached——叙述/输入出现落幕语或结局选项关键词即召回；judge `ended=true` 时：
+     - 最终分支已选 → 直接落盘；
+     - 分支未选但 `endingLabel` 能匹配候选选项 → 自动落地最终分支并落盘；
+     - 匹配不到 → 写 `flat.pendingEnding`，待最终分支标记后下一轮立即收束（不再等新叙述）。
+  3. `settlement-judge.js`：空解析时追加“只输出 JSON”修复消息重试一次，仍失败才回退固定字段。
+  4. 测试：settlement-judge 增加“空解析→重试成功”mock fetch 测试；ending-judge 解析/prompt 更新。
+- 验证：全量测试 68/68。

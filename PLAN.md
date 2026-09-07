@@ -101,7 +101,7 @@
    - 第六批（`f8984fb`）：r5 修复——场景落地 `stripMenuLines` + 合法路线意图无条件采纳；外出结算改到达型（`arrival`）并删除“出去/前往”触发词；HP 结算 `strongContext` + 短场景词；`coc_pc` 空更新 no-op。
    - 第七批（`d98f3bb`）：结算点语义裁决层（`settlement-judge.js`）——固定字段匹配降级为召回/回退，非到达型候选由一次 flash 小调用判定“事件是否已发生并作用于 PC”；live smoke 开启，mock 关闭。
    - 第八批（`e967d46`）：r6 修复——judge 消息改块式 content + `toOpenAiMessages` 兼容字符串；judge 观测统一工具执行后落盘（`flat.judgeStats` + trace）；回退再收紧（set-4 删“到达”、HP futureMarkers）。
-   - 第九批（工作区）：r7 修复——终局改语义裁决（`ending-judge.js`，固定收束语仅回退）+ 已选分支关键词；状态数值声明守卫（HP/SAN 数值声明重写/剥离）。
+   - 第九批（工作区）：r7/r8 修复——终局改语义裁决（`ending-judge.js`，候选前置 + `endingLabel` 自动落地最终分支 + `pendingEnding` 待标记收束；固定收束语仅回退）+ 已选分支关键词；状态数值声明守卫（HP/SAN 数值声明重写/剥离）；结算 judge 空解析重试一次。
    - 下一步候选：提交第九批后复测；权限球/教授位置等事实保真、`coc_branch` 工具错误收口、结局前置校验。
 
 ---
