@@ -347,6 +347,105 @@ describe("/coc-api 集成", () => {
     expect(flat.deepParse.keyPoints.some((kp) => kp.id === "kp-2")).toBeTrue();
   });
 
+  it("编辑其他剧本资产时只写资产，不污染当前场次", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "games"), { recursive: true });
+    mkdirSync(join(dir, "assets", "scenarios"), { recursive: true });
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    const dpA = {
+      status: "draft", source: "import", reviewed: false,
+      keyPoints: [{ id: "kp-a", title: "A 点", scene: "书房" }],
+      branches: [{ id: "br-a", title: "A 分支", options: [{ label: "走", leadsTo: "A 点" }] }],
+      keyPointConditions: [{ keyPointId: "kp-a", requires: { scene: "书房" } }],
+      branchConditions: [{ branchId: "br-a", requires: { scene: "书房" } }],
+      plotEdges: [{ from: "br:br-a", to: "kp:kp-a", label: "走", requires: [], consequences: { setFlags: { "branch:br-a:chosen": "走" } } }],
+      endings: [{ branchId: "br-a", title: "A 结局", requires: { branchChoiceIds: ["br-a"] }, blockers: [], endingKeywords: ["A"] }],
+    };
+    writeFileSync(join(dir, "assets", "scenarios", "sc-a.json"), JSON.stringify({
+      id: "sc-a", kind: "scenarios", name: "剧本A",
+      keyPoints: [{ id: "kp-a", title: "A 点", scene: "书房" }],
+      branches: [{ id: "br-a", title: "A 分支", scene: "书房", options: [{ label: "走", leadsTo: "A 点" }] }],
+      deepParse: dpA, deepParseStatus: "draft",
+    }));
+    writeFileSync(join(dir, "assets", "scenarios", "sc-b.json"), JSON.stringify({
+      id: "sc-b", kind: "scenarios", name: "剧本B",
+      keyPoints: [{ id: "kp-b", title: "B 点", scene: "大厅" }],
+      branches: [{ id: "br-b", title: "B 分支", scene: "大厅", options: [{ label: "走", leadsTo: "B 点" }] }],
+      deepParseStatus: "none",
+    }));
+    writeFileSync(join(dir, "games", "g1.json"), JSON.stringify({
+      id: "g1", title: "g1", updatedAt: new Date().toISOString(), kpMode: "ai",
+      rules: null, scenario: { name: "剧本A", text: "A", chars: 1 }, scenarioId: "sc-a",
+      characters: [], keyPoints: [{ id: "kp-a", title: "A 点", scene: "书房" }], branches: [{ id: "br-a", title: "A 分支", scene: "书房", options: [{ label: "走", leadsTo: "A 点" }] }],
+      currentScene: "书房", currentBranchId: "", time: "", synopsis: "", tasks: [],
+      entities: [], log: [], toolTrace: [], rollHistory: [], reminders: [], busy: false,
+    }));
+
+    const saved = await handle(handler, createFakeReq("POST", "/coc-api/deep-parse", {
+      game: "g1",
+      asset: "sc-b",
+      deepParse: {
+        keyPoints: [{ id: "kp-b", title: "B 点", scene: "大厅" }],
+        branches: [{ id: "br-b", title: "B 分支", options: [{ label: "走", leadsTo: "B 点" }] }],
+        keyPointConditions: [{ keyPointId: "kp-b", requires: { scene: "大厅" } }],
+        branchConditions: [{ branchId: "br-b", requires: { scene: "大厅" } }],
+        plotEdges: [{ from: "br:br-b", to: "kp:kp-b", label: "走", requires: [], consequences: { setFlags: { "branch:br-b:chosen": "走" } } }],
+        endings: [{ branchId: "br-b", title: "B 结局", requires: { branchChoiceIds: ["br-b"] }, blockers: [], endingKeywords: ["B"] }],
+      },
+      status: "draft",
+      source: "manual",
+    }), createFakeRes());
+    expect(saved.ok).toBeTrue();
+    expect(saved.data.asset).toBe("sc-b");
+
+    const assetB = JSON.parse(readFileSync(join(dir, "assets", "scenarios", "sc-b.json"), "utf8"));
+    expect(assetB.deepParse.status).toBe("draft");
+    const flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
+    // 场次仍绑定 sc-a，且场次自己的 deepParse 没有被 sc-b 覆盖。
+    expect(flat.scenarioId).toBe("sc-a");
+    expect(flat.deepParse === null || flat.deepParse === undefined || flat.deepParse.status !== "draft").toBeTrue();
+
+    const byGame = await handle(handler, createFakeReq("GET", "/coc-api/deep-parse?game=g1"), createFakeRes());
+    expect(byGame.ok).toBeTrue();
+    expect(byGame.data.asset).toBe("sc-a");
+  });
+
+  it("含中文 id 的场次可正常读取与删除", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "games"), { recursive: true });
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    writeFileSync(join(dir, "games", "verify-对流.json"), JSON.stringify({
+      id: "verify-对流", title: "对流（验证）", updatedAt: new Date().toISOString(), kpMode: "ai",
+      rules: null, scenario: null, scenarioId: null, characters: [], keyPoints: [], branches: [],
+      currentScene: "", currentBranchId: "", time: "", synopsis: "", tasks: [], entities: [],
+      log: [], toolTrace: [], rollHistory: [], reminders: [], busy: false,
+    }));
+
+    const state = await handle(handler, createFakeReq("GET", "/coc-api/state?game=" + encodeURIComponent("verify-对流")), createFakeRes());
+    expect(state.ok).toBeTrue();
+    expect(state.data.id).toBe("verify-对流");
+
+    const del = await handle(handler, createFakeReq("POST", "/coc-api/game-delete", { game: "verify-对流" }), createFakeRes());
+    expect(del.ok).toBeTrue();
+    expect(existsSync(join(dir, "games", "verify-对流.json"))).toBeFalse();
+  });
+
   it("POST /coc-api/roll 走新工具并写入 core", async () => {
     const ctx = new Context();
     const tools = new TestTools(ctx);

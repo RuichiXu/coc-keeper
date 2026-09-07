@@ -2044,3 +2044,22 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   2. `lib/client.js`：解析页在有 `S.digest.scenarioId` 时用 `?asset=` 读取；网络标题栏与状态卡显示「剧本资产：<名>」；校对编辑卡在资产绑定时提示并携带 `asset` 保存/确认。
   3. `FRONTEND.md`：补充网络图数据流的资产绑定语义与编辑请求约定。
 - 验证：全量测试 68/68；UI 冒烟 32/32。
+
+---
+
+## Session（2026-09-08）：解析页独立剧本切换 + 修复含中文 id 场次读不到/删不掉
+
+- 需求：
+  1. 查看不同剧本的解析网络应直接在解析页切换剧本资产，而不是靠切换场次。
+  2. 墨渊（验证）/对流（验证）等含中文 id 场次数据为空且无法删除，要求根治。
+- 根因（问题 2）：`safeGameId` 旧实现把中文压成连字符，`verify-对流` 被压成 `verify-`，导致 `stateKey` 指向 `games/verify-.json`，与磁盘上的 `games/verify-对流.json` 不一致；列表能扫到文件，但 state/delete 全部落空。
+- 修复：
+  1. `lib/adapter/plugin.js` 与 `lib/shared/tools/helpers.js` 的 `safeGameId` 保留中文（`\u4e00-\u9fff`）；`stateKey` 移入 apply 并在主路径不存在时扫描 `games/` 目录按原始 id / 文件内 id 精确匹配回退（双保险自愈）。
+  2. `lib/shared/api/coc-api.js`：
+     - 深度解析 POST 区分「编辑自家资产」与「编辑其他资产」：自家资产继续合并场次结构并镜像场次；其他资产只用资产结构合并并只写资产，不污染当前场次。
+     - 剧本资产列表接口不再携带 `deepParse`/`keyPoints`/`branches`/`entities` 等大字段，只留 `deepParseStatus` 等标记，面板更轻。
+  3. `lib/client.js` 解析页：
+     - 新增独立剧本下拉（`renderNetAssetSelect`），默认「跟随当前场次」，可切任意剧本资产；切换时重置筛选并重载网络。
+     - 查看非当前场次剧本时 `createNetModel` 只读资产结构、不叠加场次运行时摘要；「剧本结构编辑」折叠区仅在查看当前场次剧本时显示。
+     - 无深度解析的空状态也保留剧本下拉，可直接切换其他剧本。
+- 测试：新增集成测试覆盖「编辑其他资产不污染场次」「含中文 id 场次可读取与删除」；全量 68/68；UI 冒烟 32/32。
