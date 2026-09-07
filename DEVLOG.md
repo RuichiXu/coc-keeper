@@ -1888,3 +1888,15 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
 - `findEarlyDiaryLeak` 通用化：拦截日记关键点自带文本（desc/ownText/trigger/playerDesc）中的受保护句，不再含《墨渊》固定句。
 - PATCHES.md：行 38 标记为已删除/替代；行 13/14/15 同步更新。
 - 验证：全量测试 62/62。
+
+---
+
+## Session（2026-09-07）：r3 复测修复——自动结算误触发与重复扣血
+
+- 背景：Codex r3（6bb6b24）规则与检定 3/5（+1），成长拦截通过实测；但自动 SAN/HP 结算出现 4 类误触发/重复扣血：选项里的“矿洞”触发外出 SC、便条里的“沸核”触发直面沸核 SC、靠近热源触发阀门 HP 事故、自动扣 1 HP 后 KP 又扣 1 HP。首轮 SAN 损失未进入玩家可见 roll 日志。
+- 修复：
+  1. `settlements.js`：`settlementMatches` 改为句子级匹配（anyOf 与语境词必须同句）；结算点 scene 从最近的“房间N：/外部控制”标记解析，不再使用“考虑要求图书馆”等目录标题；新增 `sceneTokens` 约束（文本或当前场景必须命中场景词）。
+  2. `chat-bridge.js`：结算匹配前用 `stripMenuLines` 剔除推荐选项/菜单行；修复 settlement 循环里重复 reload 导致 SAN/HP 日志行被冲掉的问题。
+  3. 新增 `lib/shared/chat/damage-ledger.js`：HP 损失统一记账；`coc_pc` 手动扣血时若窗口期内已自动结算等额损失则跳过并提示，内部自动扣血用 `_auto` 旁路。
+  4. 回归测试：新增 r3 三个误触发场景 + sceneTokens + damage-ledger 测试。
+- 验证：全量测试 63/63；《对流》真实结算点 scene 归属正确（set-2→房间2、set-3→房间4、set-4→外部控制室），r3 三个误触发文本均不再命中，r2 的真实事件文本仍命中。

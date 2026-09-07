@@ -12,7 +12,10 @@ import {
   parseHpExpressions,
   parseLinkedDamageGate,
   parseScExpressions,
+  resolveSettlementScene,
+  sceneTokensFor,
   settlementMatches,
+  splitSentences,
 } from "../../lib/core/scenario/settlements.js";
 
 describe("剧本结算点", () => {
@@ -59,6 +62,37 @@ describe("剧本结算点", () => {
     });
   });
 
+  describe("r3 误触发回归", () => {
+    it("set-4 外出结算：选项里的“矿洞”不触发，前往外部控制室才触发", () => {
+      const settlement = { id: "set-4", kind: "san", scene: "外部控制室", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", sanLoss: "1/1d6", matchRules: { anyOf: ["踏出遗迹", "离开矿洞", "来到洞口", "走出", "前往外部", "到外部", "外部控制室", "岩台", "山脉侧翼"], context: ["出去", "离开", "洞口", "矿洞", "外部", "岩台", "夜风", "山脉侧翼", "踏出", "控制室"] } };
+      expect(settlementMatches(settlement, "先观察镇口周边环境（如山坡、矿洞方向）", "极光镇·镇口")).toBe(false);
+      expect(settlementMatches(settlement, "寻找外部控制室并按键发射，带上教授一起出去", "遗迹")).toBe(true);
+    });
+
+    it("set-3 直面沸核：读便条里的沸核不触发，观察高台上的沸核才触发", () => {
+      const settlement = { id: "set-3", kind: "san", scene: "房间4：静滞力场控制室", trigger: "直面沸核SC 1d4/1d10。", sanLoss: "1d4/1d10", matchRules: { anyOf: ["沸核"], context: ["观察窗", "直视", "面对", "高台", "白炽", "光球", "直面", "看向", "观察", "看"] } };
+      expect(settlementMatches(settlement, "我捡起落地的纸翻看工整的字迹，并检查桌子抽屉是否有地图或教授留下的简短便条。你捡起纸，上面写着：皆源自山中之物，我称之为沸核。", "矿洞")).toBe(false);
+      expect(settlementMatches(settlement, "先观察高台上翻涌的沸核，判断当前状态", "房间4：静滞力场控制室")).toBe(true);
+    });
+
+    it("set-2 阀门事故：靠近热源不触发，泄压阀蒸汽喷发才触发", () => {
+      const settlement = { id: "set-2", kind: "hp", scene: "房间2：泄压阀控制室", trigger: "（转动圆盘）……零件分崩离析……房间里的全员HP-1d6。", damage: "1d6", matchRules: { anyOf: ["泄压阀", "圆盘", "转盘", "分崩离析", "零件", "蒸汽", "烟雾", "充斥"], context: ["蒸汽", "热浪", "烟雾", "零件", "崩", "烫", "灼", "扑面", "涌来", "喷", "充斥"] } };
+      expect(settlementMatches(settlement, "你一靠近，那灼人的热浪便扑面而来。", "矿洞-凉爽侧向岔道")).toBe(false);
+      expect(settlementMatches(settlement, "泄压阀缝隙红光暴涨，高温蒸汽扑面涌来，烫得你退开。", "房间2：泄压阀控制室")).toBe(true);
+    });
+
+    it("sceneTokensFor 提取有区分度的场景词", () => {
+      expect(sceneTokensFor("房间2：泄压阀控制室")).toContain("泄压阀控制室");
+      expect(sceneTokensFor("房间2：泄压阀控制室")).toContain("房间2");
+      expect(sceneTokensFor("外部控制室")).toContain("外部控制");
+      expect(sceneTokensFor("守秘人信息")).toEqual([]);
+    });
+
+    it("splitSentences 只按句末标点切分", () => {
+      expect(splitSentences("泄压阀缝隙红光暴涨，高温蒸汽扑面而来。")).toEqual(["泄压阀缝隙红光暴涨，高温蒸汽扑面而来"]);
+    });
+  });
+
   describe("提取", () => {
     it("从迷你剧本提取 SC 结算点并挂接紧邻的体质伤害门禁", () => {
       const text = `5.6 房间四
@@ -77,6 +111,15 @@ describe("剧本结算点", () => {
         action: "在到达外部控制室前……体质检定，随后承受1/1d4的伤害。",
         damage: "1/1d4",
       });
+    });
+
+    it("resolveSettlementScene 从最近的房间标记确定归属", () => {
+      const lines = [
+        "考虑要求图书馆",
+        "房间2：泄压阀控制室这个房间与其他规模相仿",
+        "（转动圆盘）……房间里的全员HP-1d6。",
+      ];
+      expect(resolveSettlementScene(lines, 2, "考虑要求图书馆")).toBe("房间2：泄压阀控制室");
     });
 
     it("linkedGate 只取紧邻行，且解析困难难度", () => {
