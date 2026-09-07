@@ -265,6 +265,88 @@ describe("/coc-api 集成", () => {
     expect(flat.deepParse.reviewed).toBeTrue();
   });
 
+  it("GET/POST /coc-api/deep-parse 绑定剧本资产时读写资产而非场次", async () => {
+    const ctx = new Context();
+    const tools = new TestTools(ctx);
+    const systemPrompt = new TestSystemPrompt(ctx);
+    const webServer = new TestWebServer(ctx);
+    const dir = mkdtempSync(join(tmpdir(), "coc-api-"));
+    mkdirSync(join(dir, "games"), { recursive: true });
+    mkdirSync(join(dir, "assets", "scenarios"), { recursive: true });
+
+    apply(ctx, { dataDir: dir, defaultGame: "g1", maxRollHistory: 200 });
+    await tick();
+    const handler = webServer.routes[0].handler;
+
+    const dp = {
+      status: "draft",
+      source: "import",
+      reviewed: false,
+      keyPoints: [{ id: "kp-1", title: "发现暗门", scene: "书房" }],
+      branches: [{ id: "br-1", title: "是否进入暗门", options: [{ label: "进入", leadsTo: "发现暗门" }] }],
+      keyPointConditions: [{ keyPointId: "kp-1", requires: { scene: "书房" } }],
+      branchConditions: [{ branchId: "br-1", requires: { scene: "书房" } }],
+      plotEdges: [{ from: "br:br-1", to: "kp:kp-1", label: "进入", requires: [], consequences: { setFlags: { "branch:br-1:chosen": "进入" } } }],
+      endings: [{ branchId: "br-1", title: "暗门结局", requires: { branchChoiceIds: ["br-1"] }, blockers: [], endingKeywords: ["暗门"] }],
+    };
+    writeFileSync(join(dir, "assets", "scenarios", "sc-test.json"), JSON.stringify({
+      id: "sc-test", kind: "scenarios", name: "测试剧本", text: "测试全文",
+      keyPoints: [{ id: "kp-1", title: "发现暗门", scene: "书房" }],
+      branches: [{ id: "br-1", title: "是否进入暗门", scene: "书房", options: [{ label: "进入", leadsTo: "发现暗门" }] }],
+      deepParse: dp, deepParseStatus: "draft",
+    }));
+    writeFileSync(join(dir, "games", "g1.json"), JSON.stringify({
+      id: "g1", title: "g1", updatedAt: new Date().toISOString(), kpMode: "ai",
+      rules: null, scenario: { name: "测试剧本", text: "测试全文", chars: 4 }, scenarioId: "sc-test",
+      characters: [], keyPoints: [{ id: "kp-1", title: "发现暗门", scene: "书房" }], branches: [{ id: "br-1", title: "是否进入暗门", scene: "书房", options: [{ label: "进入", leadsTo: "发现暗门" }] }],
+      currentScene: "书房", currentBranchId: "", time: "", synopsis: "", tasks: [],
+      entities: [], log: [], toolTrace: [], rollHistory: [], reminders: [], busy: false,
+    }));
+
+    // 按 game 读取时优先返回资产版本
+    const byGame = await handle(handler, createFakeReq("GET", "/coc-api/deep-parse?game=g1"), createFakeRes());
+    expect(byGame.ok).toBeTrue();
+    expect(byGame.data.asset).toBe("sc-test");
+    expect(byGame.data.assetName).toBe("测试剧本");
+    expect(byGame.data.status).toBe("draft");
+
+    // 按 asset 读取
+    const byAsset = await handle(handler, createFakeReq("GET", "/coc-api/deep-parse?asset=sc-test"), createFakeRes());
+    expect(byAsset.ok).toBeTrue();
+    expect(byAsset.data.deepParse.endings).toHaveLength(1);
+
+    // 确认生效写入资产，并镜像回场次
+    const confirmed = await handle(handler, createFakeReq("POST", "/coc-api/deep-parse", { action: "confirm", game: "g1" }), createFakeRes());
+    expect(confirmed.ok).toBeTrue();
+    let asset = JSON.parse(readFileSync(join(dir, "assets", "scenarios", "sc-test.json"), "utf8"));
+    let flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
+    expect(asset.deepParse.status).toBe("confirmed");
+    expect(asset.deepParseStatus).toBe("confirmed");
+    expect(flat.deepParse.status).toBe("confirmed");
+
+    // 保存草稿写入资产，mergeDeepParseDraft 新增节点同步回资产 keyPoints/branches
+    const saved = await handle(handler, createFakeReq("POST", "/coc-api/deep-parse", {
+      game: "g1",
+      deepParse: {
+        keyPoints: [{ id: "kp-2", title: "第二扇门", scene: "书房" }],
+        branches: [{ id: "br-1", title: "是否进入暗门", options: [{ label: "进入", leadsTo: "发现暗门" }] }],
+        keyPointConditions: [{ keyPointId: "kp-2", requires: { scene: "书房" } }],
+        branchConditions: [{ branchId: "br-1", requires: { scene: "书房" } }],
+        plotEdges: [{ from: "br:br-1", to: "kp:kp-1", label: "进入", requires: [], consequences: { setFlags: { "branch:br-1:chosen": "进入" } } }],
+        endings: [{ branchId: "br-1", title: "暗门结局", requires: { branchChoiceIds: ["br-1"] }, blockers: [], endingKeywords: ["暗门"] }],
+      },
+      status: "draft",
+      source: "manual",
+    }), createFakeRes());
+    expect(saved.ok).toBeTrue();
+    expect(saved.data.asset).toBe("sc-test");
+    asset = JSON.parse(readFileSync(join(dir, "assets", "scenarios", "sc-test.json"), "utf8"));
+    flat = JSON.parse(readFileSync(join(dir, "games", "g1.json"), "utf8"));
+    expect(asset.deepParse.status).toBe("draft");
+    expect(asset.keyPoints.some((kp) => kp.id === "kp-2")).toBeTrue();
+    expect(flat.deepParse.keyPoints.some((kp) => kp.id === "kp-2")).toBeTrue();
+  });
+
   it("POST /coc-api/roll 走新工具并写入 core", async () => {
     const ctx = new Context();
     const tools = new TestTools(ctx);

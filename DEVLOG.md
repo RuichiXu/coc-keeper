@@ -2031,3 +2031,16 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   1. 数据修复：两个文件 `id` 与 `core.id` 改为文件名基底（`verify-对流` / `verify-盲愚之眼`）。
   2. `lib/shared/api/coc-api.js` `listGames` 增加自愈：文件名与 `flat.id` 不一致时，以文件名为准修正 `flat.id` 与 `core.id` 并保存，列表返回文件名 id，避免再次出现不可加载/不可删除的场次。
 - 验证：全量测试 68/68；本地五个场次 id 均与文件名一致。
+
+---
+
+## Session（2026-09-08）：剧情网络与剧本资产绑定
+
+- 需求：解析页的剧情网络不应随具体场次走，同一剧本在不同场次应看到同一张网络；编辑也应写入剧本资产。
+- 改动：
+  1. `lib/shared/api/coc-api.js`：
+     - `GET /coc-api/deep-parse` 支持 `?asset=<scenarioId>` 直接按资产读取；按 `?game=` 读取时，若场次绑定剧本资产且资产带 deepParse，优先返回资产版本，资产无解析才回退场次旧数据。
+     - `POST /coc-api/deep-parse` 在场次绑定剧本资产（或显式传 `asset`）时，将草稿/确认写入资产 `deepParse`/`deepParseStatus`，并镜像回当前场次 `flat.deepParse` 保持运行期一致；新增节点按 id 合并回资产 `keyPoints`/`branches`，防止新建场次丢节点。未绑定资产的场次维持原场次级行为。
+  2. `lib/client.js`：解析页在有 `S.digest.scenarioId` 时用 `?asset=` 读取；网络标题栏与状态卡显示「剧本资产：<名>」；校对编辑卡在资产绑定时提示并携带 `asset` 保存/确认。
+  3. `FRONTEND.md`：补充网络图数据流的资产绑定语义与编辑请求约定。
+- 验证：全量测试 68/68；UI 冒烟 32/32。

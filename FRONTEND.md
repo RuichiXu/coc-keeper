@@ -93,6 +93,8 @@ Keeper 默认宽度不超过 1080px / 96vw，高度不超过 900px / 90vh；已�
 事件委托、邻接索引、缩放/平移、迷你导航 → DOM 详情
 ```
 
+剧情网络与**剧本资产**绑定，而不是与具体场次绑定：当前场次有 `S.digest.scenarioId` 时，前端用 `?asset=<scenarioId>` 读取；即使用 `?game=` 读取，后端也会在资产带深度解析时优先返回资产版本。同一剧本在不同场次看到同一张网络。深度解析的保存/确认同样写入剧本资产，并镜像回当前场次供运行期使用；未绑定资产的旧场次继续读写场次自己的 `deepParse`。
+
 `createNetModel` 合并运行时摘要与深度解析，保留运行时揭示/抵达等信息，补入解析语义字段。节点按 `kp / br / end` 分类；端点解析集中在 `netResolveNode`，兼容既有 ID 与旧数据引用，避免各 renderer 自行匹配端点。边去重与选项补边发生在模型阶段。
 
 布局阶段建立当前视图的投影，计算 `_x / _y`，并附带 `_main`、`_returnBadge`、`_sceneAgg` 等展示信息及合成节点/边。绘制阶段只读取布局结果，不再次推导拓扑或改写接口数据。
@@ -137,8 +139,8 @@ Keeper 默认宽度不超过 1080px / 96vw，高度不超过 900px / 90vh；已�
 
 | 操作 | 请求 | 使用约定 |
 |---|---|---|
-| 深度解析保存草稿 | `POST /coc-api/deep-parse`，`deepParse`、`status: "draft"`、`source: "manual"` | 先解析 textarea JSON，再由服务端归一化、保存 |
-| 深度解析确认生效 | 同端点，`action: "confirm"` | 确认的是**已保存版本**，不会提交 textarea 中未保存的改动 |
+| 深度解析保存草稿 | `POST /coc-api/deep-parse`，`deepParse`、`status: "draft"`、`source: "manual"`；绑定剧本资产时加 `asset: <scenarioId>` | 先解析 textarea JSON，再由服务端归一化、保存；有资产绑定则写入资产 |
+| 深度解析确认生效 | 同端点，`action: "confirm"`；绑定剧本资产时加 `asset: <scenarioId>` | 确认的是**已保存版本**，不会提交 textarea 中未保存的改动；有资产绑定则确认资产版本 |
 | 剧本结构编辑 | `POST /coc-api/structure`，`sections` | 保存结构数组并刷新状态，影响剧本结构，不能当作画布排版保存 |
 
 当前编辑器是 JSON 校对闭环，没有拖拽节点改业务拓扑的图形编辑模式。写入前后需要校验当前场次与服务端返回结果；不要把移动画布、搜索或选择视图变成保存操作。
