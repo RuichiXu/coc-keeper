@@ -87,6 +87,11 @@ describe("剧本结算点", () => {
       expect(settlementMatches(settlement, "教授说：外部控制室……标注在这儿了。", "房间5：档案馆")).toBe(false);
     });
 
+    it("set-4 外出结算：“安全到达路线”里的“到达”不触发（r6 第 25 轮）", () => {
+      const settlement = { id: "set-4", kind: "san", scene: "外部控制室", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", sanLoss: "1/1d6", matchRules: settlementMatchRules("踏出遗迹，一路离开矿洞……SC1/1D6", "san") };
+      expect(settlementMatches(settlement, "我和教授查看机械图稿、基地模型和地图，寻找外部控制室的标注与安全到达路线。", "房间3：设施总控室")).toBe(false);
+    });
+
     it("set-3 直面沸核：读便条里的沸核不触发，观察高台上的沸核才触发", () => {
       const settlement = { id: "set-3", kind: "san", scene: "房间4：静滞力场控制室", trigger: "直面沸核SC 1d4/1d10。", sanLoss: "1d4/1d10", matchRules: { anyOf: ["沸核"], context: ["观察窗", "直视", "面对", "高台", "白炽", "光球", "直面", "看向", "观察", "看"] } };
       expect(settlementMatches(settlement, "我捡起落地的纸翻看工整的字迹，并检查桌子抽屉是否有地图或教授留下的简短便条。你捡起纸，上面写着：皆源自山中之物，我称之为沸核。", "矿洞")).toBe(false);
@@ -99,6 +104,8 @@ describe("剧本结算点", () => {
       expect(settlementMatches(settlement, "泄压阀缝隙红光暴涨，高温蒸汽扑面涌来，烫得你退开。", "房间2：泄压阀控制室")).toBe(true);
       // 场景漂移为“布莱克的房间”时，叙述里的短名“泄压阀”仍应命中（r5 第 20 轮伤害漏结算）。
       expect(settlementMatches(settlement, "那崩裂的泄压阀冒出的滚烫气流，仍在一团团从缺口涌出。", "布莱克的房间")).toBe(true);
+      // 未来描述不触发（r6 第 23 轮：教授说“沸核随时会提前失控喷发”）。
+      expect(settlementMatches(settlement, "他睁开眼，目光焦灼：“但机关老朽了，泄压阀出了故障，沸核随时会提前失控喷发。", "房间3：设施总控室")).toBe(false);
     });
 
     it("sceneTokensFor 提取有区分度的场景词", () => {

@@ -1,12 +1,18 @@
 /**
  * 结算点语义裁决器单元测试
  *
- * 覆盖：prompt 构造、宽容 JSON 解析、verdict 归一化、候选上限。
+ * 覆盖：prompt 构造、宽容 JSON 解析、verdict 归一化、候选上限、
+ * 以及一次带 mock fetch 的 judgeSettlements 通路（r6 在 HTTP 前失败的回归）。
  */
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it, expect } from "../runner.js";
 import {
+  buildSettlementJudgeMessages,
   buildSettlementJudgePrompt,
   buildSettlementJudgeSystem,
+  judgeSettlements,
   normalizeSettlementVerdicts,
   parseSettlementJudgeOutput,
   SETTLEMENT_JUDGE_MAX_CANDIDATES,
@@ -64,6 +70,52 @@ describe("结算点语义裁决器", () => {
 
   it("候选上限为 12（控制单次调用成本）", () => {
     expect(SETTLEMENT_JUDGE_MAX_CANDIDATES).toBe(12);
+  });
+
+  it("消息必须是块式 content（修复 r6 judge 在 HTTP 前失败）", () => {
+    const messages = buildSettlementJudgeMessages("判定文本");
+    expect(Array.isArray(messages)).toBe(true);
+    expect(Array.isArray(messages[0].content)).toBe(true);
+    expect(messages[0].content[0].type).toBe("text");
+    expect(messages[0].content[0].text).toBe("判定文本");
+  });
+
+  it("judgeSettlements 通过 mock fetch 走完整通路", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "coc-judge-test-"));
+    const previousFetch = globalThis.fetch;
+    const previousKey = process.env.COC_API_KEY;
+    const previousBase = process.env.COC_LLM_BASE_URL;
+    process.env.COC_API_KEY = "test-key";
+    process.env.COC_LLM_BASE_URL = "http://judge.invalid/v1/chat/completions";
+    globalThis.fetch = async () => ({
+      ok: true,
+      json: async () => ({
+        choices: [{
+          message: { content: '{"verdicts":[{"id":"set-2","happened":true,"subject":"pc","confidence":0.9,"evidence":"泄压阀崩裂"}]}' },
+          finish_reason: "stop",
+        }],
+        usage: {},
+      }),
+    });
+    try {
+      const result = await judgeSettlements(
+        { dataDir },
+        {
+          settlements: [{ id: "set-2", kind: "hp", scene: "房间2", trigger: "泄压阀崩裂 HP-1d6", damage: "1d6" }],
+          playerText: "我转动圆盘",
+          narration: "泄压阀崩裂，蒸汽涌出",
+          currentScene: "房间2",
+          pcName: "林晚",
+        },
+      );
+      expect(result.ok).toBe(true);
+      expect(result.verdicts.get("set-2").happened).toBe(true);
+      expect(result.verdicts.get("set-2").subject).toBe("pc");
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey === undefined) delete process.env.COC_API_KEY; else process.env.COC_API_KEY = previousKey;
+      if (previousBase === undefined) delete process.env.COC_LLM_BASE_URL; else process.env.COC_LLM_BASE_URL = previousBase;
+    }
   });
 });
 

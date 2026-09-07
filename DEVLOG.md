@@ -1957,3 +1957,16 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   3. `runtime-smoke`：`createHarness` 增加 `enableSemanticSettlement` 开关；CLI 在 `--kp llm`（live）时开启，mock 模式关闭，保证测试 hermetic。
   4. 测试：新增 `tests/unit/settlement-judge.test.mjs`（prompt/解析/归一化/上限），全量 65/65。
 - 设计要点：裁决器只回答“发生与否”，骰点与数值仍由 `coc_sanity_check`/`coc_pc` 确定性执行；`eventId` 幂等去重继续生效；judge 的 evidence 原句摘录用于日志与复核。
+
+---
+
+## Session（2026-09-07）：r6 修复——judge 消息契约、回退观测持久化、回退误触发收紧
+
+- 背景：Codex r6（d98f3bb）语义 judge 0 次请求：judge 消息传了字符串 content，公共 LLM 适配器按数组 `.find()` 在 HTTP 前抛错并回退；回退模式仍误判“沸核随时会提前失控喷发”扣 4 HP、“寻找外部控制室的安全到达路线”当外出。toolErrors 已归零。
+- 修复：
+  1. `settlement-judge.js`：新增 `buildSettlementJudgeMessages`，消息改为块式 content `[{type:"text",text}]`；`judgeSettlements` 返回 `durationMs`。
+  2. `llm.js`：`toOpenAiMessages` 统一把字符串 content 归一为 text 块数组，并导出该函数，杜绝此类 HTTP 前失败。
+  3. `chat-bridge.js`：judge 调用/失败/回退与每条 verdict 先缓存到 `judgeObservations`，在全部结算工具执行完成后统一写入 `flat.judgeStats`（calls/failures/verdicts/fallbacks/lastError/lastDurationMs）与 session.trace，避免循环内工具 reload 覆盖 trace（r6 回退日志丢失根因）。
+  4. `settlements.js` 回退收紧：set-4 删除“到达”触发词；HP 增加 `futureMarkers`（随时/将会/即将/可能/一旦…）——未来/条件语气且无破坏词时不算发生。
+  5. 测试：新增 `tests/unit/llm-messages.test.mjs`；settlement-judge 增加 mock fetch 全通路测试；settlements 增加 r6 两个反例。
+- 验证：全量测试 66/66；mock fetch 下 judgeSettlements 正常发出请求并解析 verdicts；r6 两个回退反例均不再命中。

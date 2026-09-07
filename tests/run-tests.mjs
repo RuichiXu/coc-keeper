@@ -21,6 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const TESTS = {
   unit: [
     "unit/dice.test.mjs",
+    "unit/llm-messages.test.mjs",
     "unit/events.test.mjs",
     "unit/event-log.test.mjs",
     "unit/clock.test.mjs",
