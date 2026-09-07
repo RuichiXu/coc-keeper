@@ -91,15 +91,16 @@
 4. **审校稳定性** ✅ 已完成：新增 `runDeepParseRuleReview`（`lib/core/scenario/deep-parse-review.js`）确定性规则化审校——条件引用存在性、条件自相矛盾、结局互斥完备性（optionLabel/requires 重复、选项覆盖）、`not.keyPointIds` 过度限制、分支门控与本分支结局冲突、结局 scene 与最终分支 scene 一致性、结局前置关键点循环依赖（只能在抉择后到达的 kp 不能作前置）、入边 requires 与结局 requires 一致性、结局关键词缺失。引入时使用「preflight + 规则化审校 + LLM 审校」三层门禁（当前干净数据跳过策略见状态总览）：规则审校 h0/m≤2 且 LLM 审校 h0/m≤2 才 pass；LLM 审校 prompt 被告知不重复报告规则审校已判问题，修订 prompt 回灌规则审校问题。
 5. **收尾清理** ✅ 已完成：`.gitignore` 加入 `/artifacts/`、`/scenarios/`、`/tests/fixtures/hidden_scenarios/`；决定隐藏门禁 PDF 不入库（体积 0.6–11MB、不参与自动化测试，`tests/fixtures/README.md` 说明本地目录结构与复跑方式）；删除本地 `exp/deep-parse-quality-0045` 分支（远端本就不存在）；README 补充 `deepParse` 推荐配置与全部 loopOptions 说明。
 6. **KP 校对面板与前端重构** ✅ 已完成并合并（`a7af183`、`fdb308b`）：骨架总览/场景总览、搜索/筛选、结局导航、节点/边详情、质量与来源展示、JSON 保存草稿/确认生效和结构编辑均可达。四个一级工作区与调试子导航已重组；删除演化视图、旧条带布局与无入口状态。6c 交付形式是 JSON 校对闭环，没有拖拽改拓扑的图形编辑器。当前 smoke 覆盖 32 项，另有星孩/两面双视图浏览器验收要求，见 [TESTING.md](TESTING.md)。
-7. **运行时冒烟与 Codex 复测修复** ✅ 进行中（`c8da08b`…`0c64d08`，第六批未提交）：
+7. **运行时冒烟与 Codex 复测修复** ✅ 进行中（`c8da08b`…工作区）：
    - 新增 `lib/testing/runtime-smoke/` 与 `scripts/runtime-smoke.mjs`：mock/live KP、scripted/LLM/HTTP 玩家、threshold/LLM/HTTP 评审。
    - 第一批（`663750c`）：KP 上下文注入全局事实卡（`kind==="facts"`）与全局检定点（`floor==="导入"`）。
    - 第二批（`0dc73fb`）：跨剧本《墨渊》咒文隔离、`.ra` 指令残壳清理、技能成长默认值/成功使用门控、剧本结算点（`lib/core/scenario/settlements.js`：SC/HP 自动结算 + 外出体质门禁）、物品脏数据过滤。
    - 第三批（`f8bbb0b`）：自动结算句子级匹配 + sceneTokens + 扣损账本（`damage-ledger.js`），修复 r3 误触发与双扣。
    - 第四批（`6f0b79e`）：地点白名单/路线邻接（`route-index.js`）+ 玩家转移意图场景同步 + 未登记地点守卫 + 场景/路线约束注入。
    - 第五批（`0c64d08`）：r4 修复——外出结算改为实际移动动作、守卫只取地点后缀降误报、条件句/问路识别、删除旧版楼层硬编码兜底、`.ra语言（母语）` 解析与母语→EDU、技能成长必须有成功记录。
-   - 第六批（工作区）：r5 修复——场景落地 `stripMenuLines` + 合法路线意图无条件采纳；外出结算改到达型（`arrival`）并删除“出去/前往”触发词；HP 结算 `strongContext` + 短场景词；`coc_pc` 空更新 no-op。
-   - 下一步候选：r5 修复提交后复测；结局前置校验与收口、权限球/教授位置等事实保真、`coc_branch` 工具错误收口。
+   - 第六批（`f8984fb`）：r5 修复——场景落地 `stripMenuLines` + 合法路线意图无条件采纳；外出结算改到达型（`arrival`）并删除“出去/前往”触发词；HP 结算 `strongContext` + 短场景词；`coc_pc` 空更新 no-op。
+   - 第七批（工作区）：结算点语义裁决层（`settlement-judge.js`）——固定字段匹配降级为召回/回退，非到达型候选由一次 flash 小调用判定“事件是否已发生并作用于 PC”；live smoke 开启，mock 关闭。
+   - 下一步候选：提交第七批后复测；结局前置校验与收口、权限球/教授位置等事实保真、`coc_branch` 工具错误收口。
 
 ---
 

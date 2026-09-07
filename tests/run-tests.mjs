@@ -30,6 +30,7 @@ const TESTS = {
     "unit/route-index.test.mjs",
     "unit/spell-text.test.mjs",
     "unit/settlements.test.mjs",
+    "unit/settlement-judge.test.mjs",
     "unit/check-gates.test.mjs",
     "unit/gate-lifecycle.test.mjs",
     "unit/ending.test.mjs",

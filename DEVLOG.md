@@ -1945,3 +1945,15 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
      - `sceneTokensFor` 从“泄压阀控制室”剥离通用地点后缀得到短词“泄压阀”，场景漂移时叙述短名仍能命中（r5 第 20 轮兜底）。
   3. `state-tools.js` `coc_pc` 未提供可更新字段时返回成功 no-op（“状态未变更”），不再抛工具错误。
 - 验证：全量测试 64/64；r5 两个失败文本在修改后的 `settlementMatches` 上复现为 set-2=true、set-4=false；带菜单的泄压阀叙述经 `stripMenuLines` 后 `inferSceneTransition` 返回 null（不再漂到布莱克的房间）；`findTravelIntent` 对“前往外部控制室”返回邻接地点。
+
+---
+
+## Session（2026-09-07）：结算点语义裁决层——固定字段匹配降级为召回/回退
+
+- 背景：用户指出固定字段匹配在文字团里很难根治一词多义与上下文问题（r5 “把沸核发射出去”被当外出）。决定实现低代价语义匹配：用一次非流式 flash 小调用做“事件是否已发生并作用于 PC”的窄 schema 判定。
+- 实现：
+  1. 新增 `lib/shared/chat/settlement-judge.js`：构造裁决 prompt（结算点原文 + 玩家输入 + 去菜单叙述 + 当前场景 + PC 名），宽容解析 JSON（围栏/前后缀），归一化 verdicts；单次最多 12 个候选；`reasoningEffort:"low"`、`temperature:0.1`、`max_tokens:800`。
+  2. `chat-bridge.js` 结算块：`deps.enableSemanticSettlement === true` 时，非到达型候选交给语义裁决，只有 `happened=true && subject=pc` 才结算；到达型结算点仍由场景落地确定性命中；裁决失败或未启用时回退固定字段匹配。
+  3. `runtime-smoke`：`createHarness` 增加 `enableSemanticSettlement` 开关；CLI 在 `--kp llm`（live）时开启，mock 模式关闭，保证测试 hermetic。
+  4. 测试：新增 `tests/unit/settlement-judge.test.mjs`（prompt/解析/归一化/上限），全量 65/65。
+- 设计要点：裁决器只回答“发生与否”，骰点与数值仍由 `coc_sanity_check`/`coc_pc` 确定性执行；`eventId` 幂等去重继续生效；judge 的 evidence 原句摘录用于日志与复核。
