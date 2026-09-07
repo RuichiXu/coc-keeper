@@ -35,6 +35,7 @@ const TESTS = {
     "unit/check-gates.test.mjs",
     "unit/gate-lifecycle.test.mjs",
     "unit/ending.test.mjs",
+    "unit/narration-state-claim.test.mjs",
     "unit/game-session.test.mjs",
     "unit/persistence.test.mjs",
     "unit/world-state.test.mjs",

@@ -1970,3 +1970,15 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   4. `settlements.js` 回退收紧：set-4 删除“到达”触发词；HP 增加 `futureMarkers`（随时/将会/即将/可能/一旦…）——未来/条件语气且无破坏词时不算发生。
   5. 测试：新增 `tests/unit/llm-messages.test.mjs`；settlement-judge 增加 mock fetch 全通路测试；settlements 增加 r6 两个反例。
 - 验证：全量测试 66/66；mock fetch 下 judgeSettlements 正常发出请求并解析 verdicts；r6 两个回退反例均不再命中。
+
+---
+
+## Session（2026-09-07）：r7 修复——结局收束落盘、已选分支关键词、状态数值声明守卫
+
+- 背景：Codex r7（e967d46）judge 真实跑通（calls=41、verdicts=127、failures=0），规则与检定 4/5；但 br-final-1 已 reached/chosen 而 endingReached=false，只能 player-done 停局；房间2叙述写“HP -3”，账本实际扣 5。状态一致 2/5、守门安全 3/5 未达标。
+- 修复：
+  1. `chat-bridge.js` 结局检测：最终分支 reached+chosen 后，除结局关键词外，识别叙述收束语（本次跑团到此/画下句点/就此作结/圆满结束/终幕/幕落/——终——）与玩家收束意图（结束本次跑团/结束行动/完成结局结算…）；关键词同时匹配叙述与玩家输入。
+  2. `ending.js` `buildEndingKeywords(finalBranch, chosen)`：已选分支时只取该选项 leadsTo，避免其它结局关键词干扰；`endingKeywordsFor`/`endingSentenceFor` 同步传 chosen。
+  3. `chat-bridge.js` 状态数值守卫：叙述出现“HP -3”等具体数值声明时先要求 LLM 重写一次（不写数值只描述效果）；仍残留则 `stripPcStateClaims` 删除括号声明。新增 `findPcStateClaim`/`stripPcStateClaims` 并导出。
+  4. 测试：新增 `tests/unit/narration-state-claim.test.mjs`；ending 测试保持通过。
+- 验证：全量测试 67/67；用 r7 终局文本模拟检测条件（幕落/结束行动）为 true；已选分支关键词只含“外部控制台完成手操”。

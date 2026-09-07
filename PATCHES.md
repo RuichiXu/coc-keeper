@@ -57,10 +57,11 @@
 | 40 | `lib/core/scenario/route-index.js` 地点白名单/路线邻接 + `context-builder.js` 注入地点清单与路线约束 + `chat-bridge.js` 玩家转移意图优先场景同步与“未登记地点”守卫：地点候选只取“房间/控制室/舱/旋梯/拱道/通道/走廊…”后缀本身（不截前文），叙述中出现原文与白名单都没有的地点后缀时追加纠正重写；`findTravelIntent` 跳过“如果…”条件句与“请…路线/怎么走”问路请求；`scene-facts.js` 删除旧版《墨渊》楼层硬编码兜底 | Codex r4：固定窗口截前缀造成 26 次误报（“装置竖直贯穿房间/们沿环形走廊/附注的外部控制台”）；问路与条件句被误判为移动意图；“一层门厅”被写进《对流》 | 场景实体化（sceneId + 邻接关系结构化）后，地点/路线由 SceneGraph 精确判定；地点候选后缀提取可删除 | 本轮为确定性兜底；地点后缀词匹配仍属启发式 |
 | 41 | `lib/shared/chat/chat-bridge.js` 场景落地 + `lib/shared/tools/state-tools.js` `coc_pc`：叙述推断前先 `stripMenuLines(narration)` 剔除推荐选项行（选项里的“前往/返回”会被 `hasSceneMovementPhrase` 当成位置转移，把“教授的手稿”等词误判成布莱克的房间）；玩家输入有合法路线意图（`findTravelIntent` 命中邻接地点）时无条件同步 currentScene，不再用“叙述仍提到当前场景词”拦下正确切换；`coc_pc` 未提供任何可更新字段时返回成功 no-op，不再抛“没有提供任何要更新的字段”工具错误 | Codex r5：第 20 轮泄压阀场景被选项行漂成“布莱克的房间”，导致 set-2 伤害已掷未扣；第 32 轮“前往外部控制室”因叙述仍提“档案馆”被拦，场景长期错误；末轮模型调用 `coc_pc` 只传 name 造成 toolErrors=1 | 前端场景切换统一由结构化事件（SceneChanged/地点实体）驱动，聊天桥不再从叙述推断；工具空调用由 schema 层 required 约束或模型稳定后自然消失 | 本轮为确定性兜底；`stripMenuLines` 复用、路线意图采纳与空更新 no-op 均为工具/叙述边界修正 |
 | 42 | `lib/shared/chat/settlement-judge.js` + `lib/shared/llm.js` + `chat-bridge.js` 结算点语义裁决：`deps.enableSemanticSettlement === true` 时，未结算的非到达型候选结算点交给一次非流式 LLM 小调用（`reasoningEffort:"low"`、max_tokens 800、单次最多 12 个候选）判定“事件是否已发生并作用于 PC”；输出 `{id,happened,subject,confidence,evidence}`，只有 `happened=true && subject=pc` 才结算；到达型结算点仍走场景落地确定性命中；裁决失败或未启用时回退到行 37 的固定字段匹配。r6 修复：judge 消息改为块式 content（`[{type:"text",text}]`），`toOpenAiMessages` 兼容字符串 content 防止再在 HTTP 前失败；judge 调用/失败/回退计数与每条 verdict 先缓存、待工具执行完成后统一写入 `flat.judgeStats` 与 session.trace，避免循环内工具重载覆盖 trace | 固定字段匹配无法理解“把沸核发射出去”是发射沸核还是调查员外出；语义裁决用同一个 LLM 做窄 schema 判断题，比生成叙述时顺带调用工具更可靠。r6 实测 judge 因消息契约不匹配 0 次请求、39+2 次回退日志丢失 | 理想形态是结构化事件流（伤害骰/场景落地/检定点）直接驱动结算，不再需要语义裁决；LLM 裁决只是向结构化过渡的低成本替代 | 本轮为语义层；候选仍由结算点列表驱动，judge 不可用时回退固定字段 |
+| 43 | `lib/shared/chat/chat-bridge.js` 结局收束检测扩展 + 状态数值声明守卫 + `lib/shared/chat/ending.js` 已选分支关键词：最终分支 reached+chosen 后，除结局关键词外还识别叙述/玩家输入中的收束语（“本次跑团到此/画下句点/就此作结/圆满结束/终幕/幕落/结束行动/完成结局结算…”）来落盘 `endingReached`；`buildEndingKeywords` 只取已选选项的 leadsTo；叙述出现“HP -3”这类具体数值声明时先要求 LLM 重写一次，仍残留则删除括号声明（`findPcStateClaim`/`stripPcStateClaims`） | Codex r7：br-final-1 已 reached/chosen，但叙述始终未出现“外部控制台完成手操”全称，endingReached=false 只能 player-done 停局；房间2叙述写“HP -3”，账本实际扣 5 | 结局成立应由 PlotGraph 结局节点/结构化事件直接置位；状态数值应由状态行渲染，叙述守卫待模型稳定后可降级为仅删除 | 本轮为确定性兜底；收束语词表与数值声明正则仍属启发式 |
 
-## 补丁现状审计（2026-09-07，覆盖行 1–42）
+## 补丁现状审计（2026-09-07，覆盖行 1–43）
 
-**结论**：行 1–42（除已划线的行 11、29、38）对应的实现**都仍然保留并被调用**。行 11（《墨渊》ID 硬编码映射）、行 29（扁平串链）、行 38（`scenarioHasMoyuanSpell` 关键词闸门）已删除；行 13/14/15 中《墨渊》固定咒文与结局模板已由 `spell-text.js` 数据驱动替代。
+**结论**：行 1–43（除已划线的行 11、29、38）对应的实现**都仍然保留并被调用**。行 11（《墨渊》ID 硬编码映射）、行 29（扁平串链）、行 38（`scenarioHasMoyuanSpell` 关键词闸门）已删除；行 13/14/15 中《墨渊》固定咒文与结局模板已由 `spell-text.js` 数据驱动替代。
 
 ### 已删除/已替代
 
@@ -80,8 +81,9 @@
 | 40 | 活跃 | 地点白名单/路线邻接/未登记地点守卫：候选只取后缀本身；等待场景实体化 |
 | 41 | 活跃 | 场景落地 stripMenuLines + 合法路线意图无条件采纳 + `coc_pc` 空更新 no-op；等待场景结构化事件与模型工具调用稳定 |
 | 42 | 活跃 | 结算点语义裁决：非到达型候选由一次 flash 小调用判定“是否已发生并作用于 PC”；失败回退固定字段匹配 |
+| 43 | 活跃 | 结局收束检测扩展（收束语词表）+ 已选分支关键词 + HP/SAN 数值声明守卫；等待结局结构化事件与状态行渲染 |
 
-### 下一步会被替代（行 35–42 补全）
+### 下一步会被替代（行 35–43 补全）
 
 | 行 | 补丁 | 替代来源 |
 |---|---|---|
@@ -92,6 +94,7 @@
 | 40 | 地点后缀词守卫 | SceneGraph（sceneId + 邻接关系）精确判定 |
 | 41 | 场景落地叙述推断 + 空更新 no-op | SceneChanged/地点实体结构化事件驱动；工具 schema 层 required 约束 |
 | 42 | 结算点语义裁决 | 结构化事件流（伤害骰/场景落地/检定点）直接驱动结算，不再需要语义裁决 |
+| 43 | 结局收束语检测 + 状态数值声明守卫 | PlotGraph 结局节点直接置位 endingReached；状态数值由状态行渲染 |
 
 ### 继续保留兜底（行 1–10、12–28、30–34 中未划线项）
 
