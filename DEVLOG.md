@@ -2008,3 +2008,15 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   3. `settlement-judge.js`：空解析时追加“只输出 JSON”修复消息重试一次，仍失败才回退固定字段。
   4. 测试：settlement-judge 增加“空解析→重试成功”mock fetch 测试；ending-judge 解析/prompt 更新。
 - 验证：全量测试 68/68。
+
+---
+
+## Session（2026-09-07）：Codex r9 GO——达到上线测试门槛
+
+- 背景：对 `b480222` 复用 r8 轨迹做短测试，结论 GO。
+- 结果：
+  - 第 48 轮首次终局候选出现时，ending judge 自动落地最终分支“放任泄压阀失控，沸核过早释放”，同轮 `endingReached=true`，无需人工补写。
+  - `endingJudgeStats`：calls=2、endedTrue=1、failures=0；`flat.judgeStats`：calls=47、verdicts=158、failures=0、fallbacks=0。
+  - 规则与检定/状态一致/守门安全/结局质量均 4/5；剧情还原与玩家体验 3/5；1 轮空叙述；工具错误与 busy 悬挂为 0。
+- 结论：当前质量可以上线测试。已知软性问题（场景字段偶发滞后、空叙述）留作后续优化，不阻塞体验测试。
+- 代码未修改，本地回归 68/68。

@@ -127,7 +127,7 @@ interface GameState {
 ```
 
 > 实际 `flat`（`games/<gameId>.json`）是上述字段的超集。运行时新增的字段包括：
-> `pendingChecks` / `skippedChecks` / `resolvedChecks` / `passedCheckpointIds` / `sanitySettled`（门禁与检定点账本）、`scenarioFacts` / `scenarioCheckpoints` / `scenarioSettlements` / `settledSettlementIds`（场景事实、显式检定点、SC/HP 结算点）、`skillUseLog`（技能成功/失败使用记录，供 `coc_skill_growth` 门控）、`hpLossLedger`（HP 扣损账本，防止自动结算与 `coc_pc` 重复扣血）、`spellShown`、`endingReached` / `endedAt`、`firedNightEventIds`、`core`（WorldState 投影快照）。这些字段由 `lib/shared/chat/chat-bridge.js` 与 `projectToFlat` 维护。
+> `pendingChecks` / `skippedChecks` / `resolvedChecks` / `passedCheckpointIds` / `sanitySettled`（门禁与检定点账本）、`scenarioFacts` / `scenarioCheckpoints` / `scenarioSettlements` / `settledSettlementIds`（场景事实、显式检定点、SC/HP 结算点）、`skillUseLog`（技能成功/失败使用记录，供 `coc_skill_growth` 门控）、`hpLossLedger`（HP 扣损账本，防止自动结算与 `coc_pc` 重复扣血）、`judgeStats`（结算点语义裁决统计：calls/verdicts/failures/fallbacks/lastDurationMs）、`endingJudgeStats`（结局语义裁决统计）、`pendingEnding`（已判定终局但最终分支未标记时的暂存）、`spellShown`、`endingReached` / `endedAt`、`firedNightEventIds`、`core`（WorldState 投影快照）。这些字段由 `lib/shared/chat/chat-bridge.js` 与 `projectToFlat` 维护。
 
 ### 3.2 子数据结构
 
@@ -608,6 +608,17 @@ KP 人设 + 硬性规则（6 条）+ 3 行规则概要 + 工具列表 + 工具�
 // 目前检查：time, synopsis, tasks, entities, log, toolTrace
 ```
 
+### 9.8 结算点与终局的语义裁决层（2026-09-07）
+
+固定字段匹配只回答“文本里有没有这些词”，无法回答“事件是否真的发生”。自 r7 起引入两个非流式 LLM 小调用做窄 schema 语义裁决，固定字段降级为候选召回与回退兜底：
+
+| 模块 | 触发时机 | 输出 | 落盘 |
+|---|---|---|---|
+| `lib/shared/chat/settlement-judge.js` | 每轮存在未结算的非到达型候选（最多 12 个/次） | `{id,happened,subject,confidence,evidence}` | 仅 `happened=true && subject=pc` 才走 `coc_sanity_check`/`coc_pc` 结算；空解析重试一次 |
+| `lib/shared/chat/ending-judge.js` | 最终分支已选，或叙述/输入出现落幕语/结局选项关键词 | `{ended,endingLabel,confidence,evidence}` | `ended=true` 且最终分支已选 → 直接 `endingReached=true`；分支未选但 `endingLabel` 能匹配选项 → 自动落地最终分支并收束；匹配不到 → 写 `pendingEnding` 待分支标记后收束 |
+
+两个 judge 共用 `callLlmApi`（`temperature:0.1`、`reasoningEffort:"low"`），只回答“是否发生/是否成立”，骰点与数值变化仍由 Rule Engine 确定性执行。开关：`deps.enableSemanticSettlement`（runtime-smoke 在 live 模式开启、mock 关闭）。观测字段：`flat.judgeStats`、`flat.endingJudgeStats` 与 session.trace。
+
 ---
 
 ## 10. 已知问题与坑
@@ -689,7 +700,7 @@ coc-keeper/
 │   │   ├── rules/              # 骰点/SAN/战斗/技能成长
 │   │   └── scenario/           # 场景事实/检定点/结算点/路线索引/深度解析
 │   ├── shared/
-│   │   ├── chat/               # 聊天桥、门禁、结算点、咒文提取、扣损账本、路线守卫
+│   │   ├── chat/               # 聊天桥、门禁、结算点、语义裁决、咒文提取、扣损账本、路线守卫
 │   │   └── tools/              # 共享工具（18 个）
 │   ├── testing/runtime-smoke/  # 在线运行冒烟测试（DSH-free）
 │   ├── adapter/                # DSH/Cordis 适配

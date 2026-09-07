@@ -100,3 +100,9 @@
 
 - 行 1–10、12–18、20、22、26、30–34 仍在等待更底层能力落地：结构化事件全覆盖、WorldState 单一事实源、Checkpoint 引擎 retryPolicy、场景实体化、导入管线结构化输出。
 - 行 19/21 已列入场景实体化替代；行 23/24/25/27/28/30/31 已列入 PLAN 当前待办。
+
+## Codex r9 验证（2026-09-07，GO）
+
+- 提交 `b480222` 通过《对流》短测试：规则与检定/状态一致/守门安全/结局质量均 4/5，剧情还原与玩家体验 3/5（软项），`toolErrors=0`、`busyHangs=0`。
+- 语义层实测：`flat.judgeStats` calls=47、verdicts=158、failures=0、fallbacks=0；`endingJudgeStats` calls=2、endedTrue=1、failures=0。首次终局候选轮即自动落地最终分支并写入 `endingReached=true`。
+- 结论：行 35–43 的兜底与语义层在线上质量门槛内可接受；后续仍按上表替换方向逐步结构化，软性问题（1 轮空叙述、场景字段偶发滞后）不阻塞体验测试。
