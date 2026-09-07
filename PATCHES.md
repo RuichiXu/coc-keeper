@@ -51,14 +51,15 @@
 | 34 | `lib/core/scenario/structure-analysis.js` `splitSectionsAtBareHeadingBoundaries` 把被上一节吞掉的裸标题（如“胀妇之死”）拆成独立 scene_event section；`scene-facts.js` `parseBracketCheckpoints` 提取 `【技能】` 括号式检定点并排除战斗/对抗类 | 窗口 LLM 会把“胀妇之死”并入上一节，且旧检定点提取整类漏掉括号式 `【侦查】` 检定 | 结构分析保证每个标题成节；检定点由结构化技能字段生成 | 本轮为确定性兜底，后续并入结构分析器 |
 | 35 | `lib/shared/chat/chat-bridge.js` `autoLandBranches` 对 `finalChoice`/`br-final-*` 分支：玩家输入精确命中选项原文且当前场景与分支场景一致时，落地 reached+chosen | 聊天 UI 里玩家的明确选择就是文本输入，但旧逻辑完全禁止文本代选最终分支；KP 不调用 `coc_branch` 时结局永远不可达（runtime smoke 暴露） | 前端分支选项点击统一走 `coc_branch choose` 事件后，此文本兜底可降级/删除 | 本轮为确定性兜底；仍要求场景匹配，不因叙述词落地 |
 | 36 | `lib/shared/tools/plot-tools.js` `resolveBranch` 按 id 精确→标题精确→标题包含→id 前缀逐级解析 branchId，并对 finalChoice 分支加“当前场景 / SceneChanged 历史 / 对话日志提及最终场景”三级门禁；`context-builder.js` 在系统提示显式给出最终分支 id/选项 | Codex 实测模型两次把最终分支标题当 branchId 调用 `coc_branch` 返回“不存在”，且会提前标记未抵达的最终分支；复测中 KP 在外部控制室/尾声补登记最终分支，纯当前场景门禁误伤 11 次；r3 存档连 SceneChanged 历史都缺失（KP 漏调 coc_scene），只能回退到对话日志证据 | 模型工具调用稳定使用 id 后，标题解析可保留为容错；最终分支 id 应由工具 schema/前端选项直接传递 | 本轮为确定性容错；对话日志证据是旧存档恢复的最后兜底 |
-| 37 | `lib/core/scenario/settlements.js` `extractSettlements`/`settlementMatches`：从剧本原文正则提取 `SC X/Y`、`全员HP-NdM`、`承受X/Y的伤害` 为结算点；SC 走 `coc_sanity_check`（eventId=scenario:<id> 幂等），HP 走 `coc_pc` 扣血；SC 行紧邻“体质检定+承受伤害”时生成带 `damage` 的 linkedGate，`.ra` 结算时按成败扣 1/1d4；`chat-bridge.js` 在叙述落地后确定性结算并剔除推荐选项行。2026-09-07 二次收紧：`settlementMatches` 改为句子级匹配（anyOf 与语境词须同句），结算点 scene 从最近的“房间N：/外部控制”标记解析（不再使用目录标题），并有 sceneTokens 约束 | Codex 复测《对流》：泄压阀 HP-1d6、直面沸核 SC 1d4/1d10、外出 SC 1/1d6 与体质 1/1d4 全部漏结算；r3 复测又出现“选项里的矿洞/便条里的沸核/靠近热源”误触发与错误 scene 归属 | 结构分析/导入管线直接输出 `settlements`（含触发场景/条件/表达式），不再从原文正则+语境词推断 | 本轮为确定性兜底；句子级语境词与 sceneTokens 仍属启发式 |
+| 37 | `lib/core/scenario/settlements.js` `extractSettlements`/`settlementMatches`：从剧本原文正则提取 `SC X/Y`、`全员HP-NdM`、`承受X/Y的伤害` 为结算点；SC 走 `coc_sanity_check`（eventId=scenario:<id> 幂等），HP 走 `coc_pc` 扣血；SC 行紧邻“体质检定+承受伤害”时生成带 `damage` 的 linkedGate，`.ra` 结算时按成败扣 1/1d4；`chat-bridge.js` 在叙述落地后确定性结算并剔除推荐选项行。2026-09-07 二次收紧：`settlementMatches` 改为句子级匹配（anyOf 与语境词须同句），结算点 scene 从最近的“房间N：/外部控制”标记解析（不再使用目录标题），并有 sceneTokens 约束。r5 复测后第三次收紧：外出类 SAN 结算标记 `arrival`，当前场景已抵达目的地时按场景落地确定性结算，“出去/前往”不再作为触发词（“把沸核发射出去”不再误触发）；HP 结算增加 `strongContext`（崩/裂/爆/炸/碎/喷/涌…），“泄压阀室的门，热浪扑面”不扣血；`sceneTokensFor` 从“泄压阀控制室”剥离通用地点后缀得到短词“泄压阀”，场景漂移时叙述短名仍能命中 | Codex 复测《对流》：泄压阀 HP-1d6、直面沸核 SC 1d4/1d10、外出 SC 1/1d6 与体质 1/1d4 全部漏结算；r3 复测又出现“选项里的矿洞/便条里的沸核/靠近热源”误触发与错误 scene 归属；r5 复测：泄压阀爆裂已掷 2 伤未扣血（场景字段错位使 sceneTokens 未命中），档案馆讨论“把沸核发射出去”被误判外出扣 SAN | 结构分析/导入管线直接输出 `settlements`（含触发场景/条件/表达式），不再从原文正则+语境词推断 | 本轮为确定性兜底；句子级语境词、strongContext 与 sceneTokens 仍属启发式 |
 | 38 | ~~`lib/shared/chat/chat-bridge.js` `scenarioHasMoyuanSpell`：剧本全文同时含“启墨渊”与“归字主”才允许注入《墨渊》特化文本~~ **已删除。由 `lib/shared/chat/spell-text.js` 数据驱动提取替代（从关键点 spellGroups/spellText 或剧本原文“咒”字附近提取三字一组、四组的咒文，提取不到则不注入）；`ending.js` `endingSentenceFor` 已通用化，不再含任何剧本专属文本** | Codex 复测《对流》第 25 轮：`finalBranchChosen` 为 true 时共享代码无条件注入“启墨渊、引魂夜、临神名、归字主”，但《对流》剧本没有该咒文；早期《墨渊》专项兜底被做成共享路径后一直缺少剧本适用性闸门 | 未来由导入管线在咒文关键点上直接写入 `spellGroups`，聊天桥只读取结构化字段 | 已替换为数据驱动；`spell-text.js` 的原文扫描仍是兜底启发式 |
 | 39 | `lib/shared/chat/damage-ledger.js` + `state-tools.js` `coc_pc` + `chat-bridge.js` 自动扣血路径：HP 损失统一记账（120 秒窗口、同角色、等额），`coc_pc` 手动扣血时若发现窗口内已自动结算过等额损失则跳过并提示；内部自动扣血带 `_auto` 旁路，不被账本误拦 | Codex r3：自动扣 1 HP 后，KP 又为同一事件调用 `coc_pc` 再扣 1 HP；LLM 与程序两个写入方无法靠结算点 ID 去重 | 工具执行引入 staging/commit 事务，所有 HP 变化走 WorldState 事件与幂等键 | 本轮为时间窗口+等额启发式去重，仍可能误拦短时间内两次等额但独立的伤害 |
 | 40 | `lib/core/scenario/route-index.js` 地点白名单/路线邻接 + `context-builder.js` 注入地点清单与路线约束 + `chat-bridge.js` 玩家转移意图优先场景同步与“未登记地点”守卫：地点候选只取“房间/控制室/舱/旋梯/拱道/通道/走廊…”后缀本身（不截前文），叙述中出现原文与白名单都没有的地点后缀时追加纠正重写；`findTravelIntent` 跳过“如果…”条件句与“请…路线/怎么走”问路请求；`scene-facts.js` 删除旧版《墨渊》楼层硬编码兜底 | Codex r4：固定窗口截前缀造成 26 次误报（“装置竖直贯穿房间/们沿环形走廊/附注的外部控制台”）；问路与条件句被误判为移动意图；“一层门厅”被写进《对流》 | 场景实体化（sceneId + 邻接关系结构化）后，地点/路线由 SceneGraph 精确判定；地点候选后缀提取可删除 | 本轮为确定性兜底；地点后缀词匹配仍属启发式 |
+| 41 | `lib/shared/chat/chat-bridge.js` 场景落地 + `lib/shared/tools/state-tools.js` `coc_pc`：叙述推断前先 `stripMenuLines(narration)` 剔除推荐选项行（选项里的“前往/返回”会被 `hasSceneMovementPhrase` 当成位置转移，把“教授的手稿”等词误判成布莱克的房间）；玩家输入有合法路线意图（`findTravelIntent` 命中邻接地点）时无条件同步 currentScene，不再用“叙述仍提到当前场景词”拦下正确切换；`coc_pc` 未提供任何可更新字段时返回成功 no-op，不再抛“没有提供任何要更新的字段”工具错误 | Codex r5：第 20 轮泄压阀场景被选项行漂成“布莱克的房间”，导致 set-2 伤害已掷未扣；第 32 轮“前往外部控制室”因叙述仍提“档案馆”被拦，场景长期错误；末轮模型调用 `coc_pc` 只传 name 造成 toolErrors=1 | 前端场景切换统一由结构化事件（SceneChanged/地点实体）驱动，聊天桥不再从叙述推断；工具空调用由 schema 层 required 约束或模型稳定后自然消失 | 本轮为确定性兜底；`stripMenuLines` 复用、路线意图采纳与空更新 no-op 均为工具/叙述边界修正 |
 
-## 补丁现状审计（2026-09-07，覆盖行 1–40）
+## 补丁现状审计（2026-09-07，覆盖行 1–41）
 
-**结论**：行 1–40（除已划线的行 11、29、38）对应的实现**都仍然保留并被调用**。行 11（《墨渊》ID 硬编码映射）、行 29（扁平串链）、行 38（`scenarioHasMoyuanSpell` 关键词闸门）已删除；行 13/14/15 中《墨渊》固定咒文与结局模板已由 `spell-text.js` 数据驱动替代。
+**结论**：行 1–41（除已划线的行 11、29、38）对应的实现**都仍然保留并被调用**。行 11（《墨渊》ID 硬编码映射）、行 29（扁平串链）、行 38（`scenarioHasMoyuanSpell` 关键词闸门）已删除；行 13/14/15 中《墨渊》固定咒文与结局模板已由 `spell-text.js` 数据驱动替代。
 
 ### 已删除/已替代
 
@@ -73,11 +74,12 @@
 |---|---|---|
 | 35 | 活跃 | finalChoice 分支文本代选兜底（runtime smoke 需要；前端分支点击事件化后可降级） |
 | 36 | 活跃 | branchId 容错解析 + 最终分支三级场景门禁（模型稳定使用 id 后可降级） |
-| 37 | 活跃 | 剧本结算点提取/匹配：已二次收紧为句子级匹配 + sceneTokens + set-4 实际移动动作；等待导入管线结构化输出 settlements |
+| 37 | 活跃 | 剧本结算点提取/匹配：r5 后第三次收紧（arrival 到达结算 + strongContext + 短场景词）；等待导入管线结构化输出 settlements |
 | 39 | 活跃 | HP 扣损账本：120 秒等额窗口去重，内部自动扣血 `_auto` 旁路；等待工具事务层 |
 | 40 | 活跃 | 地点白名单/路线邻接/未登记地点守卫：候选只取后缀本身；等待场景实体化 |
+| 41 | 活跃 | 场景落地 stripMenuLines + 合法路线意图无条件采纳 + `coc_pc` 空更新 no-op；等待场景结构化事件与模型工具调用稳定 |
 
-### 下一步会被替代（行 35–40 补全）
+### 下一步会被替代（行 35–41 补全）
 
 | 行 | 补丁 | 替代来源 |
 |---|---|---|
@@ -86,6 +88,7 @@
 | 37 | settlements 正则提取 + 语境词匹配 | 导入管线直接输出 `settlements`（含触发场景/条件/表达式） |
 | 39 | HP 扣损时间窗口等额去重 | 工具执行 staging/commit 事务 + WorldState 幂等键 |
 | 40 | 地点后缀词守卫 | SceneGraph（sceneId + 邻接关系）精确判定 |
+| 41 | 场景落地叙述推断 + 空更新 no-op | SceneChanged/地点实体结构化事件驱动；工具 schema 层 required 约束 |
 
 ### 继续保留兜底（行 1–10、12–28、30–34 中未划线项）
 

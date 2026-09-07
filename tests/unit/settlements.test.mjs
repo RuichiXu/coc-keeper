@@ -15,6 +15,7 @@ import {
   resolveSettlementScene,
   sceneTokensFor,
   settlementMatches,
+  settlementMatchRules,
   splitSentences,
 } from "../../lib/core/scenario/settlements.js";
 
@@ -49,28 +50,40 @@ describe("剧本结算点", () => {
       expect(settlementMatches(settlement, "他把高温之物称作沸核")).toBe(false);
     });
 
-    it("外出 SC：识别离开矿洞/外部控制室的行动", () => {
-      const settlement = { id: "set-y", kind: "san", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", matchRules: { anyOf: [], context: ["出去", "离开", "洞口", "矿洞", "外部", "岩台", "夜风", "山脉侧翼", "踏出", "控制室"] } };
-      expect(settlementMatches(settlement, "寻找外部控制室并按键发射，带教授一起出去")).toBe(true);
+    it("外出 SC：识别实际移动/抵达动作，动作与目的地须同句", () => {
+      const settlement = { id: "set-y", kind: "san", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", matchRules: settlementMatchRules("踏出遗迹，一路离开矿洞……SC1/1D6", "san") };
       expect(settlementMatches(settlement, "你们已站到山脉侧翼的一处岩台上")).toBe(true);
+      expect(settlementMatches(settlement, "你们踏出遗迹，沿矿洞来到洞口")).toBe(true);
+      expect(settlementMatches(settlement, "寻找外部控制室并按键发射，带教授一起出去")).toBe(false);
+      expect(settlementMatches(settlement, "把沸核发射出去")).toBe(false);
+    });
+
+    it("外出 SC：当前场景已抵达外部控制室时按到达结算", () => {
+      const settlement = { id: "set-y2", kind: "san", scene: "外部控制室", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", matchRules: settlementMatchRules("踏出遗迹，一路离开矿洞……SC1/1D6", "san") };
+      expect(settlementMatches(settlement, "你站在坡道尽头，前方就是外部控制室", "寻找外部控制室")).toBe(true);
+      expect(settlementMatches(settlement, "把沸核发射出去", "房间5：档案馆")).toBe(false);
     });
 
     it("阀门 HP 伤害：只在泄压阀蒸汽喷发语境命中", () => {
-      const settlement = { id: "set-z", kind: "hp", trigger: "零件分崩离析……房间里的全员HP-1d6", matchRules: { anyOf: ["泄压阀", "圆盘", "转盘", "装置", "房间"], context: ["蒸汽", "热浪", "烟雾", "零件", "崩", "烫", "灼", "扑面", "涌来", "喷"] } };
+      const settlement = { id: "set-z", kind: "hp", trigger: "零件分崩离析……房间里的全员HP-1d6", matchRules: settlementMatchRules("零件分崩离析……房间里的全员HP-1d6", "hp") };
       expect(settlementMatches(settlement, "泄压阀缝隙红光暴涨，高温蒸汽扑面涌来，烫得你退开")).toBe(true);
       expect(settlementMatches(settlement, "泄压阀正在震颤")).toBe(false);
+      expect(settlementMatches(settlement, "泄压阀控制室的门，热浪扑面而来")).toBe(false);
     });
   });
 
   describe("r3 误触发回归", () => {
-    it("set-4 外出结算：选项里的“矿洞”不触发，前往外部控制室才触发", () => {
-      const settlement = { id: "set-4", kind: "san", scene: "外部控制室", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", sanLoss: "1/1d6", matchRules: { anyOf: ["踏出遗迹", "离开矿洞", "来到洞口", "走出", "出去", "前往", "到达", "来到", "站到", "岩台", "山脉侧翼", "夜风"], context: ["外部控制室", "洞口", "矿洞", "岩台", "山脉侧翼", "夜风", "出去"] } };
+    it("set-4 外出结算：选项/计划里的“矿洞”“出去”不触发", () => {
+      const rules = settlementMatchRules("踏出遗迹，一路离开矿洞……SC1/1D6", "san");
+      const settlement = { id: "set-4", kind: "san", scene: "", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", sanLoss: "1/1d6", matchRules: rules };
       expect(settlementMatches(settlement, "先观察镇口周边环境（如山坡、矿洞方向）", "极光镇·镇口")).toBe(false);
-      expect(settlementMatches(settlement, "寻找外部控制室并按键发射，带上教授一起出去", "遗迹")).toBe(true);
+      expect(settlementMatches(settlement, "寻找外部控制室并按键发射，带上教授一起出去", "遗迹")).toBe(false);
+      expect(settlementMatches(settlement, "把沸核发射出去", "房间5：档案馆")).toBe(false);
+      expect(settlementMatches(settlement, "我们离开矿洞，来到洞口，夜风很冷", "矿洞")).toBe(true);
     });
 
     it("set-4 外出结算：读地图/计划里提到外部控制室不触发（r4 第 52 轮）", () => {
-      const settlement = { id: "set-4", kind: "san", scene: "外部控制室", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", sanLoss: "1/1d6", matchRules: { anyOf: ["踏出遗迹", "离开矿洞", "来到洞口", "走出", "出去", "前往", "到达", "来到", "站到", "岩台", "山脉侧翼", "夜风"], context: ["外部控制室", "洞口", "矿洞", "岩台", "山脉侧翼", "夜风", "出去"] } };
+      const settlement = { id: "set-4", kind: "san", scene: "外部控制室", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", sanLoss: "1/1d6", matchRules: settlementMatchRules("踏出遗迹，一路离开矿洞……SC1/1D6", "san") };
       expect(settlementMatches(settlement, "教授说：外部控制室……标注在这儿了。", "房间5：档案馆")).toBe(false);
     });
 
@@ -81,14 +94,17 @@ describe("剧本结算点", () => {
     });
 
     it("set-2 阀门事故：靠近热源不触发，泄压阀蒸汽喷发才触发", () => {
-      const settlement = { id: "set-2", kind: "hp", scene: "房间2：泄压阀控制室", trigger: "（转动圆盘）……零件分崩离析……房间里的全员HP-1d6。", damage: "1d6", matchRules: { anyOf: ["泄压阀", "圆盘", "转盘", "分崩离析", "零件", "蒸汽", "烟雾", "充斥"], context: ["蒸汽", "热浪", "烟雾", "零件", "崩", "烫", "灼", "扑面", "涌来", "喷", "充斥"] } };
+      const settlement = { id: "set-2", kind: "hp", scene: "房间2：泄压阀控制室", trigger: "（转动圆盘）……零件分崩离析……房间里的全员HP-1d6。", damage: "1d6", matchRules: settlementMatchRules("（转动圆盘）……零件分崩离析……房间里的全员HP-1d6。", "hp") };
       expect(settlementMatches(settlement, "你一靠近，那灼人的热浪便扑面而来。", "矿洞-凉爽侧向岔道")).toBe(false);
       expect(settlementMatches(settlement, "泄压阀缝隙红光暴涨，高温蒸汽扑面涌来，烫得你退开。", "房间2：泄压阀控制室")).toBe(true);
+      // 场景漂移为“布莱克的房间”时，叙述里的短名“泄压阀”仍应命中（r5 第 20 轮伤害漏结算）。
+      expect(settlementMatches(settlement, "那崩裂的泄压阀冒出的滚烫气流，仍在一团团从缺口涌出。", "布莱克的房间")).toBe(true);
     });
 
     it("sceneTokensFor 提取有区分度的场景词", () => {
       expect(sceneTokensFor("房间2：泄压阀控制室")).toContain("泄压阀控制室");
       expect(sceneTokensFor("房间2：泄压阀控制室")).toContain("房间2");
+      expect(sceneTokensFor("房间2：泄压阀控制室")).toContain("泄压阀");
       expect(sceneTokensFor("外部控制室")).toContain("外部控制");
       expect(sceneTokensFor("守秘人信息")).toEqual([]);
     });

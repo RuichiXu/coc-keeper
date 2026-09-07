@@ -1928,3 +1928,20 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   5. `check-command.js` `parseRaCommand` 只在有前导包裹符时才剥末尾闭合符，`.ra语言（母语）` 保留完整技能名；`resolveRaTarget` 对含“母语”的技能回退 EDU。
   6. `rules.js` `coc_skill_growth` 改为必须有至少一次成功使用记录，无记录或仅失败都拒绝。
 - 验证：全量测试 64/64；真实《对流》DB 上 r4 读图误触=false、正常描述守卫不误报、发明词“旋梯/舱”仍被识别。
+
+---
+
+## Session（2026-09-07）：r5 复测修复——结算点场景漂移、外出误触发、coc_pc 空更新
+
+- 背景：Codex r5（0c64d08）玩家体验恢复 3/5，规则与检定仍 3/5。两个规则问题：
+  1. 泄压阀爆裂已掷 1d6=2 却未扣血——第 20 轮结算时 currentScene 被场景落地漂成“布莱克的房间”，set-2 的 sceneTokens 未命中。
+  2. 档案馆讨论“把沸核发射出去”，“出去”同时命中 set-4 的 anyOf 与 context，提前扣 SAN 并登记体质门禁。
+  另有 1 个工具错误：末轮 `coc_pc` 只传 name 未传字段。
+- 修复：
+  1. `chat-bridge.js` 场景落地：叙述推断前先 `stripMenuLines(narration)`——选项里的“前往/返回”会被 `hasSceneMovementPhrase` 当成位置转移，把“教授的手稿”误判成布莱克的房间（r5 场景漂移根因）；玩家输入有合法路线意图（`findTravelIntent` 命中邻接地点）时无条件采纳，不再用“叙述仍提到当前场景词”拦下正确切换（r5 第 32 轮前往外部控制室被拦）。
+  2. `settlements.js`：
+     - set-4 外出结算改为 `arrival` 到达型：当前场景已抵达目的地时按场景落地确定性结算；anyOf 只保留实际移动/抵达动词（踏出遗迹/离开矿洞/来到洞口/走出/到达/来到/站到），删除“出去/前往”；context 只放目的地。“把沸核发射出去”不再命中。
+     - HP 结算增加 `strongContext`（崩/裂/爆/炸/碎/喷/涌/分崩离析/零件/充斥），“泄压阀室的门，热浪扑面”不扣血。
+     - `sceneTokensFor` 从“泄压阀控制室”剥离通用地点后缀得到短词“泄压阀”，场景漂移时叙述短名仍能命中（r5 第 20 轮兜底）。
+  3. `state-tools.js` `coc_pc` 未提供可更新字段时返回成功 no-op（“状态未变更”），不再抛工具错误。
+- 验证：全量测试 64/64；r5 两个失败文本在修改后的 `settlementMatches` 上复现为 set-2=true、set-4=false；带菜单的泄压阀叙述经 `stripMenuLines` 后 `inferSceneTransition` 返回 null（不再漂到布莱克的房间）；`findTravelIntent` 对“前往外部控制室”返回邻接地点。
