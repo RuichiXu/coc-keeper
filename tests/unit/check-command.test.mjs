@@ -43,6 +43,20 @@ describe("团检指令", () => {
     });
   });
 
+  describe("parseRaCommand 全角括号", () => {
+    it("裸指令 .ra语言（母语） 保留完整技能名", () => {
+      expect(parseRaCommand(".ra语言（母语）")).toEqual({ skill: "语言（母语）", difficulty: "regular" });
+    });
+    it("包裹指令 [.ra聆听] 剥掉外括号", () => {
+      expect(parseRaCommand("[.ra聆听]")).toEqual({ skill: "聆听", difficulty: "regular" });
+    });
+    it("母语回退到 EDU", () => {
+      const flat = { characters: [{ name: "林晚", stats: { EDU: 70 }, skills: {} }] };
+      expect(resolveRaTarget(flat, "林晚", "母语")).toEqual({ name: "林晚", target: 70 });
+      expect(resolveRaTarget(flat, "林晚", "语言（母语）")).toEqual({ name: "林晚", target: 70 });
+    });
+  });
+
   describe("parseSkillDifficulty", () => {
     it("无难度后缀默认常规", () => {
       expect(parseSkillDifficulty("侦查")).toEqual({ skill: "侦查", difficulty: "regular" });

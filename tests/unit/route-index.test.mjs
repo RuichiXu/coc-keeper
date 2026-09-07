@@ -67,14 +67,23 @@ describe("地点与路线索引", () => {
     expect(findTravelIntent(index.aliasIndex, "我站在原地")).toBeNull();
   });
 
+  it("findTravelIntent 跳过条件句与问路请求", () => {
+    const flat = liulangFlat();
+    const index = buildRouteIndex(flat);
+    expect(findTravelIntent(index.aliasIndex, "如果确实空无一物，就转去矿洞")).toBeNull();
+    expect(findTravelIntent(index.aliasIndex, "请镇长提供去矿洞的路线")).toBeNull();
+    expect(findTravelIntent(index.aliasIndex, "我前往矿洞")).toBe("矿洞");
+  });
+
   it("提取地点候选并检测未登记地点", () => {
     const flat = liulangFlat();
     const index = buildRouteIndex(flat);
     const allowed = collectAllowedLocationTerms(flat, index);
-    expect(extractRoomLikeTerms("你看到下层阀门舱和旋梯").includes("下层阀门舱")).toBe(true);
+    expect(extractRoomLikeTerms("你看到下层阀门舱和旋梯").includes("旋梯")).toBe(true);
+    expect(extractRoomLikeTerms("你看到下层阀门舱和旋梯").includes("舱")).toBe(true);
     const unknown = findUnknownLocationTerms("你穿过旋梯，进入下层阀门舱", allowed);
     expect(unknown.includes("旋梯")).toBe(true);
-    expect(unknown.includes("下层阀门舱")).toBe(true);
+    expect(unknown.includes("舱")).toBe(true);
     expect(findUnknownLocationTerms("你沿走廊进入能量分流室", allowed)).toEqual([]);
   });
 

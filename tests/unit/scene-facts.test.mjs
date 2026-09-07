@@ -123,6 +123,10 @@ describe("Scene Facts", () => {
     expect(inferSceneFromText("你来到宅邸外，铁栅栏围住整片土地", facts)).toContain("惴惴不安");
   });
 
+  it("inferSceneFromText：无事实卡命中时不回退到旧版楼层硬编码", () => {
+    expect(inferSceneFromText("你沿环形走廊前进，远处有一层门厅", [])).toBeNull();
+  });
+
   it("inferSceneTransition：仅提到他处场景词不切换，需位置转移动作", () => {
     const facts = extractSceneFacts(SAMPLE);
     // 当前在三层书房检查书桌，叙述里顺带提到“一层客厅”，不应漂移。

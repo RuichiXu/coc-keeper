@@ -64,9 +64,14 @@ describe("剧本结算点", () => {
 
   describe("r3 误触发回归", () => {
     it("set-4 外出结算：选项里的“矿洞”不触发，前往外部控制室才触发", () => {
-      const settlement = { id: "set-4", kind: "san", scene: "外部控制室", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", sanLoss: "1/1d6", matchRules: { anyOf: ["踏出遗迹", "离开矿洞", "来到洞口", "走出", "前往外部", "到外部", "外部控制室", "岩台", "山脉侧翼"], context: ["出去", "离开", "洞口", "矿洞", "外部", "岩台", "夜风", "山脉侧翼", "踏出", "控制室"] } };
+      const settlement = { id: "set-4", kind: "san", scene: "外部控制室", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", sanLoss: "1/1d6", matchRules: { anyOf: ["踏出遗迹", "离开矿洞", "来到洞口", "走出", "出去", "前往", "到达", "来到", "站到", "岩台", "山脉侧翼", "夜风"], context: ["外部控制室", "洞口", "矿洞", "岩台", "山脉侧翼", "夜风", "出去"] } };
       expect(settlementMatches(settlement, "先观察镇口周边环境（如山坡、矿洞方向）", "极光镇·镇口")).toBe(false);
       expect(settlementMatches(settlement, "寻找外部控制室并按键发射，带上教授一起出去", "遗迹")).toBe(true);
+    });
+
+    it("set-4 外出结算：读地图/计划里提到外部控制室不触发（r4 第 52 轮）", () => {
+      const settlement = { id: "set-4", kind: "san", scene: "外部控制室", trigger: "踏出遗迹，一路离开矿洞……SC1/1D6", sanLoss: "1/1d6", matchRules: { anyOf: ["踏出遗迹", "离开矿洞", "来到洞口", "走出", "出去", "前往", "到达", "来到", "站到", "岩台", "山脉侧翼", "夜风"], context: ["外部控制室", "洞口", "矿洞", "岩台", "山脉侧翼", "夜风", "出去"] } };
+      expect(settlementMatches(settlement, "教授说：外部控制室……标注在这儿了。", "房间5：档案馆")).toBe(false);
     });
 
     it("set-3 直面沸核：读便条里的沸核不触发，观察高台上的沸核才触发", () => {
