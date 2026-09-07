@@ -1982,3 +1982,14 @@ v9 定点复测暴露：同目标换措辞会把唯一 pending 清空（未命�
   3. `chat-bridge.js` 状态数值守卫：叙述出现“HP -3”等具体数值声明时先要求 LLM 重写一次（不写数值只描述效果）；仍残留则 `stripPcStateClaims` 删除括号声明。新增 `findPcStateClaim`/`stripPcStateClaims` 并导出。
   4. 测试：新增 `tests/unit/narration-state-claim.test.mjs`；ending 测试保持通过。
 - 验证：全量测试 67/67；用 r7 终局文本模拟检测条件（幕落/结束行动）为 true；已选分支关键词只含“外部控制台完成手操”。
+
+---
+
+## Session（2026-09-07）：终局改语义裁决——固定收束语降级为回退
+
+- 背景：用户指出终局标记又用了固定字段匹配（收束语词表），要求改为到达结局节点后的 LLM 判断，与结算点语义层一致。
+- 实现：
+  1. 新增 `lib/shared/chat/ending-judge.js`：最终分支 reached+chosen 后，每轮一次非流式 flash 小调用（max_tokens 300、reasoningEffort low）判断所选结局是否已在叙述/玩家输入中被确认；输出 `{ended,confidence,evidence}`。
+  2. `chat-bridge.js` 结局块：judge 可用时只由 `ended=true` 落盘 `endingReached`；固定收束语词表（本次跑团到此/幕落/结束行动…）仅作 judge 不可用/未启用时的回退。观测写入 `flat.endingJudgeStats`（calls/endedTrue/failures/lastDurationMs）与 session.trace。
+  3. 测试：新增 `tests/unit/ending-judge.test.mjs`（prompt/解析/块式消息/mock fetch 全通路）。
+- 验证：全量测试 68/68。
