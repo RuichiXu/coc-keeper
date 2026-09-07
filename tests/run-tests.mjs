@@ -68,6 +68,7 @@ const TESTS = {
     "unit/plot-tools.test.mjs",
     "unit/deep-parse.test.mjs",
     "unit/deep-parse-fixtures.test.mjs",
+    "unit/deep-parse-pick.test.mjs",
     "unit/deep-parse-repair.test.mjs",
   ],
   integration: [
