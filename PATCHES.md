@@ -56,33 +56,38 @@
 | 39 | `lib/shared/chat/damage-ledger.js` + `state-tools.js` `coc_pc` + `chat-bridge.js` 自动扣血路径：HP 损失统一记账（120 秒窗口、同角色、等额），`coc_pc` 手动扣血时若发现窗口内已自动结算过等额损失则跳过并提示；内部自动扣血带 `_auto` 旁路，不被账本误拦 | Codex r3：自动扣 1 HP 后，KP 又为同一事件调用 `coc_pc` 再扣 1 HP；LLM 与程序两个写入方无法靠结算点 ID 去重 | 工具执行引入 staging/commit 事务，所有 HP 变化走 WorldState 事件与幂等键 | 本轮为时间窗口+等额启发式去重，仍可能误拦短时间内两次等额但独立的伤害 |
 | 40 | `lib/core/scenario/route-index.js` 地点白名单/路线邻接 + `context-builder.js` 注入地点清单与路线约束 + `chat-bridge.js` 玩家转移意图优先场景同步与“未登记地点”守卫：地点候选只取“房间/控制室/舱/旋梯/拱道/通道/走廊…”后缀本身（不截前文），叙述中出现原文与白名单都没有的地点后缀时追加纠正重写；`findTravelIntent` 跳过“如果…”条件句与“请…路线/怎么走”问路请求；`scene-facts.js` 删除旧版《墨渊》楼层硬编码兜底 | Codex r4：固定窗口截前缀造成 26 次误报（“装置竖直贯穿房间/们沿环形走廊/附注的外部控制台”）；问路与条件句被误判为移动意图；“一层门厅”被写进《对流》 | 场景实体化（sceneId + 邻接关系结构化）后，地点/路线由 SceneGraph 精确判定；地点候选后缀提取可删除 | 本轮为确定性兜底；地点后缀词匹配仍属启发式 |
 
-## 补丁现状审计（2026-09-05）
+## 补丁现状审计（2026-09-07，覆盖行 1–40）
 
-**结论**：行 1–34（除已划线的行 11、29）对应的实现**都仍然保留并被调用**，不是文档滞后；行 11 的旧实现已删除，行 29 的扁平串链已删除、仅存表内划线存档。行 30 本轮已收窄（已有 branchChoiceIds+optionLabel 的结局不再加 entryEvidence）；行 31 为网络拓扑保真新增，行 33/34 为《两面不是人》标题粘连与括号检定提取新增。
+**结论**：行 1–40（除已划线的行 11、29、38）对应的实现**都仍然保留并被调用**。行 11（《墨渊》ID 硬编码映射）、行 29（扁平串链）、行 38（`scenarioHasMoyuanSpell` 关键词闸门）已删除；行 13/14/15 中《墨渊》固定咒文与结局模板已由 `spell-text.js` 数据驱动替代。
 
-### 可以直接删除的实现
+### 已删除/已替代
 
-- **行 38 的 `scenarioHasMoyuanSpell` 已删除**（2026-09-07）：由 `lib/shared/chat/spell-text.js` 数据驱动提取替代，聊天桥不再含《墨渊》咒文与结局固定文本。
-- 行 11 旧实现（《墨渊》ID 硬编码映射）此前已删除；行 29 的扁平串链已删除。
-- 其余每个符号都能在 `lib/` 中找到定义与调用点，删除会破坏现有兜底路径。
+- 行 11：《墨渊》关键点/检定点 ID 硬编码映射 → B-3 结构化前置条件替代。
+- 行 29：`repairDeepParseConnectivity` 扁平 order 串链 → `topology-skeleton.js` 替代。
+- 行 38：`scenarioHasMoyuanSpell` 双关键词闸门 → `lib/shared/chat/spell-text.js` 数据驱动提取替代；`endingSentenceFor` 已通用化。
+- 行 13/14/15 中的固定咒文展示、最终仪式轮《墨渊》指引、日记核心句固定文本 → `spell-text.js` 与关键点自带文本通用化替代。
 
-### 下一步代办中会被替代（对应 `PLAN.md`「当前待办」）
+### 本轮新增（2026-09-07，均仍活跃）
+
+| 行 | 状态 | 说明 |
+|---|---|---|
+| 35 | 活跃 | finalChoice 分支文本代选兜底（runtime smoke 需要；前端分支点击事件化后可降级） |
+| 36 | 活跃 | branchId 容错解析 + 最终分支三级场景门禁（模型稳定使用 id 后可降级） |
+| 37 | 活跃 | 剧本结算点提取/匹配：已二次收紧为句子级匹配 + sceneTokens + set-4 实际移动动作；等待导入管线结构化输出 settlements |
+| 39 | 活跃 | HP 扣损账本：120 秒等额窗口去重，内部自动扣血 `_auto` 旁路；等待工具事务层 |
+| 40 | 活跃 | 地点白名单/路线邻接/未登记地点守卫：候选只取后缀本身；等待场景实体化 |
+
+### 下一步会被替代（行 35–40 补全）
 
 | 行 | 补丁 | 替代来源 |
 |---|---|---|
-| 19 | `expireSceneGates` 前缀边界规则 | 待办 #3 场景实体化（sceneId 邻接失效） |
-| 21 | `inferSceneTransition` 动作词表 | 待办 #3 场景实体化（移动事件） |
-| 23 | `confirmedEndingForBranch` optionLabel 文本匹配、`kp:auto:*` 自动补点、轮次快照 | 待办 #1 多最终分支互斥 + #3 场景实体化 |
-| 24 | `applyEventDrivenLanding` 多选项不代选、`applyConfirmedDeepParse` scene 门控、`detectDeadEndScenes` | 待办 #3 场景实体化 + 剧情图引擎 |
-| 25 | `runDeepParsePreflight` 标题/关键词包含匹配 | 待办 #3 节点/场景实体 id 化 |
-| 27 | `final-branch-extractor` 若/如果句式 + 词表 | 待办 #3 结构化场景解析 |
-| 28 | 深度解析 loop 的生成后清洗 + LLM 审校 | 待办 0 规则化审校、分块语义审校、结构化生成 |
-| 29 | ~~`repairDeepParseConnectivity` 扁平 order 串链 + hook~~ | 已由 `topology-skeleton.js` 替代（网络拓扑保真） |
-| 30 | 结局 entryEvidence 兜底 | 待办 0 两面最终接线强化 |
-| 31 | `topology-skeleton.js` 标题编号顺序正则 | 待办 #3 结构分析输出显式 sequence/actOrder |
+| 35 | 最终分支文本代选 | 前端分支选项点击统一走 `coc_branch choose` 事件 |
+| 36 | branchId 标题解析 + 日志证据门禁 | 工具 schema/前端选项直接传 branchId；场景实体化 |
+| 37 | settlements 正则提取 + 语境词匹配 | 导入管线直接输出 `settlements`（含触发场景/条件/表达式） |
+| 39 | HP 扣损时间窗口等额去重 | 工具执行 staging/commit 事务 + WorldState 幂等键 |
+| 40 | 地点后缀词守卫 | SceneGraph（sceneId + 邻接关系）精确判定 |
 
-### 暂时无法替代（保留兜底）
+### 继续保留兜底（行 1–10、12–28、30–34 中未划线项）
 
-- 行 1–10、12–18、20、22、26。
-- 这些补丁在等更底层能力落地：结构化事件全覆盖（行 1/5/9/13/14）、WorldState 单一事实源（行 20）、Checkpoint 引擎 retryPolicy（行 22）、场景实体化（行 19/21 已列入下一步，其余依赖它但还有墨渊特化逻辑需一并迁移）。
-- 其中行 10/14 的部分正则兜底会随场景实体化逐步降级为“无结构数据时的最后兜底”，但暂时不能直接删除。
+- 行 1–10、12–18、20、22、26、30–34 仍在等待更底层能力落地：结构化事件全覆盖、WorldState 单一事实源、Checkpoint 引擎 retryPolicy、场景实体化、导入管线结构化输出。
+- 行 19/21 已列入场景实体化替代；行 23/24/25/27/28/30/31 已列入 PLAN 当前待办。

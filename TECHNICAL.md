@@ -127,7 +127,7 @@ interface GameState {
 ```
 
 > 实际 `flat`（`games/<gameId>.json`）是上述字段的超集。运行时新增的字段包括：
-> `pendingChecks` / `skippedChecks` / `resolvedChecks` / `passedCheckpointIds` / `sanitySettled`（门禁与检定点账本）、`scenarioFacts` / `scenarioCheckpoints` / `scenarioSettlements` / `settledSettlementIds`（场景事实、显式检定点、SC/HP 结算点）、`skillUseLog`（技能成功/失败使用记录，供 `coc_skill_growth` 门控）、`spellShown`、`endingReached` / `endedAt`、`firedNightEventIds`、`core`（WorldState 投影快照）。这些字段由 `lib/shared/chat/chat-bridge.js` 与 `projectToFlat` 维护。
+> `pendingChecks` / `skippedChecks` / `resolvedChecks` / `passedCheckpointIds` / `sanitySettled`（门禁与检定点账本）、`scenarioFacts` / `scenarioCheckpoints` / `scenarioSettlements` / `settledSettlementIds`（场景事实、显式检定点、SC/HP 结算点）、`skillUseLog`（技能成功/失败使用记录，供 `coc_skill_growth` 门控）、`hpLossLedger`（HP 扣损账本，防止自动结算与 `coc_pc` 重复扣血）、`spellShown`、`endingReached` / `endedAt`、`firedNightEventIds`、`core`（WorldState 投影快照）。这些字段由 `lib/shared/chat/chat-bridge.js` 与 `projectToFlat` 维护。
 
 ### 3.2 子数据结构
 
@@ -687,8 +687,10 @@ coc-keeper/
 │   ├── client.js               # 唯一共享前端
 │   ├── core/
 │   │   ├── rules/              # 骰点/SAN/战斗/技能成长
-│   │   └── scenario/           # 场景事实/检定点/结算点/深度解析
-│   ├── shared/                 # 共享业务和 API（含 chat/ 聊天桥与 tools/ 工具）
+│   │   └── scenario/           # 场景事实/检定点/结算点/路线索引/深度解析
+│   ├── shared/
+│   │   ├── chat/               # 聊天桥、门禁、结算点、咒文提取、扣损账本、路线守卫
+│   │   └── tools/              # 共享工具（18 个）
 │   ├── testing/runtime-smoke/  # 在线运行冒烟测试（DSH-free）
 │   ├── adapter/                # DSH/Cordis 适配
 │   └── legacy-index.js         # 过渡期旧实现
